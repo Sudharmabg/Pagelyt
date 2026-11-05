@@ -10,6 +10,8 @@ import { Glance, NumberedRows, RibbonFrame } from "./home-parts";
 import { SiteFooter, SiteNav } from "./site-chrome";
 import { Sources } from "./sources";
 import { ScanPreview, type ModScore } from "./ui";
+import { Findings } from "./findings";
+import type { Finding, ScanResult } from "@/lib/scan/types";
 
 const BASE: ModScore[] = [
   { name: "Website health", score: 92 },
@@ -54,32 +56,6 @@ const AUDIENCE = {
   },
 };
 
-function hash(s: string) {
-  let h = 2166136261;
-  for (let i = 0; i < s.length; i++) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return Math.abs(h);
-}
-
-function hostOf(raw: string) {
-  try {
-    const u = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
-    return u.hostname.replace(/^www\./, "");
-  } catch {
-    return "";
-  }
-}
-
-function mockMods(host: string): ModScore[] {
-  const h = hash(host);
-  return BASE.map((m, i) => ({
-    name: m.name,
-    score: Math.max(34, Math.min(97, m.score + (((h >> (i * 4)) % 31) - 15))),
-  }));
-}
-
 export default function Home() {
   const [url, setUrl] = useState("");
   const [host, setHost] = useState("");
@@ -87,6 +63,7 @@ export default function Home() {
   const [progress, setProgress] = useState(0);
   const [mods, setMods] = useState<ModScore[]>(BASE);
   const [error, setError] = useState("");
+  const [findings, setFindings] = useState<Finding[]>([]);
   const timers = useRef<number[]>([]);
 
   const overall = Math.round(mods.reduce((a, m) => a + m.score, 0) / mods.length);
@@ -107,32 +84,48 @@ export default function Home() {
     return () => io.disconnect();
   }, []);
 
-  const runScan = useCallback((raw: string) => {
-    const h = hostOf(raw.trim());
-    if (!h || !h.includes(".")) return false;
+  const runScan = useCallback(async (raw: string) => {
+    const typed = raw.trim();
+    if (!typed.includes(".")) return false;
     timers.current.forEach(clearTimeout);
     timers.current = [];
-    setHost(h);
+    setError("");
+    setFindings([]);
+    setHost(typed.replace(/^https?:\/\//i, "").replace(/^www\./, "").split("/")[0]);
     setPhase("scanning");
     setProgress(0);
-    SCAN_STEPS.forEach((_, i) => timers.current.push(window.setTimeout(() => setProgress(i), i * 650)));
-    timers.current.push(
-      window.setTimeout(() => {
-        setMods(mockMods(h));
-        setProgress(SCAN_STEPS.length);
-        setPhase("done");
-      }, SCAN_STEPS.length * 650)
-    );
+    SCAN_STEPS.forEach((_, i) => timers.current.push(window.setTimeout(() => setProgress(i), i * 1200)));
+    try {
+      const res = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: typed }),
+      });
+      const data = await res.json();
+      timers.current.forEach(clearTimeout);
+      if (!res.ok) throw new Error(data.error || "Scan failed.");
+      const r = data as ScanResult;
+      setHost(r.host);
+      setMods(r.modules.map((m) => ({ name: m.name, score: m.score })));
+      setFindings(r.findings);
+      setProgress(SCAN_STEPS.length);
+      setPhase("done");
+    } catch (e) {
+      timers.current.forEach(clearTimeout);
+      setError(e instanceof Error ? e.message : "Scan failed.");
+      setPhase("sample");
+      setMods(BASE);
+    }
     return true;
   }, []);
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!runScan(url)) {
+    if (!url.trim().includes(".")) {
       setError("Enter a full address such as https://example.com");
       return;
     }
-    setError("");
+    runScan(url);
     document.getElementById("top")?.scrollIntoView({ behavior: "smooth" });
   };
 
@@ -141,7 +134,7 @@ export default function Home() {
     (phase === "scanning"
       ? SCAN_STEPS[Math.min(progress, SCAN_STEPS.length - 1)]
       : phase === "done"
-        ? `Preview of ${host} using sample data. Live analysis is coming soon.`
+        ? `Live analysis of ${host}: ${findings.length} finding${findings.length === 1 ? "" : "s"}, ranked by importance below.`
         : "Free to start. No complicated setup. No technical expertise required.");
 
   const renderForm = (id: string, cls = "url-form") => (
@@ -206,9 +199,11 @@ export default function Home() {
               phase={phase}
               host={host}
               progress={progress}
+              findings={findings}
               stepText={SCAN_STEPS[Math.min(progress, 5)]}
             />
           </div>
+          {phase === "done" && findings.length > 0 && <Findings findings={findings} />}
         </div>
       </section>
 

@@ -88,7 +88,9 @@ export function ScanPreview({
   host,
   progress,
   stepText,
+  findings = [],
 }: {
+  findings?: { title: string; severity: "high" | "medium" | "low" }[];
   mods: ModScore[];
   overall: number;
   phase: "sample" | "scanning" | "done";
@@ -109,7 +111,7 @@ export function ScanPreview({
         </div>
         <div className="addr">{host ? `https://${host}` : "https://yourwebsite.com"}</div>
         <span className={`pill ${scanning ? "info" : "lime"}`}>
-          {scanning ? "Analysing" : phase === "done" ? "Preview complete" : "Sample report"}
+          {scanning ? "Analysing" : phase === "done" ? "Scan complete" : "Sample report"}
         </span>
       </div>
       <div className="scan-body">
@@ -135,15 +137,32 @@ export function ScanPreview({
             <div>
               <div className="mock-sub">Website Intelligence Score</div>
               <h3>{scanning ? "Scanning your website" : verdict}</h3>
-              <div className="step-line">{scanning ? stepText : "Preview using sample data"}</div>
+              <div className="step-line">{scanning ? stepText : phase === "done" ? "Live results for your site" : "Preview using sample data"}</div>
             </div>
           </div>
-          <Row t="Hero image is 2.4 MB" p={["bad", "High"]} />
-          <Row t="4 pages lack meta descriptions" p={["warn", "Medium"]} />
-          <Row t="HSTS header is missing" p={["warn", "Medium"]} />
-          <div className="opp" style={{ marginTop: 12 }}>
-            <b>Next best fix:</b> compress the hero image and gain about 1.8 seconds on mobile.
-          </div>
+          {phase === "done" ? (
+            findings.length ? (
+              <>
+                {findings.slice(0, 3).map((f) => (
+                  <Row key={f.title} t={f.title} p={[f.severity === "high" ? "bad" : "warn", f.severity === "high" ? "High" : f.severity === "medium" ? "Medium" : "Low"]} />
+                ))}
+                <div className="opp" style={{ marginTop: 12 }}>
+                  <b>Next best fix:</b> {findings[0].title}. See all {findings.length} findings below.
+                </div>
+              </>
+            ) : (
+              <div className="opp" style={{ marginTop: 12 }}>No issues found. Nice work.</div>
+            )
+          ) : (
+            <>
+              <Row t="Hero image is 2.4 MB" p={["bad", "High"]} />
+              <Row t="4 pages lack meta descriptions" p={["warn", "Medium"]} />
+              <Row t="HSTS header is missing" p={["warn", "Medium"]} />
+              <div className="opp" style={{ marginTop: 12 }}>
+                <b>Next best fix:</b> compress the hero image and gain about 1.8 seconds on mobile.
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

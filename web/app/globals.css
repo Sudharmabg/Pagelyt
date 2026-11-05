@@ -3838,3 +3838,20 @@ button:hover > .arr,
 .rp-arrow .arr {
   margin: 0;
 }
+
+/* ---- live scan findings ---- */
+.findings { max-width: 860px; margin: 2.5rem auto 0; text-align: left; }
+.findings h2 { font-size: 1.4rem; margin-bottom: 1rem; }
+.findings ul { list-style: none; padding: 0; margin: 0; display: grid; gap: .5rem; }
+.fnd { border: 1px solid rgba(128,128,128,.28); border-radius: 12px; background: rgba(255,255,255,.04); }
+.fnd > button { all: unset; box-sizing: border-box; display: flex; gap: .75rem; align-items: center; width: 100%; padding: .85rem 1rem; cursor: pointer; }
+.fnd > button:focus-visible { outline: 2px solid currentColor; outline-offset: 2px; border-radius: 12px; }
+.fnd .sev { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: .2rem .5rem; border-radius: 999px; flex: none; }
+.fnd.sev-high .sev { background: #b42318; color: #fff; }
+.fnd.sev-medium .sev { background: #b54708; color: #fff; }
+.fnd.sev-low .sev { background: #475467; color: #fff; }
+.fnd .ft { flex: 1; font-weight: 600; }
+.fnd .fm { font-size: .8rem; opacity: .7; flex: none; }
+.fnd .fb { padding: 0 1rem 1rem; display: grid; gap: .4rem; }
+.fnd .fb p { margin: 0; }
+.fnd .ev code { word-break: break-all; font-size: .85em; }
