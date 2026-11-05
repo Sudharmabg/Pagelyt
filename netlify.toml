@@ -1,0 +1,8 @@
+# Netlify settings for Pagelyt. The Next.js site lives in web/.
+[build]
+  base = "web"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "22"
+  NODE_OPTIONS = "--max-old-space-size=4096"
