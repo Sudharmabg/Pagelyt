@@ -1,0 +1,22 @@
+{
+  // Cloudflare deployment for the web app (Next.js through OpenNext). Cloudflare now recommends
+  // Workers with static assets for Next.js; it deploys from Git ("Workers Builds") the same way
+  // Pages does. Secrets (never put these here): set with `wrangler secret put` or the dashboard.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "pagelyt",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-09-01",
+  // global_fetch_strictly_public makes every fetch() refuse private and internal addresses,
+  // which is our SSRF backstop for scanning user-supplied URLs.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
+  "observability": { "enabled": true },
+  "vars": {
+    "NEXT_PUBLIC_SITE_URL": "https://pagelyt.com",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://YOUR-PROJECT.supabase.co",
+    "SUPABASE_URL": "https://YOUR-PROJECT.supabase.co"
+    // Public values only. Secrets to set: SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET, TURNSTILE_SECRET_KEY,
+    // PAGESPEED_API_KEY. Public build-time vars (see .env.example): NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    // NEXT_PUBLIC_TURNSTILE_SITE_KEY.
+  }
+}

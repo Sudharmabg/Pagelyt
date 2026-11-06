@@ -8,6 +8,7 @@ const MENU: [string, string][] = [
   ["How it works", "/how-it-works"],
   ["Pricing", "/pricing"],
   ["Use cases", "/use-cases"],
+  ["Free tools", "/tools"],
   ["Consultation", "/consultation"],
 ];
 
@@ -70,6 +71,9 @@ export function SiteFooter() {
             <h4>Learn</h4>
             <Link href="/how-it-works">How it works</Link>
             <Link href="/use-cases">Use cases</Link>
+            <Link href="/tools">Free tools</Link>
+            <Link href="/fix">Fix guides</Link>
+            <Link href="/account">Sign in</Link>
             <Link href="/pricing">Pricing</Link>
             <Link href="/faq">FAQ</Link>
           </nav>

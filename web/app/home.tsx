@@ -3,15 +3,17 @@
 import { Arrow } from "./arrow";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { Arcs, Funnel } from "./art";
 import { PLANS } from "./content";
 import { Glance, NumberedRows, RibbonFrame } from "./home-parts";
+import { AreaStrip, ToolsAndGuides, TrustRow } from "./home-extras";
 import { SiteFooter, SiteNav } from "./site-chrome";
 import { Sources } from "./sources";
 import { ScanPreview, type ModScore } from "./ui";
-import { Findings } from "./findings";
-import type { Finding, ScanResult } from "@/lib/scan/types";
+import { LeadModal, type LeadInput } from "./lead-modal";
+import { STAGE_LABELS } from "@/lib/scan/labels";
 
 const BASE: ModScore[] = [
   { name: "Website health", score: 92 },
@@ -22,14 +24,7 @@ const BASE: ModScore[] = [
   { name: "Accessibility", score: 87 },
 ];
 
-const SCAN_STEPS = [
-  "Checking availability, SSL and DNS…",
-  "Measuring page speed…",
-  "Reading titles, links and structure…",
-  "Looking for AI crawler access…",
-  "Reviewing security headers…",
-  "Checking contrast, labels and alt text…",
-];
+const SCAN_STEPS = [...STAGE_LABELS];
 
 const AUDIENCE = {
   biz: {
@@ -37,7 +32,7 @@ const AUDIENCE = {
     cta: "Analyse My Website",
     adv: [
       "Free to start, nothing to install",
-      "6 checks, 1 clear score",
+      "8 areas, 1 clear score",
       "Fixes ranked by impact",
       "Plain English, no jargon",
       "Rescan to track progress",
@@ -59,14 +54,12 @@ const AUDIENCE = {
 export default function Home() {
   const [url, setUrl] = useState("");
   const [host, setHost] = useState("");
-  const [phase, setPhase] = useState<"sample" | "scanning" | "done">("sample");
+  const router = useRouter();
+  const [modal, setModal] = useState(false);
   const [progress, setProgress] = useState(0);
-  const [mods, setMods] = useState<ModScore[]>(BASE);
   const [error, setError] = useState("");
-  const [findings, setFindings] = useState<Finding[]>([]);
-  const timers = useRef<number[]>([]);
 
-  const overall = Math.round(mods.reduce((a, m) => a + m.score, 0) / mods.length);
+  const overall = Math.round(BASE.reduce((a, m) => a + m.score, 0) / BASE.length);
 
   useEffect(() => {
     document.documentElement.classList.add("js");
@@ -84,61 +77,48 @@ export default function Home() {
     return () => io.disconnect();
   }, []);
 
-  const runScan = useCallback(async (raw: string) => {
-    const typed = raw.trim();
-    if (!typed.includes(".")) return false;
-    timers.current.forEach(clearTimeout);
-    timers.current = [];
-    setError("");
-    setFindings([]);
-    setHost(typed.replace(/^https?:\/\//i, "").replace(/^www\./, "").split("/")[0]);
-    setPhase("scanning");
-    setProgress(0);
-    SCAN_STEPS.forEach((_, i) => timers.current.push(window.setTimeout(() => setProgress(i), i * 1200)));
-    try {
-      const res = await fetch("/api/scan", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: typed }),
-      });
-      const data = await res.json();
-      timers.current.forEach(clearTimeout);
-      if (!res.ok) throw new Error(data.error || "Scan failed.");
-      const r = data as ScanResult;
-      setHost(r.host);
-      setMods(r.modules.map((m) => ({ name: m.name, score: m.score })));
-      setFindings(r.findings);
-      setProgress(SCAN_STEPS.length);
-      setPhase("done");
-    } catch (e) {
-      timers.current.forEach(clearTimeout);
-      setError(e instanceof Error ? e.message : "Scan failed.");
-      setPhase("sample");
-      setMods(BASE);
-    }
-    return true;
-  }, []);
-
-  const submit = (e: React.FormEvent) => {
+  const openModal = (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.trim().includes(".")) {
       setError("Enter a full address such as https://example.com");
       return;
     }
-    runScan(url);
-    document.getElementById("top")?.scrollIntoView({ behavior: "smooth" });
+    setError("");
+    setHost(url.trim().replace(/^https?:\/\//i, "").replace(/^www\./, "").split("/")[0]);
+    setModal(true);
   };
 
-  const note =
-    error ||
-    (phase === "scanning"
-      ? SCAN_STEPS[Math.min(progress, SCAN_STEPS.length - 1)]
-      : phase === "done"
-        ? `Live analysis of ${host}: ${findings.length} finding${findings.length === 1 ? "" : "s"}, ranked by importance below.`
-        : "Free to start. No complicated setup. No technical expertise required.");
+  /* Runs the scan with the visitor's details, then opens their dashboard. */
+  const startScan = async (lead: LeadInput, turnstile?: string): Promise<string | null> => {
+    setProgress(0);
+    try {
+      const res = await fetch("/api/scan", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ url: url.trim(), lead, turnstile }),
+      });
+      const start = await res.json();
+      if (!res.ok) return start.error || "Scan failed.";
+      // Each request runs one stage; the loop is what makes the progress steps real.
+      let done = !!start.done;
+      while (!done) {
+        const r = await fetch(`/api/scan/${start.id}/step`, { method: "POST" });
+        const p = await r.json();
+        if (!r.ok) return p.error || "Scan failed.";
+        setProgress(p.stage);
+        done = p.done;
+      }
+      router.push(`/dashboard/${start.id}`);
+      return null;
+    } catch {
+      return "Could not reach the server. Please try again.";
+    }
+  };
+
+  const note = error || "Free to start. No complicated setup. No technical expertise required.";
 
   const renderForm = (id: string, cls = "url-form") => (
-    <form className={cls} onSubmit={submit} noValidate>
+    <form className={cls} onSubmit={openModal} noValidate>
       <label className="sr-only" htmlFor={id}>
         Website URL
       </label>
@@ -193,19 +173,19 @@ export default function Home() {
 
 
           <div className="hero-prev2" data-r style={{ ["--d" as string]: 4 }}>
-            <ScanPreview
-              mods={mods}
-              overall={overall}
-              phase={phase}
-              host={host}
-              progress={progress}
-              findings={findings}
-              stepText={SCAN_STEPS[Math.min(progress, 5)]}
-            />
+            <ScanPreview mods={BASE} overall={overall} phase="sample" host="" progress={0} stepText="" />
           </div>
-          {phase === "done" && findings.length > 0 && <Findings findings={findings} />}
         </div>
       </section>
+
+      <LeadModal
+        open={modal}
+        host={host}
+        steps={SCAN_STEPS}
+        step={Math.min(progress, SCAN_STEPS.length - 1)}
+        onClose={() => setModal(false)}
+        onSubmit={startScan}
+      />
 
       {/* 2. THREE NUMBERED STEPS */}
       <section className="sec" id="product" aria-labelledby="num-h">
@@ -263,6 +243,9 @@ export default function Home() {
         </div>
       </section>
 
+      <AreaStrip />
+      <ToolsAndGuides />
+
       {/* 5. PRICING */}
       <section className="sec" id="pricing" aria-labelledby="price-h">
         <div className="container">
@@ -300,6 +283,7 @@ export default function Home() {
         </div>
       </section>
 
+      <TrustRow />
       <SiteFooter />
     </main>
   );

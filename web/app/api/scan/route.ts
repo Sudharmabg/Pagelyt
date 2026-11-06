@@ -1,37 +1,46 @@
-import { ScanError, scanUrl } from "@/lib/scan";
+import { clientIp, userFromRequest, verifyTurnstile } from "@/lib/auth";
+import { ScanError, TOTAL_STAGES, checkUrl } from "@/lib/scan";
+import { createScan, rateLimit, recentScanId, saveLead, validateLead } from "@/lib/scan/store";
 
-/* Simple in-memory limiter + cache. Replaced by Postgres/Redis in the foundations phase. */
-const hits = new Map<string, number[]>();
-const cache = new Map<string, { at: number; data: unknown }>();
 const PER_HOUR = 10;
-const CACHE_MS = 10 * 60_000;
+const CACHE_SECONDS = 600;
 
+/* Starts a scan: validates, rate-limits, records the lead and creates the scan row.
+   The work itself happens in POST /api/scan/:id/step, one stage per request. */
 export async function POST(req: Request) {
-  const ip = req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "local";
-  const now = Date.now();
-  const recent = (hits.get(ip) || []).filter((t) => now - t < 3_600_000);
-  if (recent.length >= PER_HOUR) {
+  const ip = clientIp(req);
+  if (!(await rateLimit(`scan:${ip}`, PER_HOUR, 3600))) {
     return Response.json({ error: "Free scan limit reached. Please try again in an hour." }, { status: 429 });
   }
 
-  let url = "";
+  let body: { url?: unknown; lead?: Record<string, unknown>; turnstile?: string };
   try {
-    url = String((await req.json()).url || "").slice(0, 2048);
+    body = await req.json();
   } catch {
     return Response.json({ error: "Invalid request." }, { status: 400 });
   }
+  const user = await userFromRequest(req);
+  // Signed-in users are already known to us; everyone else leaves contact details first.
+  const v = user && !body.lead ? null : validateLead(body.lead);
+  if (v && "error" in v) return Response.json({ error: v.error }, { status: 400 });
+  if (!(await verifyTurnstile(body.turnstile, ip))) {
+    return Response.json({ error: "Please complete the human check and try again." }, { status: 400 });
+  }
 
-  const key = url.trim().toLowerCase();
-  const cached = cache.get(key);
-  if (cached && now - cached.at < CACHE_MS) return Response.json(cached.data);
-
-  hits.set(ip, [...recent, now]);
+  let url: URL;
   try {
-    const data = await scanUrl(url);
-    cache.set(key, { at: now, data });
-    return Response.json(data);
+    url = checkUrl(String(body.url || "").slice(0, 2048));
   } catch (e) {
-    if (e instanceof ScanError) return Response.json({ error: e.message }, { status: 422 });
-    return Response.json({ error: "The scan failed unexpectedly. Please try again." }, { status: 500 });
+    return Response.json({ error: e instanceof ScanError ? e.message : "Invalid address." }, { status: 422 });
+  }
+  const host = url.hostname.replace(/^www\./, "");
+
+  try {
+    const cached = await recentScanId(url.href, CACHE_SECONDS);
+    const id = cached ?? (await createScan({ url: url.href, host, userId: user?.id }));
+    if (v) await saveLead(id, host, v.lead).catch(() => {}); // a lead-storage failure must not block the report
+    return Response.json({ id, host, total: TOTAL_STAGES, done: !!cached });
+  } catch {
+    return Response.json({ error: "Reports are temporarily unavailable. Please try again shortly." }, { status: 503 });
   }
 }

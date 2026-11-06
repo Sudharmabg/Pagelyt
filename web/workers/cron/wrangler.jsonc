@@ -1,0 +1,15 @@
+{
+  // Cron Worker (scheduled rescans + uptime). Deploy with: npm run cron:deploy
+  // Secrets: wrangler secret put CRON_SECRET / SUPABASE_SERVICE_ROLE_KEY / RESEND_API_KEY --config workers/cron/wrangler.jsonc
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "pagelyt-cron",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-01",
+  "triggers": { "crons": ["* * * * *"] },
+  "observability": { "enabled": true },
+  "vars": {
+    "APP_URL": "https://pagelyt.com",
+    "SUPABASE_URL": "https://YOUR-PROJECT.supabase.co",
+    "ALERT_FROM": "Pagelyt <alerts@pagelyt.com>"
+  }
+}

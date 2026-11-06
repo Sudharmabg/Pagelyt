@@ -1,11 +1,11 @@
-import dns from "node:dns";
-import http from "node:http";
-import https from "node:https";
-import net from "node:net";
-import zlib from "node:zlib";
+/* Edge-safe fetcher: uses only the Fetch API, so it runs on Cloudflare Workers and Node alike.
 
-/* SSRF-safe fetcher. Every connection's resolved IP is validated at connect time
-   (so DNS rebinding cannot swap in a private address), redirects are followed manually. */
+   SSRF: Workers cannot reach private networks, so the remaining risk is a user pointing us at
+   an internal-looking name or IP literal. Those are refused up front and on every redirect.
+   (If this ever runs on a plain Node server, add resolved-IP checks back; see DEPLOY.md.)
+
+   Not available at the edge: reading the TLS certificate. SSL expiry and TLS version checks are
+   therefore skipped; `cert` is left undefined and the checks that use it simply do not fire. */
 
 export type FetchResult = {
   url: string;
@@ -22,119 +22,109 @@ const MAX_BYTES = 2_000_000;
 const MAX_REDIRECTS = 5;
 const TIMEOUT_MS = 10_000;
 
-export function isPrivateIp(ip: string): boolean {
-  if (net.isIPv4(ip)) {
-    const [a, b] = ip.split(".").map(Number);
-    return (
-      a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) ||
-      (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224
-    );
-  }
-  if (net.isIPv6(ip)) {
-    const l = ip.toLowerCase();
-    if (l === "::1" || l === "::") return true;
-    if (l.startsWith("::ffff:")) return isPrivateIp(l.slice(7));
-    return /^(fc|fd|fe[89ab])/.test(l);
-  }
-  return true;
+const V4 = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/;
+
+export function isIpLiteral(host: string): boolean {
+  return V4.test(host) || host.includes(":");
 }
 
-const safeLookup: typeof dns.lookup = ((host: string, opts: unknown, cb: unknown) => {
-  const callback = (typeof opts === "function" ? opts : cb) as (...a: unknown[]) => void;
-  dns.lookup(host, { all: true }, (err, addrs) => {
-    if (err) return callback(err);
-    const ok = addrs.filter((a) => !isPrivateIp(a.address));
-    if (!ok.length) return callback(new Error("Blocked: address is not publicly routable"));
-    const wantAll = typeof opts === "object" && opts !== null && (opts as { all?: boolean }).all;
-    if (wantAll) return callback(null, ok);
-    callback(null, ok[0].address, ok[0].family);
-  });
-}) as typeof dns.lookup;
+export function isPrivateIp(ip: string): boolean {
+  const m = ip.match(V4);
+  if (m) {
+    const [a, b] = [Number(m[1]), Number(m[2])];
+    return a === 0 || a === 10 || a === 127 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168) || (a === 100 && b >= 64 && b <= 127) || a >= 224;
+  }
+  const l = ip.replace(/^\[|\]$/g, "").toLowerCase();
+  if (l === "::1" || l === "::") return true;
+  if (l.startsWith("::ffff:")) return isPrivateIp(l.slice(7));
+  return /^(fc|fd|fe[89ab])/.test(l) || l.includes(":");
+}
+
+function blockedHost(host: string): boolean {
+  const h = host.toLowerCase();
+  if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal") || h.endsWith(".lan") || h.endsWith(".home.arpa")) return true;
+  return isIpLiteral(h) && isPrivateIp(h);
+}
 
 export function normaliseUrl(raw: string): URL | null {
   try {
     const u = new URL(/^https?:\/\//i.test(raw.trim()) ? raw.trim() : `https://${raw.trim()}`);
     if (!/^https?:$/.test(u.protocol)) return null;
-    if (!u.hostname.includes(".") && !net.isIP(u.hostname)) return null;
+    if (!u.hostname.includes(".") && !isIpLiteral(u.hostname)) return null;
     if (u.username || u.password) return null;
-    if (net.isIP(u.hostname) && isPrivateIp(u.hostname)) return null;
+    if (blockedHost(u.hostname)) return null;
     return u;
   } catch {
     return null;
   }
 }
 
-function once(url: URL, headers: Record<string, string>): Promise<Omit<FetchResult, "chain">> {
-  return new Promise((resolve, reject) => {
-    const started = Date.now();
-    const lib = url.protocol === "https:" ? https : http;
-    const req = lib.request(
-      url,
-      { method: "GET", headers, lookup: safeLookup, timeout: TIMEOUT_MS },
-      (res) => {
-        const sock = res.socket as import("node:tls").TLSSocket;
-        let cert: FetchResult["cert"];
-        if (url.protocol === "https:" && typeof sock.getPeerCertificate === "function") {
-          const c = sock.getPeerCertificate();
-          if (c && c.valid_to) {
-            cert = {
-              validTo: new Date(c.valid_to),
-              issuer: String((c.issuer && (c.issuer.O || c.issuer.CN)) || "unknown"),
-              protocol: sock.getProtocol?.() ?? null,
-            };
-          }
-        }
-        const enc = String(res.headers["content-encoding"] || "").toLowerCase();
-        const stream =
-          enc === "gzip" ? res.pipe(zlib.createGunzip())
-          : enc === "br" ? res.pipe(zlib.createBrotliDecompress())
-          : enc === "deflate" ? res.pipe(zlib.createInflate())
-          : res;
-        const chunks: Buffer[] = [];
-        let bytes = 0;
-        stream.on("data", (c: Buffer) => {
-          bytes += c.length;
-          if (bytes <= MAX_BYTES) chunks.push(c);
-          else req.destroy();
-        });
-        const done = () =>
-          resolve({
-            url: url.toString(),
-            status: res.statusCode || 0,
-            headers: res.headers,
-            body: Buffer.concat(chunks).toString("utf8"),
-            bytes,
-            ms: Date.now() - started,
-            cert,
-          });
-        stream.on("end", done);
-        stream.on("close", done);
-        stream.on("error", reject);
-      }
-    );
-    req.on("timeout", () => req.destroy(new Error("Request timed out")));
-    req.on("error", reject);
-    req.end();
-  });
+async function readCapped(res: Response): Promise<{ text: string; bytes: number }> {
+  if (!res.body) return { text: "", bytes: 0 };
+  const reader = res.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let bytes = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    bytes += value.byteLength;
+    if (bytes <= MAX_BYTES) chunks.push(value);
+    else {
+      await reader.cancel();
+      break;
+    }
+  }
+  const all = new Uint8Array(chunks.reduce((n, c) => n + c.byteLength, 0));
+  let o = 0;
+  for (const c of chunks) {
+    all.set(c, o);
+    o += c.byteLength;
+  }
+  return { text: new TextDecoder().decode(all), bytes };
 }
 
-export async function safeFetch(start: URL, opts: { ua?: string } = {}): Promise<FetchResult> {
-  const headers = {
-    "user-agent": opts.ua || "PagelytBot/0.1 (+https://pagelyt.com/bot)",
-    accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5",
-    "accept-encoding": "gzip, br",
-  };
+function headerRecord(h: Headers): FetchResult["headers"] {
+  const out: FetchResult["headers"] = {};
+  h.forEach((v, k) => {
+    out[k] = v;
+  });
+  return out;
+}
+
+async function once(url: URL, ua: string): Promise<Omit<FetchResult, "chain">> {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+  const t0 = Date.now();
+  try {
+    const res = await fetch(url.href, {
+      method: "GET",
+      redirect: "manual",
+      signal: ctl.signal,
+      headers: { "user-agent": ua, accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5" },
+    });
+    const { text, bytes } = await readCapped(res);
+    return { url: url.href, status: res.status, headers: headerRecord(res.headers), body: text, bytes, ms: Date.now() - t0 };
+  } catch (e) {
+    if (ctl.signal.aborted) throw new Error("Request timed out");
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** `follow: false` returns the first response, redirects included, and spends only one subrequest. */
+export async function safeFetch(start: URL, opts: { ua?: string; follow?: boolean } = {}): Promise<FetchResult> {
+  const ua = opts.ua || "PagelytBot/0.1 (+https://pagelyt.com/bot)";
+  if (blockedHost(start.hostname)) throw new Error("Blocked: address is not publicly routable");
   const chain: FetchResult["chain"] = [];
   let url = start;
   for (let i = 0; i <= MAX_REDIRECTS; i++) {
-    const r = await once(url, headers);
+    const r = await once(url, ua);
     chain.push({ url: r.url, status: r.status });
     const loc = r.headers.location;
-    if (r.status >= 300 && r.status < 400 && typeof loc === "string") {
+    if (opts.follow !== false && r.status >= 300 && r.status < 400 && typeof loc === "string") {
       const next = new URL(loc, url);
-      if (!/^https?:$/.test(next.protocol) || (net.isIP(next.hostname) && isPrivateIp(next.hostname))) {
-        throw new Error("Blocked redirect target");
-      }
+      if (!/^https?:$/.test(next.protocol) || blockedHost(next.hostname)) throw new Error("Blocked redirect target");
       url = next;
       continue;
     }

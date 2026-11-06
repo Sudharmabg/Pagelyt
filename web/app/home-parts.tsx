@@ -17,8 +17,8 @@ const ROWS = [
   {
     n: "02",
     c: "#1a6b4c",
-    h: "Six checks run at once.",
-    p: "Health, speed and Core Web Vitals, technical SEO, GEO, security and accessibility combine into one Website Intelligence Score.",
+    h: "Eight checks run at once.",
+    p: "Health, speed and Core Web Vitals, technical SEO, GEO, security, accessibility, domain and email, and privacy combine into one Website Intelligence Score.",
     link: ["/features", "Explore the checks"],
     vis: <AnalyseMock />,
   },
@@ -90,7 +90,7 @@ export function Glance() {
   return (
     <div className="glance">
       <div className="gt g1">
-        <span className="gnum">6 checks.</span>
+        <span className="gnum">8 checks.</span>
         <span className="gnum">1 score.</span>
         <p>Health, speed, SEO, GEO, security and accessibility in every analysis.</p>
       </div>

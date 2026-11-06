@@ -1,5 +1,6 @@
 import * as cheerio from "cheerio";
 import type { FetchResult } from "./fetcher";
+import { extraChecks } from "./checks-extra";
 import type { Finding, ModuleKey, Severity } from "./types";
 
 export type Ctx = {
@@ -151,6 +152,8 @@ export function runChecks(ctx: Ctx): Finding[] {
   const levels = $("h1,h2,h3,h4,h5,h6").map((_, el) => Number(el.tagName[1])).get();
   if (levels.some((l, i) => i > 0 && l - levels[i - 1] > 1)) add("accessibility", "low", "heading-skip", "Heading levels are skipped", "Skipped levels confuse screen reader navigation.", "Use headings in order (H2 then H3, never H2 then H4).");
   if (!title) add("accessibility", "medium", "a11y-title", "Page has no title", "The title is the first thing a screen reader announces.", "Add a descriptive <title>.");
+
+  extraChecks({ $, page, finalUrl, bodyText, add, hdr });
 
   return out;
 }
