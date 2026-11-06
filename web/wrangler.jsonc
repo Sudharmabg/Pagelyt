@@ -12,9 +12,9 @@
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   "observability": { "enabled": true },
   "vars": {
-    "NEXT_PUBLIC_SITE_URL": "https://pagelyt.com",
-    "NEXT_PUBLIC_SUPABASE_URL": "https://YOUR-PROJECT.supabase.co",
-    "SUPABASE_URL": "https://YOUR-PROJECT.supabase.co"
+    "NEXT_PUBLIC_SITE_URL": "https://pagelyt.sudharmabg10.workers.dev",
+    "NEXT_PUBLIC_SUPABASE_URL": "https://rxdhetdpgadxdvszguee.supabase.co",
+    "SUPABASE_URL": "https://rxdhetdpgadxdvszguee.supabase.co"
     // Public values only. Secrets to set: SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET, TURNSTILE_SECRET_KEY,
     // PAGESPEED_API_KEY. Public build-time vars (see .env.example): NEXT_PUBLIC_SUPABASE_ANON_KEY,
     // NEXT_PUBLIC_TURNSTILE_SITE_KEY.
