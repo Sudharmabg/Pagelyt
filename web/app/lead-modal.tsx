@@ -11,6 +11,7 @@ export function LeadModal({
   host,
   steps,
   step,
+  running = false,
   onClose,
   onSubmit,
 }: {
@@ -18,11 +19,14 @@ export function LeadModal({
   host: string;
   steps: string[];
   step: number;
+  /** True when the parent is already scanning (signed-in visitors skip the form). */
+  running?: boolean;
   onClose: () => void;
   onSubmit: (lead: LeadInput, turnstile?: string) => Promise<string | null>;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
-  const [busy, setBusy] = useState(false);
+  const [busyLocal, setBusy] = useState(false);
+  const busy = busyLocal || running;
   const [err, setErr] = useState("");
   const tsRef = useRef<HTMLDivElement>(null);
   const token = useRef<string | undefined>(undefined);

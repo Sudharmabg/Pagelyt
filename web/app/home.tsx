@@ -14,6 +14,7 @@ import { Sources } from "./sources";
 import { ScanPreview, type ModScore } from "./ui";
 import { LeadModal, type LeadInput } from "./lead-modal";
 import { STAGE_LABELS } from "@/lib/scan/labels";
+import { supabaseBrowser } from "@/lib/supabase-browser";
 
 const BASE: ModScore[] = [
   { name: "Website health", score: 92 },
@@ -57,6 +58,7 @@ export default function Home() {
   const router = useRouter();
   const [modal, setModal] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
 
   const overall = Math.round(BASE.reduce((a, m) => a + m.score, 0) / BASE.length);
@@ -77,7 +79,7 @@ export default function Home() {
     return () => io.disconnect();
   }, []);
 
-  const openModal = (e: React.FormEvent) => {
+  const openModal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!url.trim().includes(".")) {
       setError("Enter a full address such as https://example.com");
@@ -85,17 +87,30 @@ export default function Home() {
     }
     setError("");
     setHost(url.trim().replace(/^https?:\/\//i, "").replace(/^www\./, "").split("/")[0]);
+    // Signed-in visitors are already known to us: skip the form and scan straight away.
+    const token = (await supabaseBrowser()?.auth.getSession())?.data.session?.access_token;
+    if (token) {
+      setRunning(true);
+      setModal(true);
+      const problem = await startScan(null, undefined, token);
+      if (problem) {
+        setRunning(false);
+        setModal(false);
+        setError(problem);
+      }
+      return;
+    }
     setModal(true);
   };
 
   /* Runs the scan with the visitor's details, then opens their dashboard. */
-  const startScan = async (lead: LeadInput, turnstile?: string): Promise<string | null> => {
+  const startScan = async (lead: LeadInput | null, turnstile?: string, token?: string): Promise<string | null> => {
     setProgress(0);
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ url: url.trim(), lead, turnstile }),
+        headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ url: url.trim(), ...(lead ? { lead } : {}), turnstile }),
       });
       const start = await res.json();
       if (!res.ok) return start.error || "Scan failed.";
@@ -108,6 +123,8 @@ export default function Home() {
         setProgress(p.stage);
         done = p.done;
       }
+      // A signed-in visitor's scan is theirs: attach it to their account before opening it.
+      if (token) await fetch("/api/account/claim", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ scanId: start.id }) }).catch(() => {});
       router.push(`/dashboard/${start.id}`);
       return null;
     } catch {
@@ -183,6 +200,7 @@ export default function Home() {
         host={host}
         steps={SCAN_STEPS}
         step={Math.min(progress, SCAN_STEPS.length - 1)}
+        running={running}
         onClose={() => setModal(false)}
         onSubmit={startScan}
       />

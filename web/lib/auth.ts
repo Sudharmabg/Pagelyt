@@ -6,7 +6,8 @@ export type AuthUser = { id: string; email: string | null };
 export async function userFromRequest(req: Request): Promise<AuthUser | null> {
   const token = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
   const base = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  // The anon key is a build-time variable; fall back to the service key so a missing one cannot lock everyone out.
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!token || !base || !anon) return null;
   try {
     const r = await fetch(`${base}/auth/v1/user`, { headers: { apikey: anon, authorization: `Bearer ${token}` } });

@@ -1,10 +1,13 @@
 "use client";
 
+import Link from "next/link";
 import { useId, useState } from "react";
+import type { ToolContext } from "@/lib/scan/tools-context";
 
 /* Five free, fully client-side generators. Nothing typed here leaves the browser. */
 
 type ToolId = "llms" | "robots" | "schema" | "serp" | "headers";
+type Ctx = ToolContext | null;
 
 const TOOLS: { id: ToolId; name: string; blurb: string }[] = [
   { id: "llms", name: "llms.txt", blurb: "A guide that helps AI assistants understand your site." },
@@ -64,10 +67,10 @@ function Output({ text, filename }: { text: string; filename: string }) {
 }
 
 /* ---------------- llms.txt ---------------- */
-function Llms() {
-  const [name, setName] = useState("Acme Plumbing");
-  const [about, setAbout] = useState("Family-run plumbers serving Pune since 2009. Emergency call-outs, boiler repairs and installations.");
-  const [pages, setPages] = useState("Services | https://example.com/services | What we do and prices\nAbout us | https://example.com/about | Who we are\nContact | https://example.com/contact | Phone, address and opening hours");
+function Llms({ ctx }: { ctx: Ctx }) {
+  const [name, setName] = useState(ctx?.name ?? "Acme Plumbing");
+  const [about, setAbout] = useState(ctx?.description || (ctx ? "" : "Family-run plumbers serving Pune since 2009. Emergency call-outs, boiler repairs and installations."));
+  const [pages, setPages] = useState(ctx && ctx.pages.length ? ctx.pages.map((p) => `${p.title} | ${p.url} | `).join("\n") : ctx ? `Home | ${ctx.url || ctx.origin} | ` : "Services | https://example.com/services | What we do and prices\nAbout us | https://example.com/about | Who we are\nContact | https://example.com/contact | Phone, address and opening hours");
   const lines = pages.split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((p) => p[0] && p[1]);
   const out = [`# ${name || "Your site"}`, "", `> ${about || "A short description of your site."}`, "", "## Key pages", "", ...lines.map((p) => `- [${p[0]}](${p[1]})${p[2] ? `: ${p[2]}` : ""}`), ""].join("\n");
   return (
@@ -93,9 +96,9 @@ const BOTS = [
   ["CCBot", "Common Crawl dataset"],
 ] as const;
 
-function Robots() {
+function Robots({ ctx }: { ctx: Ctx }) {
   const [blocked, setBlocked] = useState<Set<string>>(new Set());
-  const [sitemap, setSitemap] = useState("https://example.com/sitemap.xml");
+  const [sitemap, setSitemap] = useState(ctx?.sitemap ?? "https://example.com/sitemap.xml");
   const [disallow, setDisallow] = useState("/admin\n/cart");
   const toggle = (b: string) =>
     setBlocked((s) => {
@@ -124,7 +127,7 @@ function Robots() {
             </label>
           ))}
         </fieldset>
-        <p className="tnote">Leave all unticked to stay visible to AI assistants. Blocking them means they can’t cite you.</p>
+        <p className="tnote">Leave all unticked to stay visible to AI assistants. Blocking them means they can’t cite you.{ctx && ctx.blocked.length > 0 && <> Your current robots.txt blocks: <b>{ctx.blocked.join(", ")}</b>. This file leaves them unblocked.</>}</p>
         <Field label="Paths to keep private" hint="One per line">{(id) => <textarea id={id} rows={3} value={disallow} onChange={(e) => setDisallow(e.target.value)} />}</Field>
         <Field label="Sitemap URL">{(id) => <input id={id} value={sitemap} onChange={(e) => setSitemap(e.target.value)} />}</Field>
       </div>
@@ -134,13 +137,13 @@ function Robots() {
 }
 
 /* ---------------- JSON-LD ---------------- */
-function Schema() {
+function Schema({ ctx }: { ctx: Ctx }) {
   const [type, setType] = useState<"Organization" | "LocalBusiness" | "FAQPage">("Organization");
-  const [name, setName] = useState("Acme Plumbing");
-  const [url, setUrl] = useState("https://example.com");
-  const [logo, setLogo] = useState("https://example.com/logo.png");
-  const [phone, setPhone] = useState("+91 98765 43210");
-  const [address, setAddress] = useState("12 MG Road, Pune, Maharashtra 411001");
+  const [name, setName] = useState(ctx?.name ?? "Acme Plumbing");
+  const [url, setUrl] = useState(ctx?.url || ctx?.origin || "https://example.com");
+  const [logo, setLogo] = useState(ctx ? `${ctx.origin}/logo.png` : "https://example.com/logo.png");
+  const [phone, setPhone] = useState(ctx ? "" : "+91 98765 43210");
+  const [address, setAddress] = useState(ctx ? "" : "12 MG Road, Pune, Maharashtra 411001");
   const [faq, setFaq] = useState("Do you offer emergency call-outs? | Yes, 24 hours a day across Pune.\nHow much does a boiler service cost? | From ₹1,500, with a fixed quote before we start.");
   let data: Record<string, unknown>;
   if (type === "FAQPage") {
@@ -184,10 +187,10 @@ function Schema() {
 }
 
 /* ---------------- SERP preview ---------------- */
-function Serp() {
-  const [title, setTitle] = useState("Emergency Plumber in Pune | Acme Plumbing");
-  const [desc, setDesc] = useState("24-hour plumbers in Pune. Boiler repairs, leaks and installations with fixed quotes and a 12-month guarantee. Call now for a fast response.");
-  const [url, setUrl] = useState("https://example.com/emergency-plumber");
+function Serp({ ctx }: { ctx: Ctx }) {
+  const [title, setTitle] = useState(ctx ? ctx.title : "Emergency Plumber in Pune | Acme Plumbing");
+  const [desc, setDesc] = useState(ctx ? ctx.description : "24-hour plumbers in Pune. Boiler repairs, leaks and installations with fixed quotes and a 12-month guarantee. Call now for a fast response.");
+  const [url, setUrl] = useState(ctx ? ctx.url || ctx.origin : "https://example.com/emergency-plumber");
   const [mobile, setMobile] = useState(false);
   const tMax = 60, dMax = 160;
   const clip = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1).trimEnd()}…` : s);
@@ -233,8 +236,8 @@ const HDRS: [string, string, string][] = [
 ];
 type Host = "netlify" | "nginx" | "apache" | "vercel";
 
-function Headers() {
-  const [host, setHost] = useState<Host>("netlify");
+function Headers({ ctx }: { ctx: Ctx }) {
+  const [host, setHost] = useState<Host>(ctx?.hostKind ?? "netlify");
   const [on, setOn] = useState<Set<number>>(new Set([0, 1, 2, 3, 4]));
   const sel = HDRS.filter((_, i) => on.has(i));
   const toggle = (i: number) =>
@@ -278,11 +281,19 @@ function Headers() {
   );
 }
 
-export function Tools() {
-  const [tool, setTool] = useState<ToolId>("llms");
+export function Tools({ ctx = null }: { ctx?: Ctx }) {
+  // Open on the tool that fixes the most findings from the scan.
+  const first = ctx ? (TOOLS.map((t) => t.id).sort((a, b) => ctx.fixes[b].length - ctx.fixes[a].length)[0] ?? "llms") : "llms";
+  const [tool, setTool] = useState<ToolId>(ctx && ctx.fixes[first].length ? first : "llms");
   const cur = TOOLS.find((t) => t.id === tool)!;
   return (
     <div className="tools">
+      {ctx && (
+        <p className="tctx" role="status">
+          Pre-filled from your scan of <b>{ctx.host}</b>. Check everything before you publish it.{" "}
+          <Link href={`/dashboard/${ctx.scanId}`}>Back to your report</Link>
+        </p>
+      )}
       <div className="ttabs" role="tablist" aria-label="Free tools">
         {TOOLS.map((t) => (
           <button key={t.id} id={`tab-${t.id}`} role="tab" type="button" aria-selected={tool === t.id} aria-controls="tool-panel" tabIndex={tool === t.id ? 0 : -1} onClick={() => setTool(t.id)}
@@ -295,16 +306,18 @@ export function Tools() {
               document.getElementById(`tab-${n}`)?.focus();
             }}>
             {t.name}
+            {ctx && ctx.fixes[t.id].length > 0 && <span className="tbadge" title={ctx.fixes[t.id].join("; ")}>{ctx.fixes[t.id].length}</span>}
           </button>
         ))}
       </div>
       <div id="tool-panel" role="tabpanel" aria-labelledby={`tab-${tool}`} className="tpanel">
         <p className="tblurb">{cur.blurb}</p>
-        {tool === "llms" && <Llms />}
-        {tool === "robots" && <Robots />}
-        {tool === "schema" && <Schema />}
-        {tool === "serp" && <Serp />}
-        {tool === "headers" && <Headers />}
+        {ctx && ctx.fixes[tool].length > 0 && <p className="tfixes">Fixes from your scan: {ctx.fixes[tool].join(" · ")}</p>}
+        {tool === "llms" && <Llms ctx={ctx} />}
+        {tool === "robots" && <Robots ctx={ctx} />}
+        {tool === "schema" && <Schema ctx={ctx} />}
+        {tool === "serp" && <Serp ctx={ctx} />}
+        {tool === "headers" && <Headers ctx={ctx} />}
       </div>
     </div>
   );

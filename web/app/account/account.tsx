@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { STAGE_LABELS } from "@/lib/scan/labels";
@@ -12,6 +13,7 @@ type Check = { site_id: string; ok: boolean };
 
 export function Account() {
   const sb = supabaseBrowser();
+  const router = useRouter();
   const [email, setEmail] = useState<string | null | undefined>(undefined); // undefined = still checking
   const [sites, setSites] = useState<SiteRow[]>([]);
   const [scans, setScans] = useState<ScanRow[]>([]);
@@ -78,8 +80,8 @@ export function Account() {
         done = p.done;
       }
       await fetch("/api/account/claim", { method: "POST", headers: auth, body: JSON.stringify({ scanId: start.id }) });
-      setMsg("Scan complete.");
-      void load();
+      setMsg("Scan complete. Opening your report…");
+      router.push(`/dashboard/${start.id}`);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Scan failed.");
     } finally {

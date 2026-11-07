@@ -23,7 +23,7 @@ export async function POST(req: Request) {
   // Signed-in users are already known to us; everyone else leaves contact details first.
   const v = user && !body.lead ? null : validateLead(body.lead);
   if (v && "error" in v) return Response.json({ error: v.error }, { status: 400 });
-  if (!(await verifyTurnstile(body.turnstile, ip))) {
+  if (!user && !(await verifyTurnstile(body.turnstile, ip))) {
     return Response.json({ error: "Please complete the human check and try again." }, { status: 400 });
   }
 

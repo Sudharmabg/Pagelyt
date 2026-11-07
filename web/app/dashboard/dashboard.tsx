@@ -213,6 +213,7 @@ export function Dashboard({ scan, history }: { scan: StoredScan; history?: Snap[
           <ShareReport scanId={scan.id} />
           <ExportMenu scan={scan} findings={scan.findings} fixed={fixed} />
           <ThemeToggle dark={dark} onToggle={toggleTheme} />
+          <Link className="dash-btn" href={`/tools?scan=${scan.id}`}>Fix with free tools</Link>
           <button type="button" className="dash-btn" onClick={() => window.print()}>
             Print / PDF
           </button>
