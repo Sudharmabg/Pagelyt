@@ -31,6 +31,9 @@ export function SiteNav() {
           <Link className="plain" href="/faq">
             FAQ
           </Link>
+          <Link className="plain" href="/account">
+            Sign in
+          </Link>
           <Link className="btn sm" href="/">
             Analyse a website
           </Link>
