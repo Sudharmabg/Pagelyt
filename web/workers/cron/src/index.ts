@@ -23,14 +23,29 @@ const MAX_PINGS = 15;
 
 async function rescans(env: Env) {
   const auth = { authorization: `Bearer ${env.CRON_SECRET}`, "content-type": "application/json" };
-  const due = (await (await fetch(`${env.APP_URL}/api/internal/due`, { headers: auth })).json()) as { sites?: { id: string }[] };
+  const dueRes = await fetch(`${env.APP_URL}/api/internal/due`, { headers: auth });
+  if (!dueRes.ok) {
+    // 401 here means CRON_SECRET differs between this Worker and the web app.
+    console.error(`rescans: /api/internal/due returned ${dueRes.status}`);
+    return;
+  }
+  const due = (await dueRes.json()) as { sites?: { id: string; host?: string }[] };
+  if (due.sites?.length) console.log(`rescans: ${due.sites.length} site(s) due`);
   for (const s of (due.sites ?? []).slice(0, MAX_RESCANS)) {
-    const start = (await (await fetch(`${env.APP_URL}/api/internal/start`, { method: "POST", headers: auth, body: JSON.stringify({ siteId: s.id }) })).json()) as { id?: string; total?: number };
-    if (!start.id) continue;
+    const startRes = await fetch(`${env.APP_URL}/api/internal/start`, { method: "POST", headers: auth, body: JSON.stringify({ siteId: s.id }) });
+    const start = (await startRes.json()) as { id?: string; total?: number; error?: string };
+    if (!start.id) {
+      console.error(`rescans: start failed for ${s.host ?? s.id}: ${startRes.status} ${start.error ?? ""}`);
+      continue;
+    }
     for (let i = 0; i < (start.total ?? 5) + 1; i++) {
       const r = await fetch(`${env.APP_URL}/api/scan/${start.id}/step`, { method: "POST" });
-      const p = (await r.json()) as { done?: boolean };
-      if (!r.ok || p.done) break;
+      const p = (await r.json()) as { done?: boolean; error?: string };
+      if (!r.ok) console.error(`rescans: step failed for ${s.host ?? s.id}: ${r.status} ${p.error ?? ""}`);
+      if (!r.ok || p.done) {
+        if (p.done) console.log(`rescans: finished ${s.host ?? s.id}`);
+        break;
+      }
     }
   }
 }
@@ -98,7 +113,11 @@ const worker = {
     const minute = new Date().getUTCMinutes();
     if (minute % 5 === 0) jobs.push(uptime(env));
     if (minute === 7 || minute === 37) jobs.push(aiVisibility(env));
-    ctx.waitUntil(Promise.allSettled(jobs));
+    ctx.waitUntil(
+      Promise.allSettled(jobs).then((rs) => {
+        for (const r of rs) if (r.status === "rejected") console.error("cron job failed:", r.reason instanceof Error ? r.reason.message : r.reason);
+      })
+    );
   },
   async fetch() {
     return new Response("Pagelyt cron worker", { status: 200 });
