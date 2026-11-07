@@ -5,7 +5,6 @@ Architecture
 | Piece | Where | What it does |
 |---|---|---|
 | Web app (Next.js, OpenNext) | Cloudflare Workers + static assets (`wrangler.jsonc`) | Marketing site, dashboard, tools, API routes |
-| Cron Worker | Cloudflare Workers (`workers/cron`) | Every minute: scheduled rescans; every 5 min: uptime checks and alert emails |
 | Database, auth | Supabase (`supabase/migrations/0001_init.sql`) | Scans, leads, saved sites, uptime history, magic-link sign-in |
 
 Cloudflare now recommends Workers with static assets for Next.js. Connect the repo with **Workers Builds**
@@ -21,7 +20,7 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
    - Copy the project URL, anon key and service-role key (*Project settings > API*).
 2. **Cloudflare Turnstile** (recommended): create a widget, copy site key and secret.
 3. **Google PageSpeed key** (for Core Web Vitals): Google Cloud console, enable *PageSpeed Insights API*, create an API key.
-4. **Edit `wrangler.jsonc` and `workers/cron/wrangler.jsonc`**: replace `YOUR-PROJECT` and the domain.
+4. **Edit `wrangler.jsonc`**: replace `YOUR-PROJECT` and the domain.
 5. **Secrets** (never commit these):
    ```bash
    npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY
@@ -29,9 +28,6 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
    npx wrangler secret put TURNSTILE_SECRET_KEY
    npx wrangler secret put PAGESPEED_API_KEY
    npx wrangler secret put RESEND_API_KEY         # optional: score-drop alert emails (also set ALERT_FROM)
-   npx wrangler secret put CRON_SECRET --config workers/cron/wrangler.jsonc        # same value
-   npx wrangler secret put SUPABASE_SERVICE_ROLE_KEY --config workers/cron/wrangler.jsonc
-   npx wrangler secret put RESEND_API_KEY --config workers/cron/wrangler.jsonc    # optional, for alerts
    ```
 6. **Build-time public variables** (Workers Builds > Settings > Variables, or `.env.local` locally):
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
@@ -47,7 +43,7 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
 
 ## AI visibility tracking
 
-- Per site (`/account/visibility/<siteId>`): add the questions people ask, optional brand names and competitors, run a check, and see how often each AI system names and cites the site, average position, share of voice and a trend. Weekly automatic checks run from the cron Worker.
+- Per site (`/account/visibility/<siteId>`): add the questions people ask, optional brand names and competitors, run a check, and see how often each AI system names and cites the site, average position, share of voice and a trend. Automatic weekly checks are paused until the cron Worker is rebuilt (see Phase 2).
 - Systems: Perplexity, ChatGPT (OpenAI) and Claude (Anthropic), each switched on by its API key secret. Each call uses the provider's web search, so it costs money: 5 questions × 3 systems × weekly is about 60 calls a month per site. Keep an eye on provider spend.
 - Honest limits: answers vary by assistant, wording, location and time, and API answers can differ from the consumer apps. A failed call is stored as an error and is never counted as "not named".
 - Request and response shapes follow each provider's public docs; if a provider changes its format, runs will show errors rather than wrong numbers. Parsers are covered by `node --experimental-strip-types --test lib/ai/*.test.ts`.
@@ -59,14 +55,13 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
 npm run dev              # local, uses an in-memory store unless Supabase env vars are set
 npm run cf:preview       # build for Workers and run it locally in workerd
 npm run cf:deploy        # build and deploy the web app
-npm run cron:deploy      # deploy the cron Worker
 ```
 
 ## How a scan works on the free plan
 
 A Worker invocation gets about 50 outbound requests and little CPU, so a scan is split into five stages and the
 browser calls them in turn (`POST /api/scan`, then `POST /api/scan/:id/step` until `done`). Each stage parks its
-results in `scans.state`. This also drives the real progress screen. The cron Worker drives the same endpoints
+results in `scans.state`. This also drives the real progress screen. A cron Worker (removed for now) will drive the same endpoints
 for scheduled rescans.
 
 | Stage | Work | Outbound requests |
@@ -82,7 +77,7 @@ for scheduled rescans.
 - **CPU per invocation (free Workers: ~10 ms).** Parsing a large page with cheerio may exceed this. If scans fail
   with CPU errors, move to Workers Paid ($5/month): CPU limits rise to seconds. Nothing in the code changes.
 - **Requests per day (free Workers: 100,000).** A scan is about 6 requests plus page views.
-- **Supabase free projects pause after a week of inactivity.** The cron Worker queries Supabase every minute, which keeps it awake.
+- **Supabase free projects pause after a week of inactivity.** Without the cron Worker nothing keeps it awake, so open the site or the Supabase dashboard now and then.
 - **Supabase free has no backups.** Export periodically (*Database > Backups* or `pg_dump`).
 
 ## What changed because of the edge runtime
@@ -97,7 +92,7 @@ for scheduled rescans.
 
 - [x] **Phase 0** foundations: edge-safe scanner, Supabase schema + RLS, Cloudflare config, security headers
 - [x] **Phase 1** staged scan with real progress, Turnstile, magic-link accounts, saved sites, report history
-- [x] **Phase 2** scheduled rescans, uptime checks, down/recovered email alerts (cron Worker)
+- [ ] **Phase 2** scheduled rescans, uptime checks, down/recovered and score-drop alerts (cron Worker removed for now; the app-side endpoints in `app/api/internal` are kept)
 - [ ] **Phase 2b** AI explanations and assistant (needs an Anthropic API key held as a Worker secret and a cost cap)
 - [ ] **Phase 2c** server-rendered PDF reports (Cloudflare Browser Rendering)
 - [ ] **Phase 3** Razorpay plans and quotas, consultation booking, admin dashboard
