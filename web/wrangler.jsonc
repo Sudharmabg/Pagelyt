@@ -13,12 +13,8 @@
   "observability": { "enabled": true },
   // Cloudflare Browser Rendering, for server-rendered PDF reports (needs the Workers Paid plan).
   "browser": { "binding": "BROWSER" },
-  "vars": {
-    "NEXT_PUBLIC_SITE_URL": "https://pagelyt.sudharmabg10.workers.dev",
-    "NEXT_PUBLIC_SUPABASE_URL": "https://rxdhetdpgadxdvszguee.supabase.co",
-    "SUPABASE_URL": "https://rxdhetdpgadxdvszguee.supabase.co"
-    // Public values only. Secrets to set: SUPABASE_SERVICE_ROLE_KEY, CRON_SECRET, TURNSTILE_SECRET_KEY,
-    // PAGESPEED_API_KEY. Public build-time vars (see .env.example): NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    // NEXT_PUBLIC_TURNSTILE_SITE_KEY.
-  }
+  // All variables and secrets live in the Cloudflare dashboard (Settings > Variables and secrets, plus the
+  // Build variables for NEXT_PUBLIC_* values, which are baked in at build time). keep_vars stops a deploy from
+  // wiping the dashboard values. See .env.example for the full list.
+  "keep_vars": true
 }
