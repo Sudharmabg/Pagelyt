@@ -19,7 +19,7 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
    - Then run `supabase/migrations/0002_whitelabel_ai.sql` (brands, shared reports, plans, AI visibility), `0003_alerts_history.sql`,
      `0004_password_auth.sql` (saved progress, the email-check function) and `0005_visual_monitoring.sql` (homepage screenshots
      for the before/after view; without it scans still work, just with no screenshots) and `0006_agency_compare.sql` (agency/owner
-     answer, competitor comparisons). Then follow **Password accounts** below.
+     answer, competitor comparisons) and `0007_admins.sql` (who can open `/admin`). Then follow **Password accounts** and **Admin panel** below.
    - Copy the project URL, anon key and service-role key (*Project settings > API*).
 2. **Cloudflare Turnstile** (recommended): create a widget, copy site key and secret.
 3. **Google PageSpeed key** (for Core Web Vitals): Google Cloud console, enable *PageSpeed Insights API*, create an API key.
@@ -35,6 +35,19 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
 6. **Build-time public variables** (Workers Builds > Settings > Variables, or `.env.local` locally):
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
    (the other `NEXT_PUBLIC_*` values are in `wrangler.jsonc`).
+
+## Admin panel (`/admin`)
+
+Admins are kept in the Supabase `admins` table, not in an environment variable. Sign-in is the normal Supabase
+password sign-in, so passwords stay hashed by Supabase Auth and are never stored by this app.
+
+1. Create the account: *Authentication > Users > Add user*, enter the email and a strong password and tick
+   *Auto Confirm User* (or sign up on the site and confirm the email).
+2. In the *SQL editor*: `insert into public.admins (email) values ('you@example.com');` (lower case).
+3. Sign in at `/login`, then open `/admin`. Remove an admin with `delete from public.admins where email = '...';`
+
+Only a verified email in that table gets in. The table has row-level security with no policies, so the browser
+cannot read it or add itself; only the server's service-role key can.
 
 ## Password accounts (modal sign-up, `/login`)
 

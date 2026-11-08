@@ -4,7 +4,7 @@
 Early traffic is low, so you'll trigger scheduled rescans and AI visibility checks yourself from an admin page. The cron Worker stays off until there's more traffic. The endpoints the cron would call already exist (`app/api/internal/due`, `start`, `ai-due`, `ai-run`), and the scan step loop already runs from the browser (`lib/run-scan.ts`). So the admin page can drive the same flow.
 
 ## Approach
-1. **Admin gate.** Add an `ADMIN_EMAILS` env var and an `isAdmin(req)` helper built on `userFromRequest` in `lib/auth.ts`. `CRON_SECRET` is never sent to the browser.
+1. **Admin gate.** Admins are rows in a Supabase `admins` table (migration 0007, service role only), checked by `adminFromRequest` in `lib/auth.ts` on top of the normal Supabase sign-in. `CRON_SECRET` is never sent to the browser.
 2. **Admin API (`app/api/admin/*`).** Reuse `dueSites`, `getSite`, `createScan`, `scheduleSiteScan` (lib/scan/store.ts) and `dueAiSites`, `getSiteAi`, `listPrompts`, `runPrompts`, `bumpAiSchedule` (lib/scan/store-ext.ts, lib/ai/run.ts):
    - list saved sites (due or all), with last scan and score
    - start a rescan for a site, then the browser loops `/api/scan/:id/step` as runScan does. `alertAfterScan` fires as normal.

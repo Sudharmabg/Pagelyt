@@ -5,15 +5,22 @@ export async function runScan(url: string, token: string, onStage?: (label: stri
     const auth = { authorization: `Bearer ${token}`, "content-type": "application/json" };
     const start = (await (await fetch("/api/scan", { method: "POST", headers: auth, body: JSON.stringify({ url, siteId: opts.siteId }) })).json()) as { id?: string; done?: boolean; error?: string };
     if (!start.id) return { error: start.error || "Scan failed." };
-    let done = !!start.done;
-    while (!done) {
-      const r = await fetch(`/api/scan/${start.id}/step`, { method: "POST" });
+    return start.done ? { id: start.id } : await stepScan(start.id, onStage);
+  } catch {
+    return { error: "Could not reach the server. Please try again." };
+  }
+}
+
+/** Runs the remaining stages of a scan that has already been started. */
+export async function stepScan(id: string, onStage?: (label: string) => void): Promise<{ id: string } | { error: string }> {
+  try {
+    for (;;) {
+      const r = await fetch(`/api/scan/${id}/step`, { method: "POST" });
       const p = (await r.json()) as { done?: boolean; label?: string; error?: string };
       if (!r.ok) return { error: p.error || "Scan failed." };
       if (p.label) onStage?.(p.label);
-      done = !!p.done;
+      if (p.done) return { id };
     }
-    return { id: start.id };
   } catch {
     return { error: "Could not reach the server. Please try again." };
   }

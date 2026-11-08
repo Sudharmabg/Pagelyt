@@ -14,7 +14,9 @@ const CONFIRM_EMAIL = process.env.MOCK_CONFIRM === "on";
 
 const users = new Map(); // email -> { id, email, password, confirmed, meta }
 const sessions = new Map(); // access token -> email
-const tables = { scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [] };
+const tables = { scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [], ai_prompts: [], ai_runs: [], uptime_checks: [], admins: [] };
+// MOCK_ADMIN_EMAILS=a@x.test,b@x.test seeds the admins table, so those accounts can open /admin once signed up.
+for (const email of (process.env.MOCK_ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)) tables.admins.push({ email, created_at: new Date().toISOString() });
 // The account plan for every new profile. MOCK_PLAN=professional lets you try the paid-only agency features.
 const MOCK_PLAN = process.env.MOCK_PLAN || "free";
 const hits = new Map();
@@ -27,7 +29,7 @@ function tokensFor(u) {
   sessions.set(access, u.email);
   return { access_token: access, refresh_token: crypto.randomUUID(), token_type: "bearer", expires_in: 3600, expires_at: exp, user: userJson(u) };
 }
-const userJson = (u) => ({ id: u.id, email: u.email, email_confirmed_at: u.confirmed ? new Date().toISOString() : null, user_metadata: u.meta, identities: [{ id: u.id }] });
+const userJson = (u) => ({ id: u.id, email: u.email, created_at: u.created_at, last_sign_in_at: u.last_sign_in_at ?? null, email_confirmed_at: u.confirmed ? new Date().toISOString() : null, user_metadata: u.meta, identities: [{ id: u.id }] });
 
 /* PostgREST column selection: "*", "col", "alias:col", "col->key" (JSON) and "col->>key" (JSON as text). */
 function project(rows, select) {
@@ -81,6 +83,11 @@ http
     if (p === "/__seed-scan") { tables.scans.push(body); return send(res, 200, { ok: true }); }
 
     // ---- GoTrue ----
+    // Admin API (service key only): the admin panel lists accounts for owner emails and analytics.
+    if (p === "/auth/v1/admin/users") {
+      if ((req.headers.authorization || "") !== `Bearer ${SERVICE_KEY}`) return send(res, 401, { msg: "service key required" });
+      return send(res, 200, { users: [...users.values()].map(userJson) });
+    }
     if (p === "/auth/v1/signup") {
       log.signups++;
       log.redirects.push(url.searchParams.get("redirect_to"));
@@ -89,7 +96,7 @@ http
         // Real Supabase: with confirmation on it answers with a look-alike user; with it off it returns an error.
         return CONFIRM_EMAIL ? send(res, 200, { id: crypto.randomUUID(), email, identities: [], user_metadata: {} }) : send(res, 422, { error_code: "user_already_exists", msg: "User already registered" });
       }
-      const u = { id: crypto.randomUUID(), email, password, confirmed: !CONFIRM_EMAIL, meta: data ?? {} };
+      const u = { id: crypto.randomUUID(), email, password, confirmed: !CONFIRM_EMAIL, meta: data ?? {}, created_at: new Date().toISOString() };
       users.set(email, u);
       return CONFIRM_EMAIL ? send(res, 200, { ...userJson(u), email_confirmed_at: null }) : send(res, 200, tokensFor(u)); // a session straight away
     }
@@ -98,6 +105,7 @@ http
       const u = users.get(body.email);
       if (!u || u.password !== body.password) return send(res, 400, { error_code: "invalid_credentials", msg: "Invalid login credentials" });
       if (!u.confirmed) return send(res, 400, { error_code: "email_not_confirmed", msg: "Email not confirmed" });
+      u.last_sign_in_at = new Date().toISOString();
       return send(res, 200, tokensFor(u));
     }
     if (p === "/auth/v1/recover") { log.recovers = (log.recovers || []).concat(body.email); log.recoverRedirect = url.searchParams.get("redirect_to"); return send(res, 200, {}); }

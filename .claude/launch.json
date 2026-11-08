@@ -26,9 +26,28 @@
       ],
       "env": {
         "PORT": "3100",
-        "MOCK_PLAN": "professional"
+        "MOCK_PLAN": "professional",
+        "MOCK_ADMIN_EMAILS": "admin@example.test"
       },
       "port": 3100
+    },
+    {
+      "name": "pagelyt-admin-test",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:mock",
+        "--prefix",
+        "web"
+      ],
+      "env": {
+        "PORT": "3200",
+        "MOCK_PORT": "54322",
+        "NEXT_DIST_DIR": ".next-test",
+        "MOCK_PLAN": "professional",
+        "MOCK_ADMIN_EMAILS": "admin@example.test"
+      },
+      "port": 3200
     }
   ]
 }

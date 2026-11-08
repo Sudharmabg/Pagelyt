@@ -1,5 +1,5 @@
-import { createScan, getSite, scheduleSiteScan } from "@/lib/scan/store";
-import { TOTAL_STAGES } from "@/lib/scan/labels";
+import { startSiteRescan } from "@/lib/scan/admin";
+import { getSite } from "@/lib/scan/store";
 
 /* For the cron Worker: start a scheduled rescan of a saved site. The Worker then calls
    /api/scan/:id/step until done, so each stage gets its own request budget. */
@@ -9,7 +9,5 @@ export async function POST(req: Request) {
   const { siteId } = (await req.json().catch(() => ({}))) as { siteId?: string };
   const site = siteId ? await getSite(siteId) : null;
   if (!site) return Response.json({ error: "Site not found." }, { status: 404 });
-  const id = await createScan({ url: site.url, host: site.host, userId: site.user_id, siteId: site.id });
-  await scheduleSiteScan(site, id); // moves next_run_at forward first, so a failed run is not retried every minute
-  return Response.json({ id, total: TOTAL_STAGES });
+  return Response.json(await startSiteRescan(site));
 }

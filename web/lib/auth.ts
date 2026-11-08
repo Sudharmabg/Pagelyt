@@ -1,3 +1,5 @@
+import { live, rest } from "./scan/store";
+
 /* Server-side helpers for Supabase auth. The browser signs in with the anon key; API routes receive
    the user's access token as `Authorization: Bearer <jwt>` and verify it with Supabase. */
 
@@ -41,4 +43,20 @@ export function clientIp(req: Request): string {
   if (cf) return cf;
   if (process.env.NODE_ENV !== "production") return req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "local";
   return "unknown";
+}
+
+/** Admins are the email addresses in the Supabase `admins` table (migration 0007; service role only).
+    Only a verified address counts, so an unconfirmed sign-up with an admin's email cannot get in. */
+export async function isAdmin(user: AuthUser): Promise<boolean> {
+  if (!user.verified || !user.email || !live()) return false;
+  const rows = await rest<{ email: string }[]>(`admins?email=eq.${encodeURIComponent(user.email.toLowerCase())}&select=email&limit=1`).catch(() => []);
+  return rows.length > 0;
+}
+
+/** The signed-in admin, or the error response to send back (401 signed out, 403 not an admin). */
+export async function adminFromRequest(req: Request): Promise<{ user: AuthUser } | { error: Response }> {
+  const user = await userFromRequest(req);
+  if (!user) return { error: Response.json({ error: "Please sign in first." }, { status: 401 }) };
+  if (!(await isAdmin(user))) return { error: Response.json({ error: "Admins only." }, { status: 403 }) };
+  return { user };
 }
