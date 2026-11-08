@@ -85,3 +85,9 @@ test("lead: returns normalised values or the first error", () => {
   assert.ok("error" in checkLead({ name: "Asha Rao", email: "nope", phone: "9876543210" }));
   assert.ok("error" in checkLead(undefined));
 });
+
+test("lead: phone is optional, but a given phone must be valid", () => {
+  assert.deepEqual(checkLead({ name: "Asha Rao", email: "asha@example.com" }), { lead: { name: "Asha Rao", email: "asha@example.com", phone: "" } });
+  assert.deepEqual(checkLead({ name: "Asha Rao", email: "asha@example.com", phone: "  " }), { lead: { name: "Asha Rao", email: "asha@example.com", phone: "" } });
+  assert.ok("error" in checkLead({ name: "Asha Rao", email: "asha@example.com", phone: "call me" }));
+});

@@ -3,7 +3,7 @@ import { authConfigured, readJson, reply, signUp } from "@/lib/gotrue";
 import { LIMITS, digest, guard } from "@/lib/ratelimit";
 import { live } from "@/lib/scan/store";
 import { issueTicket } from "@/lib/ticket";
-import { checkLead, checkPassword, passwordsMatch } from "@/lib/validate";
+import { checkLead, checkPassword } from "@/lib/validate";
 
 /* Creates an account from the modal's details. Order matters: cheap checks first, then limits, then the human
    check (its token is single-use), then Supabase. */
@@ -17,8 +17,8 @@ export async function POST(req: Request) {
   if ("error" in v) return reply({ error: v.error }, 400);
   const pw = checkPassword(body.password, v.lead.email);
   if (!pw.ok) return reply({ error: pw.error }, 400);
-  const mismatch = passwordsMatch(String(body.password), String(body.confirm ?? ""));
-  if (mismatch) return reply({ error: mismatch }, 400);
+  // The modal shows the password with a show/hide toggle instead of asking twice; older clients may still send "confirm".
+  if (body.confirm != null && String(body.confirm) !== String(body.password)) return reply({ error: "The two passwords don't match." }, 400);
 
   const ip = clientIp(req);
   const limited = await guard(LIMITS.signup(ip, await digest(v.lead.email)));

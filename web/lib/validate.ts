@@ -82,13 +82,16 @@ export const passwordsMatch = (a: string, b: string): string | null => (a === b 
 
 export type NewLead = { name: string; email: string; phone: string };
 
-/** Validates and normalises the contact details. */
+/** Validates and normalises the contact details. Phone is optional (the modal no longer asks for it): blank or
+   missing becomes "", anything else must still be a valid number. */
 export function checkLead(input: { name?: unknown; email?: unknown; phone?: unknown } | undefined | null): { lead: NewLead } | { error: string } {
   const name = checkName(input?.name);
   if (!name.ok) return { error: name.error };
   const email = checkEmail(input?.email);
   if (!email.ok) return { error: email.error };
-  const phone = checkPhone(input?.phone);
+  const rawPhone = typeof input?.phone === "string" ? input.phone.trim() : input?.phone;
+  if (rawPhone == null || rawPhone === "") return { lead: { name: name.value, email: email.value, phone: "" } };
+  const phone = checkPhone(rawPhone);
   if (!phone.ok) return { error: phone.error };
   return { lead: { name: name.value, email: email.value, phone: phone.value } };
 }
