@@ -1,6 +1,7 @@
 import { previousSnap, toSnap } from "./history";
 import { live, rest, type ScanRow } from "./store";
 import type { ScanResult } from "./types";
+import { isBigChange } from "./visual";
 
 /* Email the site owner after a scheduled rescan when the score dropped or a new high-severity
    issue appeared. Needs RESEND_API_KEY; without it this does nothing. Alerts are sent only for
@@ -30,7 +31,8 @@ export async function alertAfterScan(row: ScanRow, result: ScanResult): Promise<
   const drop = prev.overall - now.overall;
   const known = new Set(prev.keys);
   const newHigh = result.findings.filter((f) => f.severity === "high" && !known.has(`${f.module}:${f.id}:${f.title}`));
-  if (drop < DROP_POINTS && !newHigh.length) return;
+  const changed = isBigChange(result.change) ? result.change! : null;
+  if (drop < DROP_POINTS && !newHigh.length && !changed) return;
 
   const to = await ownerEmail(site.user_id);
   if (!to) return;
@@ -38,12 +40,22 @@ export async function alertAfterScan(row: ScanRow, result: ScanResult): Promise<
   const lines = [
     drop > 0 ? `Your score for ${result.host} went from ${prev.overall} to ${now.overall} (${-drop}).` : `Your score for ${result.host} is ${now.overall}.`,
     ...(newHigh.length ? ["", `New high-priority issue${newHigh.length > 1 ? "s" : ""}:`, ...newHigh.slice(0, 5).map((f) => `• ${f.title}`)] : []),
+    ...(changed
+      ? [
+          "",
+          "Your homepage changed since the last scan:",
+          ...(changed.visual != null ? [`• About ${changed.visual}% of the page looks different`] : []),
+          ...(changed.text != null ? [`• About ${changed.text}% of the text changed`] : []),
+          ...(changed.title ? [`• Title changed from “${changed.title.from}” to “${changed.title.to}”`] : []),
+          "If you did not make this change, check the site now: it may have been hacked.",
+        ]
+      : []),
     "",
     `See the full report: ${origin}/dashboard/${row.id}`,
     "",
     "You get these emails because scheduled scans and alerts are on for this site. Change this under Account on Pagelyt.",
   ];
-  const subject = newHigh.length ? `${result.host}: new high-priority issue found` : `${result.host}: score dropped ${drop} points`;
+  const subject = newHigh.length ? `${result.host}: new high-priority issue found` : drop >= DROP_POINTS ? `${result.host}: score dropped ${drop} points` : `${result.host}: your homepage changed`;
   await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { authorization: `Bearer ${resend}`, "content-type": "application/json" },

@@ -1,6 +1,7 @@
 import type { CheerioAPI } from "cheerio";
 import type { FetchResult } from "./fetcher";
 import type { Finding, ModuleKey, Severity } from "./types";
+import { defacementChecks } from "./visual";
 
 type Add = (module: ModuleKey, severity: Severity, id: string, title: string, why: string, fix: string, evidence?: string) => void;
 
@@ -72,6 +73,8 @@ export function extraChecks(o: { $: CheerioAPI; page: FetchResult; finalUrl: URL
     }
   });
   if (hosts.size > 12) add("privacy", "low", "many-third-party", `${hosts.size} third-party script sources`, "Every outside script can slow the page, leak visitor data and widen your attack surface.", "Remove scripts you no longer use and load the rest only where needed.", [...hosts].slice(0, 8).join(", "));
+
+  defacementChecks($, add);
 
   if (!isHttps && $("form input[type=password]").length) add("privacy", "high", "insecure-form", "Password field on a non-HTTPS page", "Passwords sent over HTTP can be read by anyone on the network.", "Serve the whole site over HTTPS.");
 }

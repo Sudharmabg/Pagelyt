@@ -9,11 +9,13 @@
     "lint": "eslint",
     "cf:build": "opennextjs-cloudflare build",
     "cf:preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
-    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy"
+    "cf:deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "dev:mock": "node scripts/dev-mock.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.119.0",
     "cheerio": "^1.2.0",
+    "jpeg-js": "^0.4.4",
     "next": "16.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0"
@@ -26,6 +28,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.4.5",
+    "eslint-plugin-security": "^4.2.1",
     "tailwindcss": "^4",
     "typescript": "^5",
     "wrangler": "^4.158.0"

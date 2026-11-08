@@ -1,0 +1,38 @@
+name: CodeQL
+
+# Static security analysis (SAST) of the web app. Findings appear in the repo's Security tab.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "17 3 * * 1" # weekly, Monday 03:17 UTC
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          build-mode: none
+          queries: security-extended
+          # Only the app is scanned, not generated or vendored folders.
+          config: |
+            paths:
+              - web
+            paths-ignore:
+              - web/node_modules
+              - web/.next
+              - web/.open-next
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"

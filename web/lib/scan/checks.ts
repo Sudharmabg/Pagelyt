@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import type { FetchResult } from "./fetcher";
 import { extraChecks } from "./checks-extra";
+import { hreflangChecks, paginationChecks, schemaFindings } from "./seo-deep";
 import type { Finding, ModuleKey, Severity } from "./types";
 
 export type Ctx = {
@@ -154,6 +155,9 @@ export function runChecks(ctx: Ctx): Finding[] {
   if (!title) add("accessibility", "medium", "a11y-title", "Page has no title", "The title is the first thing a screen reader announces.", "Add a descriptive <title>.");
 
   extraChecks({ $, page, finalUrl, bodyText, add, hdr });
+  schemaFindings($, add);
+  hreflangChecks($, page.url, add);
+  paginationChecks($, page.url, add);
 
   return out;
 }

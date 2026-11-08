@@ -10,8 +10,20 @@ export function scoreModules(findings: Finding[]) {
   });
 }
 
-export function overallScore(modules: { score: number }[]) {
-  return Math.round(modules.reduce((a, m) => a + m.score, 0) / modules.length);
+/* Areas that can take a site offline or put visitors at risk count for more in the overall score. */
+export const WEIGHTS: Record<ModuleKey, number> = { security: 1.5, health: 1.5, performance: 1.2, seo: 1, accessibility: 1, domain: 1, geo: 0.8, privacy: 0.8 };
+
+/** Weighted average of the area scores (areas without a key, e.g. from old callers, weigh 1). */
+export function overallScore(modules: { key?: ModuleKey; score: number }[]) {
+  if (!modules.length) return 0;
+  let sum = 0;
+  let w = 0;
+  for (const m of modules) {
+    const k = m.key ? (WEIGHTS[m.key] ?? 1) : 1;
+    sum += m.score * k;
+    w += k;
+  }
+  return Math.round(sum / w);
 }
 
 /** Stable per-scan identity for a finding (titles include counts, ids alone can repeat across modules). */

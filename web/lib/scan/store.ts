@@ -1,3 +1,4 @@
+import { checkLead, type NewLead } from "../validate";
 import type { ScanResult } from "./types";
 
 /* Storage for scans and leads.
@@ -22,6 +23,8 @@ export type ScanRow = {
   user_id: string | null;
   site_id: string | null;
   created_at: string;
+  /** Finding keys the owner has marked as fixed (needs migration 0004; undefined before it has run). */
+  fixed?: string[];
 };
 
 const URL_ = () => process.env.SUPABASE_URL;
@@ -83,13 +86,16 @@ export async function updateScan(id: string, patch: Partial<Pick<ScanRow, "statu
 }
 
 /** Newest finished scan of this exact URL within `maxAgeSec`, so repeat scans are free. */
-export async function recentScanId(url: string, maxAgeSec: number): Promise<string | null> {
+export async function recentScanId(url: string, maxAgeSec: number, userId?: string | null): Promise<string | null> {
   const since = new Date(Date.now() - maxAgeSec * 1000).toISOString();
   if (!live()) {
     const hit = [...mem().scans.values()].filter((r) => r.url === url && r.status === "done" && r.created_at >= since).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
     return hit?.id ?? null;
   }
-  const rows = await rest<{ id: string }[]>(`scans?url=eq.${encodeURIComponent(url)}&status=eq.done&created_at=gte.${encodeURIComponent(since)}&select=id&order=created_at.desc&limit=1`);
+  // With accounts, a report is only ever reused by its own owner. Handing someone else's report to a new visitor
+  // would leave them as a view-only guest on what should be their own scan.
+  if (!userId || !/^[0-9a-f-]{36}$/i.test(userId)) return null;
+  const rows = await rest<{ id: string }[]>(`scans?url=eq.${encodeURIComponent(url)}&user_id=eq.${encodeURIComponent(userId)}&status=eq.done&created_at=gte.${encodeURIComponent(since)}&select=id&order=created_at.desc&limit=1`);
   return rows[0]?.id ?? null;
 }
 
@@ -99,19 +105,52 @@ export async function getScan(id: string): Promise<StoredScan | null> {
   return row && row.status === "done" && row.result ? { ...row.result, id } : null;
 }
 
-/* ---------- leads ---------- */
-export type Lead = { name: string; email: string; phone: string };
+/* ---------- screenshots (migration 0005; kept out of `scans` so normal row reads stay small) ---------- */
+const shots = () => ((g as unknown as { __pagelytShots?: Map<string, string> }).__pagelytShots ??= new Map());
 
-/** Returns an error message, or the normalised lead. */
+/** Best-effort: a missing table (migration not run) just means no screenshots. */
+export async function saveShot(scanId: string, data: string): Promise<void> {
+  if (!live()) {
+    shots().set(scanId, data);
+    return;
+  }
+  await rest("scan_shots", { method: "POST", body: JSON.stringify({ scan_id: scanId, data }), prefer: "resolution=merge-duplicates,return=minimal" }).catch(() => {});
+}
+
+export async function getShots(ids: string[]): Promise<Record<string, string>> {
+  const valid = ids.filter(validId);
+  if (!valid.length) return {};
+  if (!live()) return Object.fromEntries(valid.filter((i) => shots().has(i)).map((i) => [i, shots().get(i)!]));
+  try {
+    const rows = await rest<{ scan_id: string; data: string }[]>(`scan_shots?scan_id=in.(${valid.map(encodeURIComponent).join(",")})&select=scan_id,data`);
+    return Object.fromEntries(rows.map((r) => [r.scan_id, r.data]));
+  } catch {
+    return {};
+  }
+}
+
+/** Newest finished scan of the same site (or owner + host) before `scan`, with its stored result. */
+export async function previousResult(scan: Pick<ScanRow, "id" | "site_id" | "user_id" | "host" | "created_at">): Promise<{ id: string; result: ScanResult } | null> {
+  if (!live()) {
+    const hit = [...mem().scans.values()].filter((r) => r.id !== scan.id && r.status === "done" && r.result && r.host === scan.host && r.created_at < scan.created_at).sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+    return hit ? { id: hit.id, result: hit.result! } : null;
+  }
+  let filter: string;
+  if (scan.site_id) filter = `site_id=eq.${encodeURIComponent(scan.site_id)}`;
+  else if (scan.user_id) filter = `user_id=eq.${encodeURIComponent(scan.user_id)}&host=eq.${encodeURIComponent(scan.host)}`;
+  else return null; // anonymous scans have no owner to group by
+  const rows = await rest<{ id: string; result: ScanResult | null }[]>(
+    `scans?${filter}&status=eq.done&id=neq.${encodeURIComponent(scan.id)}&created_at=lt.${encodeURIComponent(scan.created_at)}&select=id,result&order=created_at.desc&limit=1`
+  );
+  return rows[0]?.result ? { id: rows[0].id, result: rows[0].result } : null;
+}
+
+/* ---------- leads ---------- */
+export type Lead = NewLead;
+
+/** Returns an error message, or the normalised lead. The rules live in lib/validate.ts (shared with the browser). */
 export function validateLead(l: Partial<Lead> | undefined): { lead: Lead } | { error: string } {
-  const name = String(l?.name ?? "").trim().replace(/\s+/g, " ");
-  const email = String(l?.email ?? "").trim().toLowerCase();
-  const phone = String(l?.phone ?? "").trim();
-  if (name.length < 2 || name.length > 100) return { error: "Please enter your name." };
-  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) return { error: "Please enter a valid email address." };
-  const digits = phone.replace(/\D/g, "");
-  if (!/^[\d\s()+.-]+$/.test(phone) || digits.length < 7 || digits.length > 15) return { error: "Please enter a valid phone number." };
-  return { lead: { name, email, phone } };
+  return checkLead(l);
 }
 
 export async function saveLead(scanId: string, host: string, lead: Lead): Promise<void> {
@@ -120,14 +159,45 @@ export async function saveLead(scanId: string, host: string, lead: Lead): Promis
   else mem().leads.push(row);
 }
 
+/** After an address is verified, attach the scans started with that address (as a lead) to the account.
+    At most the 5 newest are claimed, and a scan that already has an owner is never taken over.
+    Returns the ids of the person's finished scans, newest first. Needs Supabase; memory mode has no accounts. */
+export async function claimScansByEmail(userId: string, email: string): Promise<string[]> {
+  if (!live()) return [];
+  const leads = await rest<{ scan_id: string }[]>(`leads?email=eq.${encodeURIComponent(email)}&select=scan_id&order=created_at.desc&limit=5`);
+  const ids = [...new Set(leads.map((l) => l.scan_id).filter(validId))];
+  if (!ids.length) return [];
+  const list = ids.join(",");
+  const rows = await rest<{ id: string; user_id: string | null; status: ScanStatus }[]>(`scans?id=in.(${list})&select=id,user_id,status&order=created_at.desc`);
+  if (rows.some((r) => !r.user_id)) {
+    await rest(`scans?id=in.(${list})&user_id=is.null`, { method: "PATCH", body: JSON.stringify({ user_id: userId }), prefer: "return=minimal" });
+  }
+  return rows.filter((r) => (!r.user_id || r.user_id === userId) && r.status === "done").map((r) => r.id);
+}
+
+/** Saves which findings the owner has marked as fixed. Needs Supabase; memory mode keeps this in the browser instead. */
+export async function setScanFixed(id: string, fixed: string[]): Promise<void> {
+  if (!live() || !validId(id)) return;
+  await rest(`scans?id=eq.${encodeURIComponent(id)}`, { method: "PATCH", body: JSON.stringify({ fixed }), prefer: "return=minimal" });
+}
+
+/** The account's newest finished report, if it has one. */
+export async function latestScanForUser(userId: string): Promise<ScanRow | null> {
+  if (!live() || !/^[0-9a-f-]{36}$/i.test(userId)) return null;
+  const rows = await rest<ScanRow[]>(`scans?user_id=eq.${encodeURIComponent(userId)}&status=eq.done&order=created_at.desc&limit=1&select=*`);
+  return rows[0] ?? null;
+}
+
 /* ---------- rate limit ---------- */
-/** True if the caller is within `limit` hits per `windowSec`. Records the hit. */
-export async function rateLimit(key: string, limit: number, windowSec: number): Promise<boolean> {
+/** True if the caller is within `limit` hits per `windowSec`. Records the hit.
+    If the limiter itself is down it lets the request through, unless `failClosed` is set (used for sign-in and
+    sign-up, where an outage must not turn into unlimited password guessing). */
+export async function rateLimit(key: string, limit: number, windowSec: number, opts: { failClosed?: boolean } = {}): Promise<boolean> {
   if (live()) {
     try {
       return await rest<boolean>("rpc/rate_limit_hit", { method: "POST", body: JSON.stringify({ p_key: key, p_limit: limit, p_window_seconds: windowSec }) });
     } catch {
-      return true; // fail open: a limiter outage must not take scanning down
+      return !opts.failClosed;
     }
   }
   const now = Date.now();

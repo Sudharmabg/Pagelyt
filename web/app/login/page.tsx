@@ -8,15 +8,21 @@ export const metadata: Metadata = {
   robots: { index: false, follow: true },
 };
 
-export default function LoginPage() {
+/** Only same-site paths are accepted as a place to go after signing in (never another site). */
+function safeNext(value: string | string[] | undefined): string {
+  return typeof value === "string" && /^\/(?![/\\])[\w\-./?=&%]*$/.test(value) ? value : "/account";
+}
+
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string | string[]; forgot?: string | string[] }> }) {
+  const { next, forgot } = await searchParams;
   return (
     <>
       <SiteNav />
       <main>
-        <PageHero h1="Sign in to Pagelyt." lead="We’ll email you a one-time link. No password to remember." />
-        <section className="sec" aria-label="Sign in">
+        <PageHero h1="Sign in to Pagelyt." lead="Use the email and password you chose when you ran your first scan." />
+        <section className="sec auth-sec" aria-label="Sign in">
           <div className="container">
-            <LoginForm />
+            <LoginForm next={safeNext(next)} startForgot={forgot === "1"} />
           </div>
         </section>
       </main>

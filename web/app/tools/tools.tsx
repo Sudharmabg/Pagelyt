@@ -155,7 +155,8 @@ function Schema({ ctx }: { ctx: Ctx }) {
   } else {
     data = { "@context": "https://schema.org", "@type": type, name, url, ...(logo && { logo }), ...(phone && { telephone: phone }), ...(type === "LocalBusiness" && address && { address: { "@type": "PostalAddress", streetAddress: address } }) };
   }
-  const out = `<script type="application/ld+json">\n${JSON.stringify(data, null, 2)}\n</script>`;
+  // "<" is escaped so text like "</script>" in a field can't end the script block early.
+  const out = `<script type="application/ld+json">\n${JSON.stringify(data, null, 2).replace(/</g, "\\u003c")}\n</script>`;
   return (
     <div className="tgrid">
       <div className="tform">

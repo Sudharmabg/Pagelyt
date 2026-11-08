@@ -1,4 +1,4 @@
-import type { Finding, Vitals, VitalsRun } from "./types";
+import type { Finding, PageWeight, Vitals, VitalsRun } from "./types";
 
 /* Core Web Vitals via Google's PageSpeed Insights API (runs Lighthouse for us).
    Set PAGESPEED_API_KEY for reliable quota; without it the API is heavily rate-limited
@@ -8,13 +8,39 @@ import type { Finding, Vitals, VitalsRun } from "./types";
 const API = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
 const TIMEOUT_MS = 24_000;
 
-type Audit = { numericValue?: number };
+type Audit = { numericValue?: number; details?: { overallSavingsBytes?: number; data?: string; items?: { resourceType?: string; transferSize?: number; requestCount?: number; data?: string }[] } };
+
+const IMG_AUDITS = ["modern-image-formats", "uses-optimized-images", "uses-responsive-images", "image-delivery-insight"];
+
+/** Lighthouse's own screenshots: the full final frame (shown in the report) and the last small filmstrip
+   thumbnail (cheap to decode, used for the visual fingerprint). Both are JPEG data URIs. */
+export type Shot = { full: string | null; thumb: string | null };
+
+function weightOf(a: Record<string, Audit>): PageWeight {
+  const items = a["resource-summary"]?.details?.items ?? [];
+  const row = (t: string) => items.find((i) => i.resourceType === t);
+  const savings = IMG_AUDITS.map((id) => a[id]?.details?.overallSavingsBytes).filter((n): n is number => typeof n === "number");
+  return {
+    total: typeof a["total-byte-weight"]?.numericValue === "number" ? a["total-byte-weight"].numericValue! : (row("total")?.transferSize ?? null),
+    images: row("image")?.transferSize ?? null,
+    imageSavings: savings.length ? Math.max(...savings) : null,
+    requests: row("total")?.requestCount ?? null,
+  };
+}
+
+function shotOf(a: Record<string, Audit>): Shot {
+  const ok = (d: unknown) => (typeof d === "string" && d.startsWith("data:image/jpeg;base64,") && d.length < 400_000 ? d : null);
+  const thumbs = a["screenshot-thumbnails"]?.details?.items ?? [];
+  return { full: ok(a["final-screenshot"]?.details?.data), thumb: ok(thumbs[thumbs.length - 1]?.data) };
+}
 type Psi = {
   lighthouseResult?: { categories?: { performance?: { score?: number | null } }; audits?: Record<string, Audit> };
   loadingExperience?: { metrics?: Record<string, { percentile?: number }> };
 };
 
-async function run(url: string, strategy: "mobile" | "desktop"): Promise<{ lab: VitalsRun | null; field: Vitals["field"] }> {
+type Run = { lab: VitalsRun | null; field: Vitals["field"]; weight: PageWeight | null; shot: Shot | null };
+
+async function run(url: string, strategy: "mobile" | "desktop"): Promise<Run> {
   const key = process.env.PAGESPEED_API_KEY;
   const q = new URLSearchParams({ url, strategy, category: "performance" });
   if (key) q.set("key", key);
@@ -22,7 +48,7 @@ async function run(url: string, strategy: "mobile" | "desktop"): Promise<{ lab: 
   const t = setTimeout(() => ctl.abort(), TIMEOUT_MS);
   try {
     const r = await fetch(`${API}?${q}`, { signal: ctl.signal });
-    if (!r.ok) return { lab: null, field: null };
+    if (!r.ok) return { lab: null, field: null, weight: null, shot: null };
     const j = (await r.json()) as Psi;
     const a = j.lighthouseResult?.audits ?? {};
     const v = (id: string) => (typeof a[id]?.numericValue === "number" ? a[id].numericValue! : null);
@@ -45,18 +71,23 @@ async function run(url: string, strategy: "mobile" | "desktop"): Promise<{ lab: 
             cls: m.CUMULATIVE_LAYOUT_SHIFT_SCORE?.percentile != null ? m.CUMULATIVE_LAYOUT_SHIFT_SCORE.percentile / 100 : null,
           }
         : null,
+      weight: weightOf(a),
+      shot: shotOf(a),
     };
   } catch {
-    return { lab: null, field: null };
+    return { lab: null, field: null, weight: null, shot: null };
   } finally {
     clearTimeout(t);
   }
 }
 
-export async function fetchVitals(url: string): Promise<Vitals | null> {
+export async function fetchVitals(url: string): Promise<{ vitals: Vitals | null; shot: Shot | null }> {
   const [mobile, desktop] = await Promise.all([run(url, "mobile"), run(url, "desktop")]);
-  if (!mobile.lab && !desktop.lab) return null;
-  return { mobile: mobile.lab, desktop: desktop.lab, field: mobile.field ?? desktop.field };
+  if (!mobile.lab && !desktop.lab) return { vitals: null, shot: null };
+  return {
+    vitals: { mobile: mobile.lab, desktop: desktop.lab, field: mobile.field ?? desktop.field, weight: mobile.weight ?? desktop.weight },
+    shot: mobile.shot ?? desktop.shot,
+  };
 }
 
 export function vitalsFindings(v: Vitals): Finding[] {

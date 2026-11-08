@@ -1,15 +1,21 @@
 import Link from "next/link";
 import { BowlArcs } from "./art";
+import { AuthLink } from "./auth-link";
 import { FEATURES } from "./features-data";
+import { NavMobile } from "./nav-mobile";
 import { CONTACT_EMAIL } from "./site-config";
 
 const MENU: [string, string][] = [
-  ["Features", "/features"],
   ["How it works", "/how-it-works"],
   ["Pricing", "/pricing"],
-  ["Use cases", "/use-cases"],
-  ["Free tools", "/tools"],
   ["Consultation", "/consultation"],
+];
+
+// Features menu: every feature, then the free tools.
+const FEATURE_ITEMS = [
+  { name: "All features", href: "/features" },
+  ...FEATURES.map((f) => ({ name: f.name, href: `/features/${f.slug}` })),
+  { name: "Free tools", href: "/tools" },
 ];
 
 export function SiteNav() {
@@ -21,6 +27,21 @@ export function SiteNav() {
           <img src="/logo.png" alt="Pagelyt" width={163} height={35} />
         </Link>
         <nav className="menu" aria-label="Main">
+          <div className="menu-dd">
+            <Link href="/features" aria-haspopup="true">
+              Features
+              <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </Link>
+            <div className="dd-panel">
+              {FEATURE_ITEMS.map((f) => (
+                <Link key={f.href} href={f.href}>
+                  {f.name}
+                </Link>
+              ))}
+            </div>
+          </div>
           {MENU.map(([n, h]) => (
             <Link key={n} href={h}>
               {n}
@@ -31,12 +52,14 @@ export function SiteNav() {
           <Link className="plain" href="/faq">
             FAQ
           </Link>
-          <Link className="plain" href="/account">
-            Sign in
-          </Link>
+          <AuthLink />
           <Link className="btn sm" href="/">
             Analyse a website
           </Link>
+          <NavMobile
+            features={FEATURE_ITEMS}
+            links={[...MENU.map(([name, href]) => ({ name, href })), { name: "FAQ", href: "/faq" }]}
+          />
         </div>
       </div>
     </header>
@@ -76,7 +99,7 @@ export function SiteFooter() {
             <Link href="/use-cases">Use cases</Link>
             <Link href="/tools">Free tools</Link>
             <Link href="/fix">Fix guides</Link>
-            <Link href="/account">Sign in</Link>
+            <Link href="/login">Sign in</Link>
             <Link href="/pricing">Pricing</Link>
             <Link href="/faq">FAQ</Link>
           </nav>

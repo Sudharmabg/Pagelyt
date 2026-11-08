@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState } from "react";
 import { GUIDES } from "@/lib/scan/guides";
 import { findingKey } from "@/lib/scan/score";
+import { EFFORT_LABEL, effortOf } from "@/lib/scan/effort";
 import { MODULE_NAMES, type Finding, type Severity } from "@/lib/scan/types";
 
 const LABEL: Record<Severity, string> = { high: "Important", medium: "Worth fixing", low: "Minor" };
@@ -58,6 +59,7 @@ function Item({
           <div className="fnd-top">
             <span className="sev">{LABEL[f.severity]}</span>
             {gain ? <span className="gain" title="Points this adds to your overall score once fixed">+{gain} pt{gain === 1 ? "" : "s"}</span> : null}
+            <span className={`eff eff-${effortOf(f)}`} title="Rough effort to fix">{EFFORT_LABEL[effortOf(f)]}</span>
             {showModule && <span className="fm">{MODULE_NAMES[f.module]}</span>}
           </div>
           <h3 className="ft">{f.title}</h3>

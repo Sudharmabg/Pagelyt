@@ -84,25 +84,28 @@ async function readCapped(res: Response): Promise<{ text: string; bytes: number 
 }
 
 function headerRecord(h: Headers): FetchResult["headers"] {
-  const out: FetchResult["headers"] = {};
+  // No prototype, so a header literally named "__proto__" is just another key.
+  const out = Object.create(null) as FetchResult["headers"];
   h.forEach((v, k) => {
     out[k] = v;
   });
   return out;
 }
 
-async function once(url: URL, ua: string): Promise<Omit<FetchResult, "chain">> {
+type Opts = { ua?: string; follow?: boolean; method?: "GET" | "HEAD"; accept?: string };
+
+async function once(url: URL, ua: string, o: Opts): Promise<Omit<FetchResult, "chain">> {
   const ctl = new AbortController();
   const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
   const t0 = Date.now();
   try {
     const res = await fetch(url.href, {
-      method: "GET",
+      method: o.method ?? "GET",
       redirect: "manual",
       signal: ctl.signal,
-      headers: { "user-agent": ua, accept: "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5" },
+      headers: { "user-agent": ua, accept: o.accept ?? "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5" },
     });
-    const { text, bytes } = await readCapped(res);
+    const { text, bytes } = o.method === "HEAD" ? { text: "", bytes: 0 } : await readCapped(res);
     return { url: url.href, status: res.status, headers: headerRecord(res.headers), body: text, bytes, ms: Date.now() - t0 };
   } catch (e) {
     if (ctl.signal.aborted) throw new Error("Request timed out");
@@ -113,13 +116,13 @@ async function once(url: URL, ua: string): Promise<Omit<FetchResult, "chain">> {
 }
 
 /** `follow: false` returns the first response, redirects included, and spends only one subrequest. */
-export async function safeFetch(start: URL, opts: { ua?: string; follow?: boolean } = {}): Promise<FetchResult> {
+export async function safeFetch(start: URL, opts: Opts = {}): Promise<FetchResult> {
   const ua = opts.ua || "PagelytBot/0.1 (+https://pagelyt.com/bot)";
   if (blockedHost(start.hostname)) throw new Error("Blocked: address is not publicly routable");
   const chain: FetchResult["chain"] = [];
   let url = start;
   for (let i = 0; i <= MAX_REDIRECTS; i++) {
-    const r = await once(url, ua);
+    const r = await once(url, ua, opts);
     chain.push({ url: r.url, status: r.status });
     const loc = r.headers.location;
     if (opts.follow !== false && r.status >= 300 && r.status < 400 && typeof loc === "string") {

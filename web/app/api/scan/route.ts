@@ -1,6 +1,7 @@
 import { clientIp, userFromRequest, verifyTurnstile } from "@/lib/auth";
 import { ScanError, TOTAL_STAGES, checkUrl } from "@/lib/scan";
 import { createScan, rateLimit, recentScanId, saveLead, validateLead } from "@/lib/scan/store";
+import { checkTicket } from "@/lib/ticket";
 
 const PER_HOUR = 10;
 const CACHE_SECONDS = 600;
@@ -13,7 +14,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Free scan limit reached. Please try again in an hour." }, { status: 429 });
   }
 
-  let body: { url?: unknown; lead?: Record<string, unknown>; turnstile?: string };
+  let body: { url?: unknown; lead?: Record<string, unknown>; turnstile?: unknown; ticket?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -23,7 +24,11 @@ export async function POST(req: Request) {
   // Signed-in users are already known to us; everyone else leaves contact details first.
   const v = user && !body.lead ? null : validateLead(body.lead);
   if (v && "error" in v) return Response.json({ error: v.error }, { status: 400 });
-  if (!user && !(await verifyTurnstile(body.turnstile, ip))) {
+  // A signed-in visitor's lead always carries their own account email, whatever the form said.
+  if (user?.email && v) v.lead.email = user.email.toLowerCase();
+  // A visitor who has just created an account arrives with a signed ticket instead of a second human check.
+  const ticketOk = !user && !!v && (await checkTicket(body.ticket, v.lead.email));
+  if (!user && !ticketOk && !(await verifyTurnstile(typeof body.turnstile === "string" ? body.turnstile : undefined, ip))) {
     return Response.json({ error: "Please complete the human check and try again." }, { status: 400 });
   }
 
@@ -36,7 +41,7 @@ export async function POST(req: Request) {
   const host = url.hostname.replace(/^www\./, "");
 
   try {
-    const cached = await recentScanId(url.href, CACHE_SECONDS);
+    const cached = await recentScanId(url.href, CACHE_SECONDS, user?.id);
     const id = cached ?? (await createScan({ url: url.href, host, userId: user?.id }));
     if (v) await saveLead(id, host, v.lead).catch(() => {}); // a lead-storage failure must not block the report
     return Response.json({ id, host, total: TOTAL_STAGES, done: !!cached });

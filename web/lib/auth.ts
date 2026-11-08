@@ -1,7 +1,7 @@
 /* Server-side helpers for Supabase auth. The browser signs in with the anon key; API routes receive
    the user's access token as `Authorization: Bearer <jwt>` and verify it with Supabase. */
 
-export type AuthUser = { id: string; email: string | null };
+export type AuthUser = { id: string; email: string | null; verified: boolean };
 
 export async function userFromRequest(req: Request): Promise<AuthUser | null> {
   const token = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "");
@@ -12,8 +12,8 @@ export async function userFromRequest(req: Request): Promise<AuthUser | null> {
   try {
     const r = await fetch(`${base}/auth/v1/user`, { headers: { apikey: anon, authorization: `Bearer ${token}` } });
     if (!r.ok) return null;
-    const u = (await r.json()) as { id?: string; email?: string };
-    return u.id ? { id: u.id, email: u.email ?? null } : null;
+    const u = (await r.json()) as { id?: string; email?: string; email_confirmed_at?: string | null };
+    return u.id ? { id: u.id, email: u.email ?? null, verified: !!u.email_confirmed_at } : null;
   } catch {
     return null;
   }
@@ -33,6 +33,12 @@ export async function verifyTurnstile(token: string | undefined, ip: string): Pr
   }
 }
 
+/** The caller's IP, used for rate limits. On Cloudflare the `cf-connecting-ip` header is set by Cloudflare itself.
+    Anywhere else `x-forwarded-for` is just whatever the caller typed, so it is only trusted in local development;
+    in production a request without the Cloudflare header shares one strict "unknown" bucket. */
 export function clientIp(req: Request): string {
-  return req.headers.get("cf-connecting-ip") || req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "local";
+  const cf = req.headers.get("cf-connecting-ip");
+  if (cf) return cf;
+  if (process.env.NODE_ENV !== "production") return req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "local";
+  return "unknown";
 }

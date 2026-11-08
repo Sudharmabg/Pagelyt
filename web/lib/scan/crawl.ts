@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import { safeFetch } from "./fetcher";
 import type { Finding, CrawlSummary, CrawlPage } from "./types";
+import { crawlDeepFindings, hreflangs, pageSchemaProblems } from "./seo-deep";
 
 /* Multi-page crawl. Two stages of PER_STAGE pages each (one subrequest per page), so a scan covers
    up to MAX_PAGES pages of the same site. Pages come from the sitemap first, then internal links. */
@@ -66,9 +67,18 @@ export function crawlQueue(home: string, host: string, sitemap: string[], homeLi
 
 const words = (s: string) => (s.trim() ? s.trim().split(/\s+/).length : 0);
 
-function inspect(url: string, status: number, html: string, host: string): { page: CrawlPage; links: string[] } {
+export function inspect(url: string, status: number, html: string, host: string): { page: CrawlPage; links: string[] } {
   const $ = cheerio.load(html.slice(0, 400_000));
   const robots = ($('meta[name="robots"]').attr("content") || "").toLowerCase();
+  const ld = pageSchemaProblems($); // before scripts are stripped
+  const { alts } = hreflangs($, url);
+  let canonicalUrl: string | undefined;
+  try {
+    const c = $('link[rel="canonical"]').attr("href");
+    if (c) canonicalUrl = new URL(c, url).href;
+  } catch {
+    /* malformed canonical */
+  }
   $("script,style,noscript,svg").remove();
   const title = $("title").first().text().trim().replace(/\s+/g, " ");
   return {
@@ -81,6 +91,9 @@ function inspect(url: string, status: number, html: string, host: string): { pag
       canonical: !!$('link[rel="canonical"]').attr("href"),
       noindex: /noindex/.test(robots),
       words: words($("body").text()),
+      ...(canonicalUrl ? { canonicalUrl } : {}),
+      ...(alts.length ? { alts: alts.slice(0, 20) } : {}),
+      ...(ld.length ? { ld } : {}),
     },
     links: status < 400 ? internalLinks(html, url, host) : [],
   };
@@ -178,5 +191,6 @@ export function crawlFindings(pages: CrawlPage[], opts: { sitemap: string[]; lin
     const orphans = opts.sitemap.filter((u) => !linked.has(u.replace(/\/$/, "")));
     if (orphans.length) add("seo", "low", "crawl-orphan-pages", `${orphans.length} sitemap page${orphans.length > 1 ? "s are" : " is"} not linked from anywhere`, "Pages with no internal links are hard for visitors and search engines to find, and receive no link authority.", "Link to these pages from related pages or your navigation.", ex(orphans.map(path)));
   }
+  out.push(...crawlDeepFindings(pages));
   return out;
 }

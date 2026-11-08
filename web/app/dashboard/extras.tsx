@@ -1,70 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { AreaIcon } from "./icons";
 import type { Finding, ModuleKey } from "@/lib/scan/types";
-
-/* ------------------------------------------------------------------ */
-/* Theme (light / dark), remembered in this browser                    */
-/* ------------------------------------------------------------------ */
-
-export function useTheme() {
-  const subscribe = useCallback((cb: () => void) => {
-    window.addEventListener("storage", cb);
-    window.addEventListener("pagelyt-theme", cb);
-    return () => {
-      window.removeEventListener("storage", cb);
-      window.removeEventListener("pagelyt-theme", cb);
-    };
-  }, []);
-  const stored = useSyncExternalStore(
-    subscribe,
-    () => {
-      try {
-        return window.localStorage.getItem("pagelyt-theme") ?? "";
-      } catch {
-        return "";
-      }
-    },
-    () => ""
-  );
-  const system = useSyncExternalStore(
-    (cb) => {
-      const mq = window.matchMedia("(prefers-color-scheme: dark)");
-      mq.addEventListener("change", cb);
-      return () => mq.removeEventListener("change", cb);
-    },
-    () => window.matchMedia("(prefers-color-scheme: dark)").matches,
-    () => false
-  );
-  const dark = stored ? stored === "dark" : system;
-  const toggle = useCallback(() => {
-    try {
-      window.localStorage.setItem("pagelyt-theme", dark ? "light" : "dark");
-    } catch {
-      /* storage blocked */
-    }
-    window.dispatchEvent(new Event("pagelyt-theme"));
-  }, [dark]);
-  return { dark, toggle };
-}
-
-export function ThemeToggle({ dark, onToggle }: { dark: boolean; onToggle: () => void }) {
-  return (
-    <button type="button" className="dash-btn icon" onClick={onToggle} aria-pressed={dark} aria-label="Dark mode" title="Dark mode">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-        {dark ? (
-          <>
-            <circle cx="12" cy="12" r="4" />
-            <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" />
-          </>
-        ) : (
-          <path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" />
-        )}
-      </svg>
-    </button>
-  );
-}
 
 /* ------------------------------------------------------------------ */
 /* Radar: the shape of the site across all areas                        */

@@ -18,14 +18,15 @@ export function registrable(host: string): string {
 
 /* DNS over HTTPS (Cloudflare). Works anywhere fetch works, including Workers. */
 type DohAnswer = { type: number; data: string };
-async function doh(name: string, type: "MX" | "NS" | "TXT"): Promise<string[]> {
+const RR = { MX: 15, NS: 2, TXT: 16, DS: 43, CAA: 257 } as const;
+async function doh(name: string, type: keyof typeof RR): Promise<string[]> {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 3500);
   try {
     const r = await fetch(`https://cloudflare-dns.com/dns-query?name=${encodeURIComponent(name)}&type=${type}`, { headers: { accept: "application/dns-json" }, signal: ctl.signal });
     if (!r.ok) return [];
     const j = (await r.json()) as { Answer?: DohAnswer[] };
-    const want = { MX: 15, NS: 2, TXT: 16 }[type];
+    const want = RR[type];
     return (j.Answer ?? []).filter((a) => a.type === want).map((a) => a.data);
   } catch {
     return [];
@@ -52,15 +53,35 @@ async function domainExpiry(domain: string): Promise<string | null> {
   }
 }
 
+/* DKIM keys live at <selector>._domainkey.<domain>, and selectors cannot be listed, so we try the
+   ones the big mail providers and common tools use. Not finding one is a hint, not proof. */
+const DKIM_SELECTORS = ["google", "selector1", "selector2", "default", "k1", "s1", "dkim", "mail"];
+
+async function dkimSelectors(domain: string): Promise<string[]> {
+  const found = await Promise.all(
+    DKIM_SELECTORS.map(async (sel) => ((await doh(`${sel}._domainkey.${domain}`, "TXT")).map(unquote).some((r) => /(^|;)\s*(v=DKIM1|p=)/i.test(r)) ? sel : null))
+  );
+  return found.filter((x): x is string => !!x);
+}
+
+/** CAA records as "issue letsencrypt.org" style strings (DoH may return presentation or hex form). */
+function caaTag(d: string): string {
+  const m = d.match(/(issuewild|issue|iodef)\s+"?([^"]*)"?/i);
+  return m ? `${m[1].toLowerCase()} ${m[2] || ";"}` : d;
+}
+
 export async function domainIntel(host: string): Promise<DomainInfo> {
   const domain = registrable(host);
-  const [mxRaw, nsRaw, spfRows, dmarcRows, expires] = await Promise.all([
+  const [mxRaw, nsRaw, spfRows, dmarcRows, expires, ds, caa] = await Promise.all([
     doh(domain, "MX"),
     doh(domain, "NS"),
     doh(domain, "TXT").then((r) => r.map(unquote)),
     doh(`_dmarc.${domain}`, "TXT").then((r) => r.map(unquote)),
     domainExpiry(domain),
+    doh(domain, "DS"),
+    doh(domain, "CAA"),
   ]);
+  const dkim = mxRaw.length ? await dkimSelectors(domain) : [];
   const mx = mxRaw
     .map((d) => {
       const [pr, ex] = d.split(" ");
@@ -76,6 +97,9 @@ export async function domainIntel(host: string): Promise<DomainInfo> {
     spf: spfRows.find((r) => /^v=spf1/i.test(r)) ?? null,
     dmarc: dmarcRows.find((r) => /^v=DMARC1/i.test(r)) ?? null,
     expires,
+    dnssec: nsRaw.length ? ds.length > 0 : null,
+    caa: caa.map(caaTag),
+    dkim,
   };
 }
 
@@ -100,17 +124,30 @@ export function domainFindings(d: DomainInfo): Finding[] {
     else if (/\+all\b/i.test(d.spf)) add("high", "spf-open", "SPF allows anyone to send as you", "A +all rule makes the record useless: anyone can pass the check.", "End the record with ~all or -all.", d.spf);
     if (!d.dmarc) add("medium", "no-dmarc", "No DMARC policy", "Without DMARC, scammers can send mail that appears to come from your domain.", "Publish a TXT record at _dmarc.<domain>, starting with v=DMARC1; p=none; rua=mailto:you@<domain>.");
     else if (/;\s*p=none/i.test(d.dmarc) || /^v=DMARC1;\s*p=none/i.test(d.dmarc)) add("low", "dmarc-none", "DMARC is monitoring only (p=none)", "Spoofed mail is reported but not blocked.", "Once reports look clean, move to p=quarantine and then p=reject.", d.dmarc);
+    if (d.dkim && !d.dkim.length) add("low", "no-dkim", "No DKIM key found at common selectors", "DKIM signs your outgoing mail so receivers can tell it really came from you. Without it, DMARC can only lean on SPF, which breaks when mail is forwarded. Your provider may use a selector we could not guess.", "Turn on DKIM signing in your mail provider (Google Workspace, Microsoft 365, Zoho and others all offer it) and publish the TXT or CNAME record they give you.", `Tried: ${DKIM_SELECTORS.join(", ")}`);
   }
+  if (d.dnssec === false) add("low", "no-dnssec", "DNSSEC is not enabled", "Without DNSSEC, attackers who can tamper with DNS answers (on public Wi-Fi or at a compromised resolver) can send visitors and email to a server they control.", "Turn on DNSSEC at your DNS host, then add the DS record it gives you at your registrar. Many hosts, including Cloudflare, do this in one click.");
+  if (d.caa && !d.caa.length) add("low", "no-caa", "No CAA record", "Any certificate authority may issue an HTTPS certificate for your domain. A CAA record limits that to the ones you actually use, which makes a mis-issued certificate much less likely.", 'Publish a CAA record for the CA you use, for example 0 issue "letsencrypt.org" (one line per CA, including your CDN\'s).');
   return out;
 }
 
 /* ---------- Exposed files ---------- */
 
-const PROBES: { path: string; test: (b: string) => boolean; id: string; title: string }[] = [
-  { path: "/.env", test: (b) => /^[A-Z][A-Z0-9_]{2,}=.+/m.test(b), id: "exposed-env", title: "Environment file (.env) is publicly readable" },
-  { path: "/.git/config", test: (b) => /\[core\]/.test(b), id: "exposed-git", title: "Git repository is publicly readable (.git)" },
-  { path: "/wp-config.php.bak", test: (b) => /DB_PASSWORD|DB_NAME/.test(b), id: "exposed-wpconfig", title: "WordPress config backup is publicly readable" },
-  { path: "/phpinfo.php", test: (b) => /PHP Version/.test(b), id: "exposed-phpinfo", title: "phpinfo() page is publicly reachable" },
+type Probe = { path: string; test: (b: string, type: string) => boolean; id: string; title: string; severity: Finding["severity"]; why: string };
+
+const SECRET_WHY = "Secrets, passwords or source code may be downloadable by anyone, including automated scanners that look for exactly this.";
+const notHtml = (type: string) => !/html/i.test(type);
+
+const PROBES: Probe[] = [
+  { path: "/.env", test: (b) => /^[A-Z][A-Z0-9_]{2,}=.+/m.test(b), id: "exposed-env", title: "Environment file (.env) is publicly readable", severity: "high", why: SECRET_WHY },
+  { path: "/.git/config", test: (b) => /\[core\]/.test(b), id: "exposed-git", title: "Git repository is publicly readable (.git)", severity: "high", why: SECRET_WHY },
+  { path: "/wp-config.php.bak", test: (b) => /DB_PASSWORD|DB_NAME/.test(b), id: "exposed-wpconfig", title: "WordPress config backup is publicly readable", severity: "high", why: SECRET_WHY },
+  { path: "/phpinfo.php", test: (b) => /PHP Version/.test(b), id: "exposed-phpinfo", title: "phpinfo() page is publicly reachable", severity: "high", why: "It lists server paths, software versions and sometimes environment secrets: a map for attackers." },
+  { path: "/.svn/wc.db", test: (b) => b.startsWith("SQLite format 3"), id: "exposed-svn", title: "Subversion metadata (.svn) is publicly readable", severity: "high", why: SECRET_WHY },
+  { path: "/backup.zip", test: (b, t) => b.startsWith("PK") && notHtml(t), id: "exposed-backup", title: "A site backup (backup.zip) can be downloaded", severity: "high", why: "Backups usually contain the full source code, configuration and database passwords." },
+  { path: "/.DS_Store", test: (b, t) => b.includes("Bud1") && notHtml(t), id: "exposed-dsstore", title: "macOS .DS_Store file is publicly readable", severity: "medium", why: "It lists the names of files and folders on the server, including ones you never linked to, such as backups or admin pages." },
+  { path: "/server-status", test: (b) => /Apache Server Status/i.test(b), id: "exposed-server-status", title: "Apache server-status page is public", severity: "medium", why: "It shows live requests, visitor IP addresses and internal URLs to anyone." },
+  { path: "/composer.json", test: (b, t) => notHtml(t) && /"(require|autoload)"\s*:/.test(b), id: "exposed-composer", title: "composer.json is publicly readable", severity: "low", why: "It lists your PHP packages and versions, which helps attackers match known vulnerabilities." },
 ];
 
 export async function exposedFiles(origin: string): Promise<Finding[]> {
@@ -118,21 +155,38 @@ export async function exposedFiles(origin: string): Promise<Finding[]> {
     PROBES.map(async (p) => {
       try {
         const r = await safeFetch(new URL(p.path, origin), { follow: false });
-        return r.status === 200 && p.test(r.body.slice(0, 20_000)) ? p : null;
+        return r.status === 200 && p.test(r.body.slice(0, 20_000), String(r.headers["content-type"] ?? "")) ? p : null;
       } catch {
         return null;
       }
     })
   );
-  return hits.filter((p): p is (typeof PROBES)[number] => !!p).map((p) => ({
+  return hits.filter((p): p is Probe => !!p).map((p) => ({
     id: p.id,
     module: "security" as const,
-    severity: "high" as const,
+    severity: p.severity,
     title: p.title,
-    why: "Secrets, passwords or source code may be downloadable by anyone, including automated scanners that look for exactly this.",
-    fix: `Remove ${p.path} from the public web root or block it in your server config, then rotate any secrets it contained.`,
+    why: p.why,
+    fix: `Remove ${p.path} from the public web root or block it in your server config${p.severity === "high" ? ", then rotate any secrets it contained" : ""}.`,
     evidence: p.path,
   }));
+}
+
+/* ---------- security.txt (RFC 9116) ---------- */
+
+export async function securityTxt(origin: string): Promise<Finding[]> {
+  let body = "";
+  try {
+    const r = await safeFetch(new URL("/.well-known/security.txt", origin));
+    if (r.status === 200 && notHtml(String(r.headers["content-type"] ?? "")) && /^\s*contact\s*:/im.test(r.body)) body = r.body.slice(0, 20_000);
+  } catch {
+    return []; // unknown, not missing
+  }
+  const add = (severity: Finding["severity"], id: string, title: string, why: string, fix: string, evidence?: string): Finding => ({ id, module: "security", severity, title, why, fix, evidence });
+  if (!body) return [add("low", "no-security-txt", "No security.txt file", "Security researchers who find a problem on your site have no clear way to tell you, so reports get lost or go public instead.", "Publish /.well-known/security.txt with at least a Contact: line (an email or form) and an Expires: date. securitytxt.org generates one.")];
+  const exp = body.match(/^\s*expires\s*:\s*(.+)$/im)?.[1]?.trim();
+  if (exp && new Date(exp).getTime() < Date.now()) return [add("low", "security-txt-expired", "security.txt has expired", "An expired file tells researchers the contact details may be out of date.", "Update the Expires: date (at most a year ahead) and check the Contact: line still works.", `Expires: ${exp}`)];
+  return [];
 }
 
 /* ---------- Link check (sampled) ---------- */

@@ -36,6 +36,15 @@ export function Sources() {
   const [active, setActive] = useState(0);
   const [auto, setAuto] = useState(true);
 
+  // On phones the rows must not move under a tap, so autoplay is off there.
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 960px)");
+    const sync = () => mq.matches && setAuto(false);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   useEffect(() => {
     if (!auto) return;
     const id = window.setTimeout(() => setActive((a) => (a + 1) % GROUPS.length), SECONDS * 1000);

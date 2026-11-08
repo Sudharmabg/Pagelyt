@@ -10,8 +10,10 @@ import { MODULE_NAMES, type ModuleKey } from "@/lib/scan/types";
 import { AreaIcon } from "./icons";
 import { SaveSite } from "./save-site";
 import { ShareReport } from "./share-report";
-import { CommandPalette, RadarPanel, ShortcutHelp, ThemeToggle, useShortcuts, useTheme, type Cmd } from "./extras";
-import { ComparePanel, DomainPanel, ExportMenu, FindingsExplorer, CrawlPanel, HowScores, TechPanel, VitalsPanel, useHistory, type Snap } from "./panels";
+import { RescanButton } from "./rescan";
+import { supabaseBrowser } from "@/lib/supabase-browser";
+import { CommandPalette, RadarPanel, ShortcutHelp, useShortcuts, type Cmd } from "./extras";
+import { ComparePanel, DomainPanel, ExportMenu, FindingsExplorer, CrawlPanel, ChangePanel, HowScores, ImagesPanel, QuickWins, TechPanel, VitalsPanel, useHistory, type Snap } from "./panels";
 import type { StoredScan } from "@/lib/scan/store";
 
 type View = "overview" | "all" | ModuleKey;
@@ -54,8 +56,65 @@ function CountRing({ score, size, stroke, delay = 0, enabled }: { score: number;
   return <Ring v={score} size={size} stroke={stroke} text={String(n)} />;
 }
 
-/* "Marked as fixed" is remembered in this browser, per report. */
-function useFixed(scanId: string) {
+/* Who is looking: the signed-in owner of this report, anyone else with the link (view only), or "local"
+   when accounts are not switched on (local development), where everything stays editable as before.
+   Ownership is decided by the database: row-level security only returns a report to its own owner. */
+type Access = "checking" | "owner" | "viewer" | "local";
+function useAccess(scanId: string): Access {
+  const [access, setAccess] = useState<Access>(() => (supabaseBrowser() ? "checking" : "local"));
+  useEffect(() => {
+    const sb = supabaseBrowser();
+    if (!sb) return;
+    let live = true;
+    const check = async () => {
+      const { data } = await sb.auth.getSession();
+      if (!data.session) return live && setAccess("viewer");
+      const { data: row } = await sb.from("scans").select("id").eq("id", scanId).maybeSingle();
+      if (live) setAccess(row ? "owner" : "viewer");
+    };
+    void check();
+    const { data: sub } = sb.auth.onAuthStateChange(() => void check());
+    return () => {
+      live = false;
+      sub.subscription.unsubscribe();
+    };
+  }, [scanId]);
+  return access;
+}
+
+/* With accounts: the owner's "marked as fixed" is saved with the report (so it follows them to any device and
+   viewers see it read-only). A failed save puts the tick back and says so. */
+function useServerFixed(scanId: string, saved: string[] | null | undefined) {
+  const [fixed, setFixed] = useState(() => new Set<string>(saved ?? []));
+  const [saveError, setSaveError] = useState("");
+  const toggle = useCallback(
+    async (key: string) => {
+      const before = fixed;
+      const next = new Set(before);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      setFixed(next);
+      setSaveError("");
+      const token = (await supabaseBrowser()?.auth.getSession())?.data.session?.access_token;
+      try {
+        const r = await fetch(`/api/scan/${encodeURIComponent(scanId)}/fixed`, {
+          method: "PUT",
+          headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({ fixed: [...next] }),
+        });
+        if (!r.ok) throw new Error();
+      } catch {
+        setFixed(before);
+        setSaveError("Couldn't save that change. Please try again.");
+      }
+    },
+    [fixed, scanId]
+  );
+  return { fixed, toggle, saveError };
+}
+
+/* Without accounts (local development), "marked as fixed" is remembered in this browser, per report. */
+function useLocalFixed(scanId: string) {
   const storeKey = `pagelyt-fixed-${scanId}`;
   const subscribe = useCallback((cb: () => void) => {
     window.addEventListener("storage", cb);
@@ -100,18 +159,22 @@ function useFixed(scanId: string) {
   return { fixed, toggle };
 }
 
-export function Dashboard({ scan, history }: { scan: StoredScan; history?: Snap[] }) {
+export function Dashboard({ scan, history, savedFixed, shots }: { scan: StoredScan; history?: Snap[]; savedFixed?: string[] | null; shots?: { now: string | null; prev: string | null } }) {
   const [view, setView] = useState<View>("overview");
   const [copied, setCopied] = useState(false);
   const [intro, setIntro] = useState(true); // staged reveal on first open only
-  const { fixed, toggle } = useFixed(scan.id);
+  const access = useAccess(scan.id);
+  const canEdit = access === "owner" || access === "local";
+  const local = useLocalFixed(scan.id);
+  const server = useServerFixed(scan.id, savedFixed);
+  const { fixed, toggle } = access === "local" ? local : server;
+  const saveError = access === "local" ? "" : server.saveError;
   const { prev, trend, synced, points } = useHistory(scan, history);
   const [pinned, setPinned] = useState(false);
   const [party, setParty] = useState(false);
   const router = useRouter();
   const [palette, setPalette] = useState(false);
   const [help, setHelp] = useState(false);
-  const { dark, toggle: toggleTheme } = useTheme();
 
   // Show the compact score bar once the hero has scrolled out of view.
   const watchHero = useCallback((el: HTMLElement | null) => {
@@ -149,6 +212,7 @@ export function Dashboard({ scan, history }: { scan: StoredScan; history?: Snap[
   const topArea = useMemo(() => [...modules].sort((a, b) => a.score - b.score)[0], [modules]);
 
   const onToggle = (key: string) => {
+    if (!canEdit) return; // viewers cannot change a report
     const f = scan.findings.find((x) => findingKey(x) === key);
     if (f?.severity === "high" && !fixed.has(key) && high === 1) {
       setParty(true);
@@ -165,7 +229,6 @@ export function Dashboard({ scan, history }: { scan: StoredScan; history?: Snap[
     { id: "v-all", label: "All findings", group: "Go to", icon: "seo", run: () => setView("all") },
     ...modules.map((m): Cmd => ({ id: "v-" + m.key, label: m.name, hint: String(m.score), group: "Go to", icon: m.key, run: () => setView(m.key) })),
     { id: "a-print", label: "Print or save as PDF", group: "Actions", run: () => window.print() },
-    { id: "a-theme", label: dark ? "Switch to light mode" : "Switch to dark mode", group: "Actions", run: toggleTheme },
     { id: "a-help", label: "Keyboard shortcuts", group: "Actions", run: () => setHelp(true) },
     { id: "a-new", label: "Scan another site", group: "Actions", run: () => router.push("/") },
     ...remaining.slice(0, 40).map((f): Cmd => ({ id: "f-" + findingKey(f), label: f.title, hint: MODULE_NAMES[f.module], group: "Findings", icon: f.module, run: () => setView(f.module) })),
@@ -186,7 +249,7 @@ export function Dashboard({ scan, history }: { scan: StoredScan; history?: Snap[
   };
 
   return (
-    <div className={`dash${intro ? " intro" : ""}${dark ? " dark" : ""}`}>
+    <div className={`dash${intro ? " intro" : ""}`}>
       <CommandPalette open={palette} onClose={() => setPalette(false)} cmds={cmds} />
       <ShortcutHelp open={help} onClose={() => setHelp(false)} />
       <PrintCover scan={scan} overall={potential} modules={modules} />
@@ -209,10 +272,10 @@ export function Dashboard({ scan, history }: { scan: StoredScan; history?: Snap[
           <button type="button" className="dash-btn kbd-btn" onClick={() => setPalette(true)} aria-label="Search and jump (Ctrl K)">
             Search <kbd>Ctrl K</kbd>
           </button>
-          <SaveSite scanId={scan.id} />
-          <ShareReport scanId={scan.id} />
+          {canEdit && <SaveSite scanId={scan.id} />}
+          {canEdit && <ShareReport scanId={scan.id} />}
+          {access === "owner" && <RescanButton url={scan.url} />}
           <ExportMenu scan={scan} findings={scan.findings} fixed={fixed} />
-          <ThemeToggle dark={dark} onToggle={toggleTheme} />
           <Link className="dash-btn" href={`/tools?scan=${scan.id}`}>Fix with free tools</Link>
           <button type="button" className="dash-btn" onClick={() => window.print()}>
             Print / PDF
@@ -225,6 +288,14 @@ export function Dashboard({ scan, history }: { scan: StoredScan; history?: Snap[
           </Link>
         </div>
       </header>
+
+      {access === "viewer" && (
+        <p className="dash-viewonly" role="status">
+          <b>View only.</b> You&rsquo;re looking at a shared report. The owner can sign in to tick findings off, rescan and save the site.{" "}
+          <Link href={`/login?next=${encodeURIComponent(`/dashboard/${scan.id}`)}`}>Sign in as the owner</Link>
+        </p>
+      )}
+      {saveError && <p className="dash-viewonly bad" role="alert">{saveError}</p>}
 
       <div className="dash-body">
         <nav className="dash-nav" aria-label="Report sections">
@@ -255,7 +326,7 @@ export function Dashboard({ scan, history }: { scan: StoredScan; history?: Snap[
                   <p>Search, filter by priority and tick things off as you fix them.</p>
                 </div>
               </section>
-              <FindingsExplorer findings={scan.findings} fixed={fixed} onToggleFixed={onToggle} gains={gains} />
+              <FindingsExplorer findings={scan.findings} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} />
             </>
           ) : view === "overview" ? (
             <>
@@ -311,8 +382,9 @@ export function Dashboard({ scan, history }: { scan: StoredScan; history?: Snap[
               </ul>
 
               {remaining.length > 0 && (
-                <Findings findings={remaining.slice(0, 5)} title="Top fixes" fixed={fixed} onToggleFixed={onToggle} gains={gains} />
+                <Findings findings={remaining.slice(0, 5)} title="Top fixes" fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} />
               )}
+              <QuickWins findings={remaining} gains={gains} onOpen={(f) => setView(f.module)} />
               {remaining.length > 5 && (
                 <p className="dash-more">
                   Showing the 5 most important of {remaining.length} open findings. Choose an area on the left, or{" "}
@@ -326,7 +398,9 @@ export function Dashboard({ scan, history }: { scan: StoredScan; history?: Snap[
                 <RadarPanel modules={modules} />
                 <ComparePanel scan={scan} prev={prev} trend={trend} synced={synced} points={points} />
               </div>
+              <ChangePanel scan={scan} shots={shots} />
               <VitalsPanel vitals={scan.vitals} />
+              <ImagesPanel images={scan.images} weight={scan.vitals?.weight} />
               <div className="panel-grid">
                 <DomainPanel domain={scan.domain} links={scan.links} at={scan.scannedAt} />
                 <TechPanel tech={scan.tech} />
@@ -352,7 +426,7 @@ export function Dashboard({ scan, history }: { scan: StoredScan; history?: Snap[
                 </div>
               </section>
               {inModule.length > 0 && (
-                <Findings findings={inModule} fixed={fixed} onToggleFixed={onToggle} gains={gains} grouped />
+                <Findings findings={inModule} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} grouped />
               )}
             </>
           )}

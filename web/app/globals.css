@@ -1782,6 +1782,157 @@ h4 {
   background: rgba(255, 253, 249, 0.92);
   backdrop-filter: blur(12px);
   box-shadow: 0 8px 28px rgba(40, 20, 50, 0.12);
+  gap: 16px;
+}
+.nav-in .menu {
+  gap: 30px;
+  font-size: 17px;
+}
+.nav-in .menu a,
+.nav-in .nav-act a {
+  white-space: nowrap;
+}
+/* Features dropdown */
+.menu-dd {
+  position: relative;
+}
+.menu-dd > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.dd-panel {
+  position: absolute;
+  top: 100%;
+  left: -14px;
+  min-width: 230px;
+  padding: 8px;
+  margin-top: 8px;
+  display: none;
+  flex-direction: column;
+  border-radius: 16px;
+  background: #fffdf9;
+  box-shadow: 0 12px 32px rgba(40, 20, 50, 0.16);
+}
+.dd-panel::before {
+  content: "";
+  position: absolute;
+  inset: -10px 0 auto 0;
+  height: 10px;
+}
+.menu-dd:hover .dd-panel,
+.menu-dd:focus-within .dd-panel {
+  display: flex;
+}
+.dd-panel a {
+  padding: 9px 12px;
+  border-radius: 10px;
+  white-space: nowrap;
+}
+.dd-panel a:hover {
+  background: var(--i100);
+}
+.dd-panel a:last-child {
+  margin-top: 6px;
+  border-top: 1px solid var(--i200);
+  border-radius: 0 0 10px 10px;
+  padding-top: 12px;
+  font-weight: 600;
+}
+
+/* Hamburger (only below the menu breakpoint) */
+.nav-mob {
+  display: none;
+}
+.nav-burger {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 0;
+  border-radius: 12px;
+  background: transparent;
+  cursor: pointer;
+}
+.nav-burger:hover {
+  background: var(--i100);
+}
+.nav-burger span {
+  width: 20px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--n700);
+}
+.nav-mob-panel {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  max-height: calc(100vh - 110px);
+  overflow-y: auto;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border-radius: 20px;
+  background: #fffdf9;
+  box-shadow: 0 12px 32px rgba(40, 20, 50, 0.18);
+}
+.nav-mob-panel a:not(.btn) {
+  padding: 11px 12px;
+  border-radius: 10px;
+  font-weight: 500;
+  text-decoration: none;
+  color: var(--n700);
+}
+.nav-mob-panel a:not(.btn):hover {
+  background: var(--i100);
+}
+.nav-mob-panel .nm-h {
+  margin: 4px 12px 2px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--n400);
+}
+.nav-mob-panel .nm-sub {
+  padding-left: 22px !important;
+}
+.nav-mob-panel hr {
+  width: 100%;
+  margin: 8px 0;
+  border: 0;
+  border-top: 1px solid var(--i200);
+}
+.nav-mob-panel .btn {
+  margin-top: 8px;
+  justify-content: center;
+}
+@media (max-width: 1060px) {
+  .nav-in {
+    position: relative;
+  }
+  .nav-mob {
+    display: block;
+  }
+}
+@media (max-width: 480px) {
+  .nav-in .nav-act > .btn.sm:not(.outline) {
+    display: none;
+  }
+}
+
+.nav-in .nav-act {
+  gap: 4px;
+  flex-shrink: 0;
+}
+.nav-in .nav-act .plain {
+  font-size: 17px;
+  padding: 8px 10px;
 }
 .btn {
   border-radius: 14px;
@@ -4511,3 +4662,303 @@ button:hover > .arr,
 .tctx a { color: inherit; font-weight: 700; text-decoration: underline; text-underline-offset: 3px; }
 .tbadge { display: inline-grid; place-items: center; min-width: 1.35em; height: 1.35em; margin-left: .45em; padding: 0 .35em; border-radius: 999px; background: #e0457b; color: #fff; font-size: .72em; font-weight: 800; }
 .tfixes { margin: 0 0 12px; font-size: .88rem; font-weight: 600; color: #8a2a52; }
+
+/* ---------- phone fixes ---------- */
+@media (max-width: 640px) {
+  .mock-top {
+    flex-wrap: wrap;
+  }
+  .mock-top > div {
+    min-width: 0;
+  }
+  .scan-top {
+    gap: 10px;
+    padding: 12px 14px;
+  }
+  .scan-top .dots {
+    display: none;
+  }
+  .addr {
+    min-width: 0;
+    padding: 7px 10px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .url-form .btn {
+    width: auto;
+    min-width: 170px;
+    margin-inline: auto;
+    justify-content: center;
+  }
+}
+
+/* footer columns: .foot3 is declared after the responsive rules, so raise specificity */
+@media (max-width: 960px) {
+  .foot-top.foot3 {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+  .foot-top.foot3 .foot-brand {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 640px) {
+  /* brand full width, Features full width in two columns, Learn and Company side by side */
+  .foot-top.foot3 {
+    gap: 28px 20px;
+  }
+  .foot-top.foot3 nav[aria-label="Features"] {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    column-gap: 20px;
+    align-content: start;
+  }
+  .foot-top.foot3 nav[aria-label="Features"] h4 {
+    grid-column: 1 / -1;
+  }
+  .foot-top.foot3 nav a {
+    overflow-wrap: anywhere;
+  }
+}
+
+/* decorative ribbons must never widen the page */
+.page-hero,
+.hero {
+  overflow-x: clip;
+}
+
+/* tools: 16px inputs stop iOS zooming on focus; bigger tap targets */
+@media (max-width: 640px) {
+  .tf input,
+  .tf select,
+  .tf textarea {
+    font-size: 16px;
+  }
+}
+@media (max-width: 640px) {
+  .tout {
+    position: static;
+  }
+  .tout-act button {
+    padding: .55rem 1rem;
+  }
+}
+
+/* consultation: stack the two cards on tablets and phones (declared after the generic stacking rule) */
+@media (max-width: 960px) {
+  .cons-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* smaller hero CTA on phones */
+@media (max-width: 640px) {
+  .url-form.mega .btn {
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 12px;
+    font-size: 15px;
+  }
+}
+
+/* hero feature pills: equal width, one per row on phones */
+@media (max-width: 640px) {
+  .adv {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    width: min(100%, 300px);
+    gap: 10px;
+  }
+  .adv li {
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+/* sample report: show the whole card (list + score panel) on phones */
+@media (max-width: 640px) {
+  .hero-prev2 {
+    max-height: none;
+    overflow: visible;
+    -webkit-mask-image: none;
+    mask-image: none;
+  }
+}
+
+/* "How Pagelyt analyses": keep every row open on tablets and phones so taps never land on a moving target */
+@media (max-width: 960px) {
+  .src-d {
+    max-height: none;
+    margin-top: 8px;
+    opacity: 1;
+    max-width: none;
+    transition: none;
+  }
+  .src-row {
+    padding: 18px 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .src-k {
+    font-size: 24px;
+  }
+  .src-row.on .src-d {
+    max-height: none;
+  }
+}
+
+/* home: hide the "Analyse your website now" band on phones (the hero already has the form) */
+@media (max-width: 640px) {
+  .container.try {
+    display: none;
+  }
+}
+
+/* "Eight areas. One scan.": the next section's rounded sheet overlaps this one by --sheet, so pad past it */
+.sec.tight.areas-sec {
+  padding-bottom: calc(var(--sheet) + 56px);
+}
+@media (max-width: 640px) {
+  .area-strip {
+    gap: 0.6rem;
+  }
+  .area-strip li {
+    padding: 0.55rem 0.9rem;
+    font-size: 0.88rem;
+  }
+}
+
+/* trust row: the footer's rounded top overlaps this section by --sheet, so pad past it */
+.sec.tight.trust-sec {
+  padding-bottom: calc(var(--sheet) + 56px);
+}
+
+/* dashboard on phones: the top bar scrolls away with the page and its actions sit in one swipeable row,
+   instead of a tall sticky banner of stretched buttons */
+@media (max-width: 720px) {
+  .dash-top {
+    position: static;
+    flex-wrap: wrap;
+    gap: 0.6rem 0.75rem;
+    padding: 0.7rem 1rem 0.6rem;
+    backdrop-filter: none;
+    background: #fff;
+  }
+  .dash-logo img {
+    height: 26px;
+    width: auto;
+  }
+  .dash-site {
+    flex: 1;
+    min-width: 0;
+  }
+  .dash-act {
+    width: 100%;
+    flex-wrap: nowrap;
+    gap: 0.45rem;
+    overflow-x: auto;
+    padding-bottom: 0.2rem;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dash-act::-webkit-scrollbar {
+    display: none;
+  }
+  .dash-btn {
+    flex: none;
+    padding: 0.42rem 0.8rem;
+    font-size: 0.82rem;
+  }
+  .dash-btn.kbd-btn kbd {
+    display: none;
+  }
+}
+
+/* modal: honeypot and inline link buttons */
+.lm-hp {
+  position: absolute;
+  left: -9999px;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.lm-link {
+  all: unset;
+  cursor: pointer;
+  color: var(--i500, #7c5cd6);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.lm-link:focus-visible {
+  outline: 2px solid #7c5cd6;
+  outline-offset: 2px;
+}
+
+/* sign-in pages: clear the footer's rounded top, keep the card's buttons readable */
+.sec.auth-sec {
+  padding-bottom: calc(var(--sheet) + 72px);
+}
+.auth-card .lm-act {
+  flex-wrap: wrap;
+  justify-content: stretch;
+}
+.auth-card .lm-act .btn {
+  flex: 1 1 170px;
+}
+.lm-link {
+  color: #6a30bd;
+}
+
+/* outlined button: the header's Sign in / Account */
+.btn.outline {
+  background: transparent;
+  border: 1.5px solid var(--ink, #14202b);
+  color: var(--ink, #14202b);
+}
+.btn.outline:hover {
+  background: var(--ink, #14202b);
+  color: #fff;
+}
+.nav-mob-panel .nm-signin {
+  margin: 0 0 6px;
+}
+
+/* dashboard: view-only banner for visitors who are not the owner */
+.dash-viewonly {
+  margin: 0;
+  padding: 0.7rem clamp(1rem, 3vw, 2rem);
+  background: #fff4dc;
+  border-bottom: 1px solid #f0d9a6;
+  color: #5b4300;
+  font-size: 0.92rem;
+}
+.dash-viewonly a {
+  font-weight: 700;
+  color: inherit;
+  text-underline-offset: 2px;
+}
+.dash-viewonly.bad {
+  background: #fde8e6;
+  border-bottom-color: #f3c0bb;
+  color: #7a1f17;
+}
+
+/* Effort chips and quick wins */
+.eff { font-size: .72rem; font-weight: 700; padding: .15rem .5rem; border-radius: 999px; letter-spacing: .02em; background: #eef1f4; color: #46525e; }
+.eff-1 { background: #e6f0ff; color: #1f4f9c; }
+.eff-3 { background: #f6ece2; color: #8a4b12; }
+.qw ol { list-style: none; margin: .6rem 0 0; padding: 0; display: grid; gap: .35rem; }
+.qw-row { width: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; padding: .6rem .75rem; border: 1px solid #f0ebe3; border-radius: 10px; background: #fff; text-align: left; font: inherit; cursor: pointer; }
+.qw-row:hover { border-color: #d9cdf3; background: #faf7ff; }
+.qw-row:focus-visible { outline: 2px solid #6a30bd; outline-offset: 2px; }
+.qw-t { flex: 1 1 14rem; font-weight: 600; font-size: .92rem; }
+.qw-m { font-size: .78rem; opacity: .7; }
+
+/* Visual change panel */
+.chg-shots { display: flex; flex-wrap: wrap; gap: 1rem; }
+.chg-shots figure { margin: 0; flex: 0 1 180px; display: grid; gap: .35rem; }
+.chg-shots img, .chg-none { width: 100%; max-height: 360px; object-fit: cover; object-position: top; border: 1px solid #e6dfd4; border-radius: 10px; background: #f7f4ef; }
+.chg-none { display: grid; place-items: center; aspect-ratio: 9 / 16; font-size: .8rem; opacity: .6; }
+.chg-shots figcaption { font-size: .78rem; opacity: .7; }

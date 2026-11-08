@@ -12,7 +12,7 @@ import { AreaStrip, ToolsAndGuides, TrustRow } from "./home-extras";
 import { SiteFooter, SiteNav } from "./site-chrome";
 import { Sources } from "./sources";
 import { ScanPreview, type ModScore } from "./ui";
-import { LeadModal, type LeadInput } from "./lead-modal";
+import { LeadModal, type ScanStart } from "./lead-modal";
 import { STAGE_LABELS } from "@/lib/scan/labels";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
@@ -92,7 +92,7 @@ export default function Home() {
     if (token) {
       setRunning(true);
       setModal(true);
-      const problem = await startScan(null, undefined, token);
+      const problem = await startScan({ lead: null, token, after: "dashboard" });
       if (problem) {
         setRunning(false);
         setModal(false);
@@ -103,14 +103,15 @@ export default function Home() {
     setModal(true);
   };
 
-  /* Runs the scan with the visitor's details, then opens their dashboard. */
-  const startScan = async (lead: LeadInput | null, turnstile?: string, token?: string): Promise<string | null> => {
+  /* Runs the scan with the visitor's details, then opens their dashboard (or, for a brand-new account that still
+     has to confirm its email, the check-your-email page). */
+  const startScan = async ({ lead, turnstile, ticket, token, after }: ScanStart): Promise<string | null> => {
     setProgress(0);
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
         headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ url: url.trim(), ...(lead ? { lead } : {}), turnstile }),
+        body: JSON.stringify({ url: url.trim(), ...(lead ? { lead } : {}), turnstile, ticket }),
       });
       const start = await res.json();
       if (!res.ok) return start.error || "Scan failed.";
@@ -125,7 +126,7 @@ export default function Home() {
       }
       // A signed-in visitor's scan is theirs: attach it to their account before opening it.
       if (token) await fetch("/api/account/claim", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ scanId: start.id }) }).catch(() => {});
-      router.push(`/dashboard/${start.id}`);
+      router.push(after === "verify" ? "/check-email" : `/dashboard/${start.id}`);
       return null;
     } catch {
       return "Could not reach the server. Please try again.";

@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { Findings } from "../findings";
-import { findingKey, PENALTY } from "@/lib/scan/score";
-import { MODULE_NAMES, type Finding, type Severity, type Vitals, type VitalsRun } from "@/lib/scan/types";
+import { findingKey, PENALTY, WEIGHTS } from "@/lib/scan/score";
+import { EFFORT_LABEL, quickWins } from "@/lib/scan/effort";
+import { MODULE_NAMES, type Finding, type PageWeight, type Severity, type Vitals, type VitalsRun } from "@/lib/scan/types";
 import type { StoredScan } from "@/lib/scan/store";
 
 /* ------------------------------------------------------------------ */
@@ -17,7 +18,7 @@ const SEV: { key: Severity | "all"; label: string }[] = [
   { key: "low", label: "Minor" },
 ];
 
-export function FindingsExplorer({ findings, fixed, onToggleFixed, gains }: { findings: Finding[]; fixed: Set<string>; onToggleFixed: (k: string) => void; gains?: Map<string, number> }) {
+export function FindingsExplorer({ findings, fixed, onToggleFixed, gains }: { findings: Finding[]; fixed: Set<string>; onToggleFixed?: (k: string) => void; gains?: Map<string, number> }) {
   const [bySize, setBySize] = useState(false);
   const [sev, setSev] = useState<Severity | "all">("all");
   const [q, setQ] = useState("");
@@ -405,6 +406,9 @@ export function DomainPanel({ domain, links, at }: { domain: StoredScan["domain"
     { k: "SPF", v: domain.spf ? "Published" : "Missing", ok: domain.mx.length ? !!domain.spf : null },
     { k: "DMARC", v: domain.dmarc ? `Policy: ${dm ?? "set"}` : "Missing", ok: domain.mx.length ? !!domain.dmarc && dm !== "none" : null },
   ];
+  if (domain.dkim && domain.mx.length) rows.push({ k: "DKIM", v: domain.dkim.length ? `Found (${domain.dkim.join(", ")})` : "Not found at common selectors", ok: domain.dkim.length ? true : null });
+  if (domain.dnssec !== undefined) rows.push({ k: "DNSSEC", v: domain.dnssec == null ? "Unknown" : domain.dnssec ? "Signed" : "Off", ok: domain.dnssec });
+  if (domain.caa) rows.push({ k: "CAA", v: domain.caa.length ? [...new Set(domain.caa.filter((c) => c.startsWith("issue ")).map((c) => c.split(" ")[1].replace(/;$/, "")))].join(", ") || "Set" : "None (any CA can issue)", ok: domain.caa.length > 0 });
   if (links) rows.push({ k: "Links checked", v: `${links.checked} sampled, ${links.broken} broken`, ok: links.checked === 0 ? null : links.broken === 0 });
   return (
     <section className="panel" aria-label="Domain and email">
@@ -432,7 +436,7 @@ export function HowScores() {
       <summary>How scores work, and what this scan can’t tell you</summary>
       <div className="how-body">
         <p>
-          Each area starts at 100. Every open finding takes points off: <b>{PENALTY.high}</b> for important, <b>{PENALTY.medium}</b> for worth fixing and <b>{PENALTY.low}</b> for minor, down to a minimum of 5. The Website Intelligence Score is the average of all areas. Ticking an issue as fixed shows the score you’d have once it’s really fixed, then rescan to confirm.
+          Each area starts at 100. Every open finding takes points off: <b>{PENALTY.high}</b> for important, <b>{PENALTY.medium}</b> for worth fixing and <b>{PENALTY.low}</b> for minor, down to a minimum of 5. The Website Intelligence Score is a weighted average of the areas: problems that can take a site offline or put visitors at risk count for more ({(Object.keys(WEIGHTS) as (keyof typeof WEIGHTS)[]).sort((a, b) => WEIGHTS[b] - WEIGHTS[a]).map((k) => `${MODULE_NAMES[k]} ×${WEIGHTS[k]}`).join(", ")}). Ticking an issue as fixed shows the score you’d have once it’s really fixed, then rescan to confirm.
         </p>
         <ul>
           <li><b>Not a compliance certificate.</b> Automated checks find only a share of accessibility problems. Passing them does not mean WCAG compliance, and colour contrast needs a rendered page, which this scan doesn’t do yet.</li>
@@ -483,6 +487,134 @@ export function CrawlPanel({ crawl }: { crawl: StoredScan["crawl"] }) {
           </tbody>
         </table>
       </div>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Images and page weight                                              */
+/* ------------------------------------------------------------------ */
+
+const size = (n: number | null | undefined) => (n == null ? "–" : n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)} MB` : `${Math.round(n / 1000)} KB`);
+
+export function ImagesPanel({ images, weight }: { images: StoredScan["images"]; weight: PageWeight | null | undefined }) {
+  if (!images && !weight) return null;
+  const file = (u: string) => {
+    try {
+      return new URL(u).pathname.split("/").pop() || u;
+    } catch {
+      return u;
+    }
+  };
+  return (
+    <section className="panel" aria-label="Images and page weight">
+      <h2>Images &amp; page weight</h2>
+      <ul className="facts">
+        {weight?.total != null && (
+          <li><span className={`dot ${weight.total > 3_000_000 ? "bad" : "ok"}`} aria-hidden="true" /><span className="fk">Total page weight</span><span className="fv">{size(weight.total)}{weight.requests ? ` · ${weight.requests} requests` : ""}</span></li>
+        )}
+        {weight?.images != null && (
+          <li><span className="dot na" aria-hidden="true" /><span className="fk">Image bytes</span><span className="fv">{size(weight.images)}{weight.imageSavings ? ` · could save ${size(weight.imageSavings)}` : ""}</span></li>
+        )}
+        {images && (
+          <li><span className="dot na" aria-hidden="true" /><span className="fk">Images found</span><span className="fv">{images.count} ({images.probed.length} checked)</span></li>
+        )}
+      </ul>
+      {images && images.probed.length > 0 && (
+        <div className="crawl-wrap">
+          <table className="crawl">
+            <thead>
+              <tr><th>Image</th><th>Format</th><th>Size</th></tr>
+            </thead>
+            <tbody>
+              {[...images.probed].sort((a, b) => (b.bytes ?? 0) - (a.bytes ?? 0)).map((p) => (
+                <tr key={p.url} className={(p.bytes ?? 0) > 300_000 ? "bad" : undefined}>
+                  <td title={p.url}>{file(p.url)}</td>
+                  <td>{p.type.replace("image/", "") || "–"}</td>
+                  <td>{size(p.bytes)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Quick wins: most points per unit of effort                          */
+/* ------------------------------------------------------------------ */
+
+export function QuickWins({ findings, gains, onOpen }: { findings: Finding[]; gains: Map<string, number>; onOpen: (f: Finding) => void }) {
+  const list = quickWins(findings, (f) => gains.get(findingKey(f)) ?? 0);
+  if (!list.length) return null;
+  const total = list.reduce((a, x) => a + x.gain, 0);
+  return (
+    <section className="panel qw" aria-label="Quick wins">
+      <h2>Quick wins</h2>
+      <p className="panel-note">The fixes that add the most points for the least work: about <b>+{total} points</b> for these {list.length}.</p>
+      <ol>
+        {list.map(({ f, gain, effort }) => (
+          <li key={findingKey(f)}>
+            <button type="button" className="qw-row" onClick={() => onOpen(f)}>
+              <span className="qw-t">{f.title}</span>
+              <span className="qw-m">{MODULE_NAMES[f.module]}</span>
+              <span className={`eff eff-${effort}`}>{EFFORT_LABEL[effort]}</span>
+              <span className="gain">+{gain} pt{gain === 1 ? "" : "s"}</span>
+            </button>
+          </li>
+        ))}
+      </ol>
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Visual change since the previous scan                               */
+/* ------------------------------------------------------------------ */
+
+export function ChangePanel({ scan, shots }: { scan: StoredScan; shots?: { now: string | null; prev: string | null } }) {
+  const c = scan.change;
+  const now = shots?.now ?? null;
+  if (!c && !now) return null;
+  const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { dateStyle: "medium", timeZone: "UTC" });
+  const big = !!c && ((c.visual ?? 0) >= 35 || (c.text ?? 0) >= 60 || !!c.title);
+  const level = (n: number | null) => (n == null ? "Not measured" : n < 5 ? "No real change" : n < 20 ? `Small change (${n}%)` : n < 35 ? `Noticeable change (${n}%)` : `Major change (${n}%)`);
+  return (
+    <section className="panel chg" aria-label="Changes since the last scan">
+      <h2>{c ? "Changes since the last scan" : "How your homepage looks"}</h2>
+      {c ? (
+        <>
+          <p className="panel-note">
+            Compared with the scan on {day(c.prevAt)}.{" "}
+            {big ? <b>If you did not make these changes, check the site now: unexpected changes can mean it has been hacked.</b> : "Nothing unexpected stands out."}
+          </p>
+          <ul className="facts">
+            <li><span className={`dot ${c.visual == null ? "na" : c.visual >= 35 ? "bad" : "ok"}`} aria-hidden="true" /><span className="fk">Look</span><span className="fv">{level(c.visual)}</span></li>
+            <li><span className={`dot ${c.text == null ? "na" : c.text >= 60 ? "bad" : "ok"}`} aria-hidden="true" /><span className="fk">Text</span><span className="fv">{level(c.text)}</span></li>
+            <li><span className={`dot ${c.title ? "bad" : "ok"}`} aria-hidden="true" /><span className="fk">Title</span><span className="fv">{c.title ? `“${c.title.from}” → “${c.title.to}”` : "Unchanged"}</span></li>
+          </ul>
+        </>
+      ) : (
+        <p className="panel-note">Save this site and scan it again later: we will compare the two and flag unexpected changes, such as a defaced homepage.</p>
+      )}
+      {(now || shots?.prev) && (
+        <div className="chg-shots">
+          {c && (
+            <figure>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              {shots?.prev ? <img src={shots.prev} alt={`Homepage on ${day(c.prevAt)}`} loading="lazy" /> : <span className="chg-none">No screenshot</span>}
+              <figcaption>Before · {day(c.prevAt)}</figcaption>
+            </figure>
+          )}
+          <figure>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            {now ? <img src={now} alt={`Homepage on ${day(scan.scannedAt)}`} loading="lazy" /> : <span className="chg-none">No screenshot</span>}
+            <figcaption>{c ? "Now" : "Mobile"} · {day(scan.scannedAt)}</figcaption>
+          </figure>
+        </div>
+      )}
     </section>
   );
 }

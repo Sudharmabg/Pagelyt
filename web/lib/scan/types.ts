@@ -36,9 +36,27 @@ export type ScanResult = {
   domain?: DomainInfo | null;
   links?: { checked: number; broken: number } | null;
   crawl?: CrawlSummary | null;
+  images?: ImageAudit | null;
+  /** Homepage fingerprint, and how it differs from the previous scan of the same site. */
+  snapshot?: Snapshot | null;
+  change?: ChangeInfo | null;
 };
 
-export type CrawlPage = { url: string; status: number; title: string; description: string; h1: number; canonical: boolean; noindex: boolean; words: number };
+/** `sig`: 16 × 32 brightness grid of the rendered page; `text`: MinHash of the visible text. */
+export type Snapshot = { title: string; sig: number[] | null; text: number[]; shot: boolean };
+/** Percentages, 0–100; null when either side could not be measured. */
+export type ChangeInfo = { prevId: string; prevAt: string; visual: number | null; text: number | null; title: { from: string; to: string } | null };
+
+/** `probed`: what the server actually delivered for a sample of the page's images. */
+export type ImageAudit = { count: number; probed: { url: string; type: string; bytes: number | null }[] };
+/** From Lighthouse (mobile run), bytes. */
+export type PageWeight = { total: number | null; images: number | null; imageSavings: number | null; requests: number | null };
+
+export type CrawlPage = {
+  url: string; status: number; title: string; description: string; h1: number; canonical: boolean; noindex: boolean; words: number;
+  /** Optional (newer scans): canonical target, hreflang alternates, structured-data problems. */
+  canonicalUrl?: string; alts?: { lang: string; href: string }[]; ld?: string[];
+};
 export type CrawlSummary = { pages: number; sitemapUrls: number; broken: number; list: CrawlPage[] };
 
 export type TechItem = { name: string; category: string };
@@ -57,6 +75,8 @@ export type Vitals = {
   mobile: VitalsRun | null;
   desktop: VitalsRun | null;
   field: { lcp: number | null; inp: number | null; cls: number | null } | null;
+  /** Optional: older stored reports do not have it. */
+  weight?: PageWeight | null;
 };
 
 export type DomainInfo = {
@@ -65,4 +85,8 @@ export type DomainInfo = {
   spf: string | null;
   dmarc: string | null;
   expires: string | null; // ISO date
+  /** Optional: older stored reports do not have these. null = could not tell. */
+  dnssec?: boolean | null;
+  caa?: string[];
+  dkim?: string[]; // selectors that answered
 };

@@ -10,6 +10,8 @@ export type Analysis = {
 
 const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// The term is escaped by esc() first, so it can only ever match itself.
+// eslint-disable-next-line security/detect-non-literal-regexp
 const matcher = (term: string) => new RegExp(`(?<![\\p{L}\\p{N}])${esc(term.trim())}(?![\\p{L}\\p{N}])`, "iu");
 
 const bareHost = (h: string) => h.toLowerCase().replace(/^www\./, "");
@@ -50,6 +52,7 @@ export function analyse(o: { answer: string; citations: string[]; host: string; 
   if (brandAt >= 0) found.push({ name: "__brand__", at: brandAt });
 
   for (const c of o.competitors.map((x) => x.trim()).filter(Boolean)) {
+    // eslint-disable-next-line security/detect-non-literal-regexp -- reuses the already-escaped source from matcher()
     const re = new RegExp(matcher(c).source, "giu");
     const n = (answer.match(re) ?? []).length;
     if (n > 0) {

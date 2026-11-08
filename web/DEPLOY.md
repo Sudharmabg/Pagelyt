@@ -16,7 +16,9 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
    - Create a project. In *SQL editor* run `supabase/migrations/0001_init.sql`.
    - *Authentication > URL configuration*: set Site URL to your domain and add `https://YOUR-DOMAIN/account` as a redirect.
    - *Authentication > SMTP*: set your own sender (Resend free tier works). The built-in sender is limited to a couple of emails an hour.
-   - Then run `supabase/migrations/0002_whitelabel_ai.sql` (brands, shared reports, plans, AI visibility).
+   - Then run `supabase/migrations/0002_whitelabel_ai.sql` (brands, shared reports, plans, AI visibility), `0003_alerts_history.sql`,
+     `0004_password_auth.sql` (saved progress, the email-check function) and `0005_visual_monitoring.sql` (homepage screenshots
+     for the before/after view; without it scans still work, just with no screenshots). Then follow **Password accounts** below.
    - Copy the project URL, anon key and service-role key (*Project settings > API*).
 2. **Cloudflare Turnstile** (recommended): create a widget, copy site key and secret.
 3. **Google PageSpeed key** (for Core Web Vitals): Google Cloud console, enable *PageSpeed Insights API*, create an API key.
@@ -32,6 +34,45 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
 6. **Build-time public variables** (Workers Builds > Settings > Variables, or `.env.local` locally):
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
    (the other `NEXT_PUBLIC_*` values are in `wrangler.jsonc`).
+
+## Password accounts (modal sign-up, `/login`)
+
+Visitors enter an email in the scan modal. A new email gets name, phone, password and confirm password, plus one
+confirmation link; a known email just asks for the password. Reports opened with only a link are **view only**; the
+signed-in owner can edit, mark findings fixed and rescan.
+
+Do these once, in this order:
+
+1. **Run `supabase/migrations/0004_password_auth.sql`** (SQL editor). Deploy the code only after it has run.
+2. **Supabase > Authentication > Sign In / Providers > Email**: keep **Confirm email** ON, set **Minimum password length** to 8.
+3. **Resend** (sends the confirmation and password-reset emails). **This needs a domain you own**: without a verified
+   domain Resend only sends to your own account address, and Supabase's built-in email only reaches team members, so real
+   visitors would never get their confirmation or reset links. Until the domain is bought, sign-up emails will not reach
+   the public. (The `workers.dev` address is fine as the Site URL and redirect URL in step 5 in the meantime.)
+   1. resend.com > *Domains* > add your sending domain and add the DNS records it shows (SPF and DKIM). Wait for *Verified*.
+   2. *API Keys* > create a key with *Sending access* (you can reuse the one used for score-drop alerts).
+4. **Supabase > Authentication > SMTP Settings** > enable custom SMTP:
+   host `smtp.resend.com`, port `465`, username `resend`, password = the Resend API key,
+   sender email = an address on the verified domain (for example `no-reply@yourdomain.com`), sender name `Pagelyt`.
+5. **Supabase > Authentication > URL Configuration**: Site URL = your live address. Add these Redirect URLs
+   (replace the domain): `https://YOUR-DOMAIN/auth/verified`, `https://YOUR-DOMAIN/auth/reset`, `https://YOUR-DOMAIN/account`,
+   and for local testing `http://localhost:3000/**`.
+6. **Supabase > Authentication > Email Templates**: edit *Confirm signup* and *Reset password* to Pagelyt wording. Keep `{{ .ConfirmationURL }}`.
+7. **Supabase > Authentication > Rate Limits**: with custom SMTP on, raise *emails per hour* (default is only a few).
+8. **Turnstile**: set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. Without them the human check is skipped,
+   which leaves sign-up and sign-in open to bots (the rate limits below still apply).
+
+Security behaviour worth knowing:
+
+- Every field is validated twice (browser and server) from one shared set of rules in `lib/validate.ts`
+  (`node --experimental-strip-types --test lib/validate.test.ts`).
+- Rate limits (Postgres `rate_limit_hit`, keyed by IP and by a hash of the email): email check 10/15 min per IP and 5/15 min per
+  address; sign-up 3/hour; password sign-in 5/15 min per address and 20/15 min per IP; resend 1/min and 5/hour. They answer `429`
+  with `Retry-After`, and sign-up and sign-in **block** (not allow) if the limiter is unreachable.
+- The caller's IP comes only from Cloudflare's `cf-connecting-ip` header in production.
+- Passwords are sent to our own `/api/auth/*` routes over HTTPS only to be forwarded to Supabase. They are never logged or stored by the app.
+- A static Content-Security-Policy is sent in production (`next.config.ts`). It allows inline scripts because Next.js needs them;
+  a nonce-based policy would force every page to render per request and lose caching.
 
 ## White-label reports
 

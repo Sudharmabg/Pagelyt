@@ -8,7 +8,7 @@ const AREAS = Object.keys(MODULE_NAMES) as ModuleKey[];
 /* Eight areas light up in sequence, then hold. Pure CSS; static for reduced motion. */
 export function AreaStrip() {
   return (
-    <section className="sec tight" aria-labelledby="areas-h">
+    <section className="sec tight areas-sec" aria-labelledby="areas-h">
       <div className="container head-center">
         <h2 className="title" id="areas-h">Eight areas. One scan.</h2>
         <p className="lead">Every scan checks all of these, then ranks what to fix by impact.</p>
@@ -58,7 +58,7 @@ export function TrustRow() {
     ["Runs in your browser", "Free tools process your input locally. Nothing is uploaded."],
   ];
   return (
-    <section className="sec tight" aria-label="Why you can trust Pagelyt">
+    <section className="sec tight trust-sec" aria-label="Why you can trust Pagelyt">
       <div className="container">
         <ul className="trust-row">
           {items.map(([h, p]) => (

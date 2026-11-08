@@ -1,4 +1,4 @@
-import { findingKey } from "./score";
+import { findingKey, overallScore } from "./score";
 import { live, rest, type ScanRow } from "./store";
 import type { ScanResult } from "./types";
 
@@ -9,7 +9,7 @@ export type Snap = { id: string; at: string; overall: number; mods: Record<strin
 export const toSnap = (id: string, r: ScanResult): Snap => ({
   id,
   at: r.scannedAt,
-  overall: r.overall,
+  overall: overallScore(r.modules),
   mods: Object.fromEntries(r.modules.map((m) => [m.key, m.score])),
   keys: r.findings.map(findingKey),
   highs: r.findings.filter((f) => f.severity === "high").map(findingKey),

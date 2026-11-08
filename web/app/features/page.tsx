@@ -5,6 +5,7 @@ import { FEATURES } from "../features-data";
 import { JsonLd, crumbLd } from "../json-ld";
 import { CtaBand, PageHero } from "../page-shell";
 import { SiteFooter, SiteNav } from "../site-chrome";
+import { FREE_TOOLS } from "../tools-list";
 import {
   AiMock,
   AnalyticsMock,
@@ -94,6 +95,35 @@ export default function FeaturesPage() {
                   </article>
                 );
               })}
+            </div>
+          </div>
+        </section>
+
+        <section className="sec" id="free-tools" aria-labelledby="tools-h">
+          <div className="container">
+            <div className="head-center">
+              <h2 className="title" id="tools-h">
+                Free tools to fix common findings.
+              </h2>
+              <p className="lead">
+                Small generators that run in your browser, so nothing you type is sent anywhere.
+              </p>
+            </div>
+            <div className="replace">
+              {FREE_TOOLS.map((t) => (
+                <div className="rp" key={t.name}>
+                  <span className="rp-old">{t.name}</span>
+                  <span className="rp-arrow" aria-hidden="true">
+                    <Arrow />
+                  </span>
+                  <span className="rp-new">{t.blurb}</span>
+                </div>
+              ))}
+            </div>
+            <div className="cta-line" style={{ justifyContent: "center" }}>
+              <Link className="btn ghost" href="/tools">
+                Open the free tools <Arrow />
+              </Link>
             </div>
           </div>
         </section>
