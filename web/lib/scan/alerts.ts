@@ -7,6 +7,10 @@ import { isBigChange } from "./visual";
    issue appeared. Needs RESEND_API_KEY; without it this does nothing. Alerts are sent only for
    saved sites with a schedule and alerts switched on, never for one-off scans. */
 
+/* TEMPORARY: alert emails (Resend) are switched off. Set to true once the Resend domain is verified and
+   RESEND_API_KEY is set; until then a finished scan never tries to send mail. */
+const EMAILS_ON = false;
+
 const DROP_POINTS = 5;
 
 type SiteRow = { id: string; cadence: string; alerts: boolean; user_id: string };
@@ -20,7 +24,7 @@ async function ownerEmail(userId: string): Promise<string | null> {
 
 export async function alertAfterScan(row: ScanRow, result: ScanResult): Promise<void> {
   const resend = process.env.RESEND_API_KEY;
-  if (!resend || !live() || !row.site_id) return;
+  if (!EMAILS_ON || !resend || !live() || !row.site_id) return;
   const sites = await rest<SiteRow[]>(`sites?id=eq.${encodeURIComponent(row.site_id)}&select=id,cadence,alerts,user_id&limit=1`);
   const site = sites[0];
   if (!site || site.cadence === "none" || !site.alerts) return;

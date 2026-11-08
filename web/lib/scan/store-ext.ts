@@ -12,8 +12,12 @@ export async function getPlan(userId: string): Promise<Plan> {
   return rows[0]?.plan ?? "free";
 }
 
-// Until Razorpay billing exists there is no way to buy a plan, so PAGELYT_OPEN_FEATURES=1 unlocks everything.
-const open = () => process.env.PAGELYT_OPEN_FEATURES === "1";
+/* TEMPORARY: payments are switched off, so every signed-in user gets every paid feature (agency dashboard,
+   competitor comparisons, branded PDFs, white-label sharing, AI visibility). Set BILLING_ON to true when
+   Razorpay is live; plans in `profiles.plan` then apply again, and PAGELYT_OPEN_FEATURES=1 still overrides. */
+export const BILLING_ON = false;
+export const featuresOpen = () => !BILLING_ON || process.env.PAGELYT_OPEN_FEATURES === "1";
+const open = featuresOpen;
 export async function canWhiteLabel(userId: string) {
   return open() || (await getPlan(userId)) === "business";
 }

@@ -1,5 +1,5 @@
 import { live, newId, rest, type ScanRow } from "./store";
-import { getPlan, type Brand, type Plan } from "./store-ext";
+import { featuresOpen, getPlan, type Brand, type Plan } from "./store-ext";
 import { overallScore } from "./score";
 import type { Finding, ModuleKey, ScanResult } from "./types";
 
@@ -8,8 +8,8 @@ import type { Finding, ModuleKey, ScanResult } from "./types";
 
 export type AccountType = "agency" | "owner";
 
-// Until Razorpay billing exists there is no way to buy a plan, so PAGELYT_OPEN_FEATURES=1 unlocks everything.
-const open = () => process.env.PAGELYT_OPEN_FEATURES === "1";
+// Payments are off for now (BILLING_ON in store-ext), which unlocks every paid feature.
+const open = featuresOpen;
 
 /** Agency dashboard, server PDF and competitor comparisons are on every paid plan. */
 export async function isPaid(userId: string): Promise<boolean> {
