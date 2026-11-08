@@ -215,7 +215,7 @@ export function LeadModal({
   return (
     <dialog ref={ref} className="lead-modal" aria-labelledby="lead-h" onClose={onClose} onCancel={(e) => busy && e.preventDefault()}>
       {busy ? (
-        <div>
+        <div className="lm-body">
           <h2 id="lead-h">Analysing {host}…</h2>
           <div className="lm-progress" role="status" aria-live="polite">
             <div className="lm-bar" aria-hidden="true"><i style={{ width: `${Math.min(96, ((step + 1) / steps.length) * 100)}%` }} /></div>
