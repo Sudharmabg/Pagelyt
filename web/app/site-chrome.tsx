@@ -9,6 +9,7 @@ const MENU: [string, string][] = [
   ["How it works", "/how-it-works"],
   ["Pricing", "/pricing"],
   ["Consultation", "/consultation"],
+  ["Blog", "/blog"],
 ];
 
 // Features menu: every feature, then the free tools.
@@ -99,6 +100,7 @@ export function SiteFooter() {
             <Link href="/use-cases">Use cases</Link>
             <Link href="/tools">Free tools</Link>
             <Link href="/fix">Fix guides</Link>
+            <Link href="/blog">Blog</Link>
             <Link href="/login">Sign in</Link>
             <Link href="/pricing">Pricing</Link>
             <Link href="/faq">FAQ</Link>
