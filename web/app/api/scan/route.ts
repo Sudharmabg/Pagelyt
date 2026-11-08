@@ -1,6 +1,6 @@
 import { clientIp, userFromRequest, verifyTurnstile } from "@/lib/auth";
 import { ScanError, TOTAL_STAGES, checkUrl } from "@/lib/scan";
-import { createScan, rateLimit, recentScanId, saveLead, validateLead } from "@/lib/scan/store";
+import { createScan, getSite, rateLimit, recentScanId, saveLead, validateLead } from "@/lib/scan/store";
 import { checkTicket } from "@/lib/ticket";
 
 const PER_HOUR = 10;
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
     return Response.json({ error: "Free scan limit reached. Please try again in an hour." }, { status: 429 });
   }
 
-  let body: { url?: unknown; lead?: Record<string, unknown>; turnstile?: unknown; ticket?: unknown };
+  let body: { url?: unknown; lead?: Record<string, unknown>; turnstile?: unknown; ticket?: unknown; siteId?: unknown };
   try {
     body = await req.json();
   } catch {
@@ -40,9 +40,17 @@ export async function POST(req: Request) {
   }
   const host = url.hostname.replace(/^www\./, "");
 
+  // Rescanning a saved site (agency dashboard): the new report joins that site's history.
+  let siteId: string | null = null;
+  if (user && typeof body.siteId === "string" && body.siteId) {
+    const site = await getSite(body.siteId).catch(() => null);
+    if (!site || site.user_id !== user.id) return Response.json({ error: "Site not found." }, { status: 404 });
+    siteId = site.id;
+  }
+
   try {
-    const cached = await recentScanId(url.href, CACHE_SECONDS, user?.id);
-    const id = cached ?? (await createScan({ url: url.href, host, userId: user?.id }));
+    const cached = siteId ? null : await recentScanId(url.href, CACHE_SECONDS, user?.id); // a deliberate rescan is never served from cache
+    const id = cached ?? (await createScan({ url: url.href, host, userId: user?.id, siteId }));
     if (v) await saveLead(id, host, v.lead).catch(() => {}); // a lead-storage failure must not block the report
     return Response.json({ id, host, total: TOTAL_STAGES, done: !!cached });
   } catch {

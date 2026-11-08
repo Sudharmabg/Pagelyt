@@ -18,7 +18,8 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
    - *Authentication > SMTP*: set your own sender (Resend free tier works). The built-in sender is limited to a couple of emails an hour.
    - Then run `supabase/migrations/0002_whitelabel_ai.sql` (brands, shared reports, plans, AI visibility), `0003_alerts_history.sql`,
      `0004_password_auth.sql` (saved progress, the email-check function) and `0005_visual_monitoring.sql` (homepage screenshots
-     for the before/after view; without it scans still work, just with no screenshots). Then follow **Password accounts** below.
+     for the before/after view; without it scans still work, just with no screenshots) and `0006_agency_compare.sql` (agency/owner
+     answer, competitor comparisons). Then follow **Password accounts** below.
    - Copy the project URL, anon key and service-role key (*Project settings > API*).
 2. **Cloudflare Turnstile** (recommended): create a widget, copy site key and secret.
 3. **Google PageSpeed key** (for Core Web Vitals): Google Cloud console, enable *PageSpeed Insights API*, create an API key.
@@ -77,10 +78,24 @@ Security behaviour worth knowing:
 ## White-label reports
 
 - Brands (logo, colour, contact, footer) are managed at `/account/brand`. Brand rows are protected by row-level security.
-- On any dashboard, **Share branded report** creates a link like `/r/<long-token>`. The page carries the agency brand, has no Pagelyt navigation, is `noindex`, can expire and can be withdrawn from `/account/brand`. **Download PDF** uses the browser's print-to-PDF with a print stylesheet; server-rendered PDFs are still on the roadmap.
+- On any dashboard, **Share branded report** creates a link like `/r/<long-token>`. The page carries the agency brand, has no Pagelyt navigation, is `noindex`, can expire and can be withdrawn from `/account/brand`. **Download PDF** is rendered on the server (see **Server PDFs**) for paid plans, and falls back to the browser's print-to-PDF when that is unavailable.
 - The report must belong to the signed-in account (use **Save this site** first).
 - `/r/demo` is a public sample (`?brand=Acme&color=%23e11d48` tries a brand on).
 - Plan gate: Business plan. Until billing exists, set `PAGELYT_OPEN_FEATURES=1` or set `profiles.plan = 'business'` for a user in the SQL editor.
+
+## Server PDFs (Cloudflare Browser Rendering)
+
+- Needs the **Workers Paid plan**. `wrangler.jsonc` binds Browser Rendering as `BROWSER`; nothing else to configure.
+- `POST /api/report/pdf` opens our own print page (`/print/<id>` for the owner, `/r/<token>` for a share) in headless Chrome and returns an A4 PDF. Paid plans only, 30 PDFs an hour per account. Without the binding it answers 501 and the button falls back to print-to-PDF.
+- Off in `next dev` (OpenNext would start a slow local proxy); set `PDF_DEV=1` to try it there. Set `NEXT_PUBLIC_SITE_URL` so Chrome loads the public domain.
+
+## Agency dashboard and competitor comparisons
+
+- After a signed-in owner's first finished report, a one-time modal asks whether they are an agency (Esc = ask later; changeable under *Account > How you use Pagelyt*). Paid agencies go to `/account/sites`; free agencies go to `/consultation?topic=agency` until checkout exists. Paid agencies also land on `/account/sites` after login.
+- `/account/sites`: every saved site with score, change, trend, weakest area and high-priority issues, plus a bulk rescan that runs one site at a time in the open tab (each rescan counts towards the normal scan limit).
+- **Compare competitors** on a dashboard scans up to three rival sites (normal scans, same limit) and opens `/compare/<id>`.
+- Accessibility now also uses Lighthouse's rendered checks (colour contrast etc.) from the existing PageSpeed call; no new key.
+- Plan gate: any paid plan (or `PAGELYT_OPEN_FEATURES=1`).
 
 ## AI visibility tracking
 
@@ -94,6 +109,7 @@ Security behaviour worth knowing:
 
 ```bash
 npm run dev              # local, uses an in-memory store unless Supabase env vars are set
+npm run dev:mock         # local with a mock Supabase on :54321 (MOCK_PLAN=professional to test paid features)
 npm run cf:preview       # build for Workers and run it locally in workerd
 npm run cf:deploy        # build and deploy the web app
 ```

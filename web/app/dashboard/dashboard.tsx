@@ -11,6 +11,9 @@ import { AreaIcon } from "./icons";
 import { SaveSite } from "./save-site";
 import { ShareReport } from "./share-report";
 import { RescanButton } from "./rescan";
+import { AgencyModal, useAccount } from "./agency-modal";
+import { CompareButton } from "./compare-button";
+import { downloadPdf } from "@/lib/download-pdf";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { CommandPalette, RadarPanel, ShortcutHelp, useShortcuts, type Cmd } from "./extras";
 import { ComparePanel, DomainPanel, ExportMenu, FindingsExplorer, CrawlPanel, ChangePanel, HowScores, ImagesPanel, QuickWins, TechPanel, VitalsPanel, useHistory, type Snap } from "./panels";
@@ -170,6 +173,7 @@ export function Dashboard({ scan, history, savedFixed, shots }: { scan: StoredSc
   const { fixed, toggle } = access === "local" ? local : server;
   const saveError = access === "local" ? "" : server.saveError;
   const { prev, trend, synced, points } = useHistory(scan, history);
+  const [acct, setAcct] = useAccount(access === "owner");
   const [pinned, setPinned] = useState(false);
   const [party, setParty] = useState(false);
   const router = useRouter();
@@ -238,6 +242,16 @@ export function Dashboard({ scan, history, savedFixed, shots }: { scan: StoredSc
   const inModule = view === "overview" || view === "all" ? [] : scan.findings.filter((f) => f.module === view);
   const mod = view === "overview" || view === "all" ? null : modules.find((m) => m.key === view)!;
 
+  const [pdfBusy, setPdfBusy] = useState(false);
+  // Paid owners get the server-rendered branded PDF; everyone else (and any failure) uses print-to-PDF.
+  const pdf = async () => {
+    if (access !== "owner" || !acct?.paid) return window.print();
+    setPdfBusy(true);
+    const t = (await supabaseBrowser()?.auth.getSession())?.data.session?.access_token;
+    await downloadPdf({ scanId: scan.id }, t);
+    setPdfBusy(false);
+  };
+
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(window.location.href);
@@ -254,6 +268,7 @@ export function Dashboard({ scan, history, savedFixed, shots }: { scan: StoredSc
       <ShortcutHelp open={help} onClose={() => setHelp(false)} />
       <PrintCover scan={scan} overall={potential} modules={modules} />
       {party && <Confetti />}
+      {access === "owner" && acct && acct.accountType === null && <AgencyModal onAnswered={setAcct} />}
       <div className={`dash-pin${pinned && view === "overview" ? " on" : ""}`} aria-hidden={!pinned}>
         <b className={`t-${tone(potential)}`}>{potential}</b>
         <span>{scan.host} · {VERDICT(potential)}</span>
@@ -274,11 +289,12 @@ export function Dashboard({ scan, history, savedFixed, shots }: { scan: StoredSc
           </button>
           {canEdit && <SaveSite scanId={scan.id} />}
           {canEdit && <ShareReport scanId={scan.id} />}
+          {access === "owner" && <CompareButton scanId={scan.id} host={scan.host} paid={!!acct?.paid} />}
           {access === "owner" && <RescanButton url={scan.url} />}
           <ExportMenu scan={scan} findings={scan.findings} fixed={fixed} />
           <Link className="dash-btn" href={`/tools?scan=${scan.id}`}>Fix with free tools</Link>
-          <button type="button" className="dash-btn" onClick={() => window.print()}>
-            Print / PDF
+          <button type="button" className="dash-btn" disabled={pdfBusy} onClick={pdf}>
+            {pdfBusy ? "Preparing PDF…" : access === "owner" && acct?.paid ? "Download PDF" : "Print / PDF"}
           </button>
           <button type="button" className="dash-btn" onClick={copy}>
             {copied ? "Link copied" : "Copy link"}

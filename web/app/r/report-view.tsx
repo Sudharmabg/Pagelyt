@@ -16,7 +16,7 @@ const GROUPS: { sev: Severity; title: string }[] = [
 ];
 
 
-export function ReportView({ brand, res, ai, showDetails }: { brand: ReportBrand | null; res: ScanResult; ai: ReportAi | null; showDetails: boolean }) {
+export function ReportView({ brand, res, ai, showDetails, pdfToken }: { brand: ReportBrand | null; res: ScanResult; ai: ReportAi | null; showDetails: boolean; pdfToken?: string }) {
   const color = brand && HEX.test(brand.color) ? brand.color : "#14202b";
   const name = brand?.name ?? "Website report";
   const when = new Date(res.scannedAt).toLocaleDateString("en-GB", { dateStyle: "long", timeZone: "UTC" });
@@ -44,7 +44,7 @@ export function ReportView({ brand, res, ai, showDetails }: { brand: ReportBrand
         ) : (
           <span className="br-name">{name}</span>
         )}
-        <PrintButton />
+        <PrintButton token={pdfToken} />
       </header>
 
       <main className="br-main">

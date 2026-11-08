@@ -4,7 +4,30 @@
     {
       "name": "pagelyt-web",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev", "--prefix", "web", "--", "-p", "3100"],
+      "runtimeArgs": [
+        "run",
+        "dev",
+        "--prefix",
+        "web",
+        "--",
+        "-p",
+        "3100"
+      ],
+      "port": 3100
+    },
+    {
+      "name": "pagelyt-mock",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:mock",
+        "--prefix",
+        "web"
+      ],
+      "env": {
+        "PORT": "3100",
+        "MOCK_PLAN": "professional"
+      },
       "port": 3100
     }
   ]

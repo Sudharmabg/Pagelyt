@@ -224,8 +224,10 @@ export async function saveSite(userId: string, scan: { id: string; host: string;
     body: JSON.stringify({ user_id: userId, host: scan.host, url: scan.url, cadence, uptime: !!opts.uptime, last_scan_id: scan.id, next_run_at: nextRun(cadence) }),
   });
   const site = rows[0];
-  // Only claim an unowned scan; never take over someone else's report.
-  await rest(`scans?id=eq.${encodeURIComponent(scan.id)}&user_id=is.null`, { method: "PATCH", body: JSON.stringify({ user_id: userId, site_id: site.id }), prefer: "return=minimal" });
+  // Claim an unowned scan, or link the user's own scan to the site; never take over someone else's report.
+  const sid = encodeURIComponent(scan.id);
+  await rest(`scans?id=eq.${sid}&user_id=is.null`, { method: "PATCH", body: JSON.stringify({ user_id: userId, site_id: site.id }), prefer: "return=minimal" });
+  await rest(`scans?id=eq.${sid}&user_id=eq.${encodeURIComponent(userId)}`, { method: "PATCH", body: JSON.stringify({ site_id: site.id }), prefer: "return=minimal" });
   return site;
 }
 

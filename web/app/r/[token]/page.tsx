@@ -41,5 +41,5 @@ export default async function SharedReport({ params }: { params: Promise<{ token
     }
   }
 
-  return <ReportView brand={brand} res={res} ai={ai} showDetails={share.show_details} />;
+  return <ReportView brand={brand} res={res} ai={ai} showDetails={share.show_details} pdfToken={share.token} />;
 }

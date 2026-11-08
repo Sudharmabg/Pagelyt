@@ -5,10 +5,12 @@ import { MAX_PAGES, PER_STAGE, crawlBatch, crawlFindings, crawlQueue, crawlSumma
 import { normaliseUrl, safeFetch } from "./fetcher";
 import { overallScore, scoreModules } from "./score";
 import { alertAfterScan } from "./alerts";
+import { setSiteLastScan } from "./agency";
 import { getScanRow, previousResult, saveShot, updateScan, type ScanRow } from "./store";
 import type { ChangeInfo, CrawlPage, DomainInfo, Finding, ImageAudit, ScanResult, Snapshot, TechItem, Vitals } from "./types";
 import { fetchVitals, vitalsFindings } from "./vitals";
 import { imageFindings, imageList, probeImages } from "./images";
+import { a11yFindings, coveredStaticIds } from "./a11y";
 import { compareSnapshots, textSignature, visualSignature } from "./visual";
 import * as cheerio from "cheerio";
 
@@ -145,7 +147,7 @@ async function stageCrawl(st: State, part: 0 | 1): Promise<State> {
 
 /* Stage 6: PageSpeed Insights, mobile and desktop (2 subrequests, slow), plus storing its screenshot. */
 async function stageSpeed(row: ScanRow, st: State): Promise<State> {
-  const { vitals, shot } = await fetchVitals(st.finalUrl!);
+  const { vitals, shot, a11y } = await fetchVitals(st.finalUrl!);
   const img = st.images ? imageFindings(st.images, vitals?.weight) : [];
   let snapshot = st.snapshot;
   if (snapshot && shot) {
@@ -155,7 +157,10 @@ async function stageSpeed(row: ScanRow, st: State): Promise<State> {
       snapshot.shot = true;
     }
   }
-  return { ...st, vitals, snapshot, findings: [...st.findings!, ...(vitals ? vitalsFindings(vitals) : []), ...img] };
+  // Rendered accessibility results replace the static checks Lighthouse re-ran on the real page.
+  const covered = a11y ? coveredStaticIds(a11y) : new Set<string>();
+  const base = st.findings!.filter((f) => !(f.module === "accessibility" && covered.has(f.id)));
+  return { ...st, vitals, snapshot, findings: [...base, ...(vitals ? vitalsFindings(vitals) : []), ...img, ...(a11y ? a11yFindings(a11y) : [])] };
 }
 
 /** Difference from the previous scan of the same site; never fails the scan. */
@@ -216,6 +221,7 @@ export async function advanceScan(id: string): Promise<Progress> {
       default: {
         const result = await build(row, st);
         await updateScan(id, { status: "done", stage: total, result, state: {}, host: result.host });
+        if (row.site_id) await setSiteLastScan(row.site_id, id).catch(() => {});
         await alertAfterScan(row, result).catch(() => {}); // never let an email problem fail a finished scan
         return prog(total, true, result.host);
       }

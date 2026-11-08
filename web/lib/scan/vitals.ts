@@ -1,4 +1,5 @@
 import type { Finding, PageWeight, Vitals, VitalsRun } from "./types";
+import { parseA11y, type A11yResult, type LhAudit, type LhCategory } from "./a11y";
 
 /* Core Web Vitals via Google's PageSpeed Insights API (runs Lighthouse for us).
    Set PAGESPEED_API_KEY for reliable quota; without it the API is heavily rate-limited
@@ -6,9 +7,9 @@ import type { Finding, PageWeight, Vitals, VitalsRun } from "./types";
    users) only exists for sites with enough traffic. */
 
 const API = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
-const TIMEOUT_MS = 24_000;
+const TIMEOUT_MS = 28_000; // the mobile run also does the accessibility audit
 
-type Audit = { numericValue?: number; details?: { overallSavingsBytes?: number; data?: string; items?: { resourceType?: string; transferSize?: number; requestCount?: number; data?: string }[] } };
+type Audit = Omit<LhAudit, "details"> & { numericValue?: number; details?: { overallSavingsBytes?: number; data?: string; items?: { resourceType?: string; transferSize?: number; requestCount?: number; data?: string; node?: { snippet?: string; selector?: string; nodeLabel?: string } }[] } };
 
 const IMG_AUDITS = ["modern-image-formats", "uses-optimized-images", "uses-responsive-images", "image-delivery-insight"];
 
@@ -34,21 +35,23 @@ function shotOf(a: Record<string, Audit>): Shot {
   return { full: ok(a["final-screenshot"]?.details?.data), thumb: ok(thumbs[thumbs.length - 1]?.data) };
 }
 type Psi = {
-  lighthouseResult?: { categories?: { performance?: { score?: number | null } }; audits?: Record<string, Audit> };
+  lighthouseResult?: { categories?: { performance?: { score?: number | null }; accessibility?: LhCategory }; audits?: Record<string, Audit> };
   loadingExperience?: { metrics?: Record<string, { percentile?: number }> };
 };
 
-type Run = { lab: VitalsRun | null; field: Vitals["field"]; weight: PageWeight | null; shot: Shot | null };
+type Run = { lab: VitalsRun | null; field: Vitals["field"]; weight: PageWeight | null; shot: Shot | null; a11y: A11yResult | null };
+const EMPTY: Run = { lab: null, field: null, weight: null, shot: null, a11y: null };
 
 async function run(url: string, strategy: "mobile" | "desktop"): Promise<Run> {
   const key = process.env.PAGESPEED_API_KEY;
   const q = new URLSearchParams({ url, strategy, category: "performance" });
+  if (strategy === "mobile") q.append("category", "accessibility"); // rendered a11y checks, once per scan
   if (key) q.set("key", key);
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), TIMEOUT_MS);
   try {
     const r = await fetch(`${API}?${q}`, { signal: ctl.signal });
-    if (!r.ok) return { lab: null, field: null, weight: null, shot: null };
+    if (!r.ok) return EMPTY;
     const j = (await r.json()) as Psi;
     const a = j.lighthouseResult?.audits ?? {};
     const v = (id: string) => (typeof a[id]?.numericValue === "number" ? a[id].numericValue! : null);
@@ -73,20 +76,22 @@ async function run(url: string, strategy: "mobile" | "desktop"): Promise<Run> {
         : null,
       weight: weightOf(a),
       shot: shotOf(a),
+      a11y: parseA11y(j.lighthouseResult?.categories?.accessibility, a),
     };
   } catch {
-    return { lab: null, field: null, weight: null, shot: null };
+    return EMPTY;
   } finally {
     clearTimeout(t);
   }
 }
 
-export async function fetchVitals(url: string): Promise<{ vitals: Vitals | null; shot: Shot | null }> {
+export async function fetchVitals(url: string): Promise<{ vitals: Vitals | null; shot: Shot | null; a11y: A11yResult | null }> {
   const [mobile, desktop] = await Promise.all([run(url, "mobile"), run(url, "desktop")]);
-  if (!mobile.lab && !desktop.lab) return { vitals: null, shot: null };
+  if (!mobile.lab && !desktop.lab) return { vitals: null, shot: null, a11y: null };
   return {
-    vitals: { mobile: mobile.lab, desktop: desktop.lab, field: mobile.field ?? desktop.field, weight: mobile.weight ?? desktop.weight },
+    vitals: { mobile: mobile.lab, desktop: desktop.lab, field: mobile.field ?? desktop.field, weight: mobile.weight ?? desktop.weight, a11y: mobile.a11y?.score ?? null },
     shot: mobile.shot ?? desktop.shot,
+    a11y: mobile.a11y,
   };
 }
 

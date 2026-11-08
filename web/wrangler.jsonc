@@ -11,6 +11,8 @@
   "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": { "directory": ".open-next/assets", "binding": "ASSETS" },
   "observability": { "enabled": true },
+  // Cloudflare Browser Rendering, for server-rendered PDF reports (needs the Workers Paid plan).
+  "browser": { "binding": "BROWSER" },
   "vars": {
     "NEXT_PUBLIC_SITE_URL": "https://pagelyt.sudharmabg10.workers.dev",
     "NEXT_PUBLIC_SUPABASE_URL": "https://rxdhetdpgadxdvszguee.supabase.co",

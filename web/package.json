@@ -13,6 +13,7 @@
     "dev:mock": "node scripts/dev-mock.mjs"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "^1.0.4",
     "@supabase/supabase-js": "^2.119.0",
     "cheerio": "^1.2.0",
     "jpeg-js": "^0.4.4",

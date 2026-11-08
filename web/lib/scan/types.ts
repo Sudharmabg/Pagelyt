@@ -77,6 +77,8 @@ export type Vitals = {
   field: { lcp: number | null; inp: number | null; cls: number | null } | null;
   /** Optional: older stored reports do not have it. */
   weight?: PageWeight | null;
+  /** Lighthouse accessibility score (rendered page, mobile), 0–100. */
+  a11y?: number | null;
 };
 
 export type DomainInfo = {

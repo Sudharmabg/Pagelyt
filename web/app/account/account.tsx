@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { STAGE_LABELS } from "@/lib/scan/labels";
+import { AGENCY_UPSELL, useAccount, type AccountInfo } from "../dashboard/agency-modal";
 
 type Cadence = "none" | "daily" | "weekly" | "monthly";
 type SiteRow = { id: string; host: string; url: string; cadence: Cadence; uptime: boolean; alerts: boolean; last_scan_id: string | null };
@@ -21,6 +22,7 @@ export function Account() {
   const [busy, setBusy] = useState<string | null>(null);
   const [msg, setMsg] = useState("");
   const [newUrl, setNewUrl] = useState("");
+  const [acct, setAcct] = useAccount(!!email);
 
   const load = useCallback(async () => {
     if (!sb) return;
@@ -55,6 +57,12 @@ export function Account() {
     const { error } = await sb!.from("sites").update(next).eq("id", id);
     setMsg(error ? error.message : "Saved.");
     void load();
+  };
+
+  const setType = async (type: "agency" | "owner") => {
+    const r = await fetch("/api/account/type", { method: "POST", headers: { authorization: `Bearer ${await token()}`, "content-type": "application/json" }, body: JSON.stringify({ type }) }).catch(() => null);
+    if (r?.ok) setAcct((await r.json()) as AccountInfo);
+    setMsg(r?.ok ? "Saved." : "Could not save. Please try again.");
   };
 
   const remove = async (id: string) => {
@@ -121,12 +129,28 @@ export function Account() {
           <p className="panel-note">Signed in as {email}</p>
         </div>
         <div className="brand-act">
+          {acct?.accountType === "agency" && <Link className="dash-btn primary" href={acct.paid ? "/account/sites" : AGENCY_UPSELL}>Agency dashboard</Link>}
           <Link className="dash-btn" href="/account/brand">Brand settings</Link>
           <button type="button" className="dash-btn" onClick={() => sb.auth.signOut()}>Sign out</button>
         </div>
       </header>
 
       <p className="acct-msg" role="status" aria-live="polite">{msg}</p>
+
+      {acct && (
+        <section className="panel" aria-label="Account type">
+          <h2>How you use Pagelyt</h2>
+          <label className="as-f">
+            I am
+            <select value={acct.accountType ?? ""} onChange={(e) => e.target.value && void setType(e.target.value as "agency" | "owner")}>
+              {acct.accountType === null && <option value="">Choose…</option>}
+              <option value="owner">Looking after my own website</option>
+              <option value="agency">An agency or freelancer with client sites</option>
+            </select>
+          </label>
+          <p className="panel-note">Plan: {acct.plan.charAt(0).toUpperCase() + acct.plan.slice(1)}{acct.accountType === "agency" && !acct.paid ? ". The agency dashboard comes with any paid plan." : ""}</p>
+        </section>
+      )}
 
       <section className="panel" aria-label="Add a site">
         <h2>Scan a site</h2>

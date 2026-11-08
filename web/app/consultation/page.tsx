@@ -14,7 +14,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/consultation" },
 };
 
-export default function ConsultationPage() {
+export default async function ConsultationPage({ searchParams }: { searchParams: Promise<{ topic?: string | string[] }> }) {
+  const agency = (await searchParams).topic === "agency";
   return (
     <>
       <JsonLd
@@ -28,7 +29,15 @@ export default function ConsultationPage() {
         <PageHero
           h1="Sometimes, you need more than a report."
           lead="Book a one-on-one website consultation and talk through your audit findings directly with our founder."
-        />
+        >
+          {agency && (
+            <p className="agency-note" role="status">
+              <b>Managing sites for clients?</b> The agency dashboard (every client site, score trends, bulk rescans, competitor
+              comparisons and branded PDF reports) comes with any paid plan. Book a call or <Link href="/contact">contact us</Link>{" "}
+              and we&rsquo;ll set your account up.
+            </p>
+          )}
+        </PageHero>
 
         <section className="sec" aria-labelledby="options-h">
           <div className="container cons-grid">

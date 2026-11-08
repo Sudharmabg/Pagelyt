@@ -439,7 +439,7 @@ export function HowScores() {
           Each area starts at 100. Every open finding takes points off: <b>{PENALTY.high}</b> for important, <b>{PENALTY.medium}</b> for worth fixing and <b>{PENALTY.low}</b> for minor, down to a minimum of 5. The Website Intelligence Score is a weighted average of the areas: problems that can take a site offline or put visitors at risk count for more ({(Object.keys(WEIGHTS) as (keyof typeof WEIGHTS)[]).sort((a, b) => WEIGHTS[b] - WEIGHTS[a]).map((k) => `${MODULE_NAMES[k]} ×${WEIGHTS[k]}`).join(", ")}). Ticking an issue as fixed shows the score you’d have once it’s really fixed, then rescan to confirm.
         </p>
         <ul>
-          <li><b>Not a compliance certificate.</b> Automated checks find only a share of accessibility problems. Passing them does not mean WCAG compliance, and colour contrast needs a rendered page, which this scan doesn’t do yet.</li>
+          <li><b>Not a compliance certificate.</b> Automated checks find only a share of accessibility problems, and passing them does not mean WCAG compliance. Colour contrast and other rendered-page checks come from Lighthouse (axe-core in a real browser) and appear only when Lighthouse data is available for the scan.</li>
           <li><b>Lab data is an estimate.</b> Lighthouse simulates one device on one network. Real-visitor (field) data is shown separately when Google has enough traffic to report it.</li>
           <li><b>Privacy checks are signals, not legal advice.</b> They look for a policy link and consent tooling in the page source, not what your policy says.</li>
           <li><b>Link checks are a sample.</b> We test up to 18 links from the page we scanned, not your whole site.</li>

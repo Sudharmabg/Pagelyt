@@ -19,6 +19,18 @@ async function post(path: string, body: Record<string, unknown>): Promise<{ stat
 const msg = (j: Record<string, unknown>, fallback: string) => (typeof j.error === "string" ? j.error : fallback);
 
 /* Email and password sign-in, with "Forgot password?". Everything goes through our rate-limited /api/auth routes. */
+/** Agencies on a paid plan start on the agency dashboard unless a specific page was requested. */
+async function landing(next: string, accessToken: string): Promise<string> {
+  if (next !== "/account") return next;
+  try {
+    const r = await fetch("/api/account/type", { headers: { authorization: `Bearer ${accessToken}` } });
+    const a = r.ok ? ((await r.json()) as { paid?: boolean; accountType?: string | null }) : null;
+    return a?.paid && a.accountType === "agency" ? "/account/sites" : next;
+  } catch {
+    return next;
+  }
+}
+
 export function LoginForm({ next, startForgot }: { next: string; startForgot: boolean }) {
   const router = useRouter();
   const sb = supabaseBrowser();
@@ -56,7 +68,7 @@ export function LoginForm({ next, startForgot }: { next: string; startForgot: bo
     }
     if (!sb || !(await adoptSession(sb, session))) return fail("We couldn't sign you in just now. Please try again.");
     await claimAndFindReport(sb); // attaches any scans started with this email before the account existed
-    router.push(next);
+    router.push(await landing(next, session.access_token));
   };
 
   const forgot = async (e: React.FormEvent<HTMLFormElement>) => {
