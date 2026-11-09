@@ -54,9 +54,10 @@ export async function POST(req: Request) {
 
   const r = await signUp(v.lead.email, pw.value, { name: v.lead.name }, `${new URL(req.url).origin}/auth/verified`);
   if (!r.ok) {
-    return r.reason === "weak"
-      ? reply({ error: "That password is too easy to guess. Please choose another." }, 400)
-      : reply({ error: "Sign-up is temporarily unavailable. Please try again shortly." }, 503);
+    if (r.reason === "weak") return reply({ error: "That password is too easy to guess. Please choose another." }, 400);
+    if (r.reason === "invalid_email") return reply({ error: "That email address can't receive mail. Please use your real email address." }, 400);
+    if (r.reason === "email_limit") return reply({ error: "We're sending too many sign-up emails right now. Please try again in a few minutes." }, 429);
+    return reply({ error: "Sign-up is temporarily unavailable. Please try again shortly." }, 503);
   }
   if (!r.created || !r.userId) return reply({ error: EXISTS, code: "exists" }, 409);
 

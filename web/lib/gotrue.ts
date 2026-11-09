@@ -34,7 +34,7 @@ const isTokens = (j: Record<string, unknown>): j is Tokens & Record<string, unkn
 
 export type SignUpResult =
   | { ok: true; session: Tokens | null; created: boolean; userId: string | null } // session is null while the email still has to be confirmed
-  | { ok: false; reason: "weak" | "unavailable" };
+  | { ok: false; reason: "weak" | "invalid_email" | "email_limit" | "unavailable" };
 
 export async function signUp(email: string, password: string, meta: { name: string }, redirectTo: string): Promise<SignUpResult> {
   const { status, json } = await call("signup", { email, password, data: meta }, redirectTo);
@@ -50,6 +50,11 @@ export async function signUp(email: string, password: string, meta: { name: stri
   // An address that already has an account is reported exactly like success, so this endpoint cannot be used
   // to discover which emails are registered (the email-check endpoint is the only, rate-limited, place that does).
   if (code === "user_already_exists" || code === "email_exists") return { ok: true, session: null, created: false, userId: null };
+  if (code === "email_address_invalid" || code === "validation_failed") return { ok: false, reason: "invalid_email" };
+  if (code === "over_email_send_rate_limit" || status === 429) return { ok: false, reason: "email_limit" };
+  // Everything else is a setup problem (for example "email_address_not_authorized": Supabase's built-in mailer only
+  // sends to the project's team, so a custom SMTP sender is needed). Logged without the password, for `wrangler tail`.
+  console.error(`signup: Supabase answered ${status} ${code || "(no code)"} ${String((json as GoTrueError).msg ?? "")}`.trim());
   return { ok: false, reason: "unavailable" };
 }
 
