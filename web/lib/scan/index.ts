@@ -3,11 +3,11 @@ import { STAGE_LABELS, TOTAL_STAGES } from "./labels";
 import { checkLinks, collectLinks, detectTech, domainFindings, domainIntel, exposedFiles, linkFindings, securityTxt } from "./extras";
 import { MAX_PAGES, PER_STAGE, crawlBatch, crawlFindings, crawlQueue, crawlSummary, inspect, internalLinks, sitemapLocs } from "./crawl";
 import { normaliseUrl, safeFetch } from "./fetcher";
-import { overallScore, scoreModules } from "./score";
+import { finishedAreas, overallScore, scoreModules } from "./score";
 import { alertAfterScan } from "./alerts";
 import { setSiteLastScan } from "./agency";
 import { getScanRow, previousResult, saveShot, updateScan, type ScanRow } from "./store";
-import type { ChangeInfo, CrawlPage, DomainInfo, Finding, ImageAudit, ScanResult, Snapshot, TechItem, Vitals } from "./types";
+import type { ChangeInfo, CrawlPage, DomainInfo, Finding, ImageAudit, ModuleKey, ScanResult, Snapshot, TechItem, Vitals } from "./types";
 import { fetchVitals, vitalsFindings } from "./vitals";
 import { imageFindings, imageList, probeImages } from "./images";
 import { a11yFindings, coveredStaticIds } from "./a11y";
@@ -197,15 +197,16 @@ async function build(row: ScanRow, st: State): Promise<ScanResult> {
   };
 }
 
-export type Progress = { id: string; stage: number; total: number; done: boolean; label: string; host: string };
+/** `areas`: the areas whose score is already final, so the dashboard can tick them off while the scan runs. */
+export type Progress = { id: string; stage: number; total: number; done: boolean; label: string; host: string; areas: { key: ModuleKey; score: number }[] };
 
 /** Run the next stage of a scan. Safe to call again after it finishes. */
 export async function advanceScan(id: string): Promise<Progress> {
   const row = await getScanRow(id);
   if (!row) throw new ScanError("Report not found.");
   const total = TOTAL_STAGES;
-  const prog = (stage: number, done: boolean, host = row.host): Progress => ({ id, stage, total, done, host, label: STAGE_LABELS[Math.min(stage, total - 1)] });
-  if (row.status === "done") return prog(total, true);
+  const prog = (stage: number, done: boolean, host = row.host, areas: Progress["areas"] = []): Progress => ({ id, stage, total, done, host, label: STAGE_LABELS[Math.min(stage, total - 1)], areas: areas.map((m) => ({ key: m.key, score: m.score })) });
+  if (row.status === "done") return prog(total, true, row.host, row.result?.modules ?? []);
   if (row.status === "failed") throw new ScanError(row.error || "The scan failed. Please try again.");
 
   const st = row.state as State;
@@ -223,12 +224,12 @@ export async function advanceScan(id: string): Promise<Progress> {
         await updateScan(id, { status: "done", stage: total, result, state: {}, host: result.host });
         if (row.site_id) await setSiteLastScan(row.site_id, id).catch(() => {});
         await alertAfterScan(row, result).catch(() => {}); // never let an email problem fail a finished scan
-        return prog(total, true, result.host);
+        return prog(total, true, result.host, result.modules);
       }
     }
     const stage = row.stage + 1;
     await updateScan(id, { stage, state: next as Record<string, unknown>, host: next.host ?? row.host });
-    return prog(stage, false, next.host ?? row.host);
+    return prog(stage, false, next.host ?? row.host, finishedAreas(next.findings ?? [], stage));
   } catch (e) {
     const msg = e instanceof ScanError ? e.message : "The scan failed unexpectedly. Please try again.";
     await updateScan(id, { status: "failed", error: msg });

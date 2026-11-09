@@ -1,4 +1,5 @@
 import { MODULE_NAMES, type Finding, type ModuleKey } from "./types";
+import { AREA_DONE_AT } from "./labels";
 
 /* Pure scoring helpers, safe to import from client components. */
 export const PENALTY = { high: 22, medium: 10, low: 4 } as const;
@@ -28,3 +29,8 @@ export function overallScore(modules: { key?: ModuleKey; score: number }[]) {
 
 /** Stable per-scan identity for a finding (titles include counts, ids alone can repeat across modules). */
 export const findingKey = (f: Finding) => `${f.module}:${f.id}:${f.title}`;
+
+/** Areas whose score is already final after `stagesDone` stages of a running scan, scored from the findings so far. */
+export function finishedAreas(findings: Finding[], stagesDone: number) {
+  return scoreModules(findings).filter((m) => AREA_DONE_AT[m.key] <= stagesDone);
+}

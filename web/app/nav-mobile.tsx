@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useSignedIn } from "@/lib/use-signed-in";
+import { useSignedInUser } from "@/lib/use-signed-in";
 
 type Item = { name: string; href: string };
 
 export function NavMobile({ features, links }: { features: Item[]; links: Item[] }) {
   const [open, setOpen] = useState(false);
   const path = usePathname();
-  const signedIn = useSignedIn();
+  const user = useSignedInUser();
 
   // Close the menu when the page changes (adjusting state while rendering, as React recommends).
   const [seenPath, setSeenPath] = useState(path);
@@ -41,9 +41,19 @@ export function NavMobile({ features, links }: { features: Item[]; links: Item[]
       </button>
       {open && (
         <nav id="nav-mob-panel" className="nav-mob-panel" aria-label="Mobile">
-          <Link className="btn outline nm-signin" href={signedIn ? "/account" : "/login"}>
-            {signedIn ? "Account" : "Sign in"}
-          </Link>
+          {user ? (
+            <Link className="nm-who" href="/account">
+              <span className="acct-av" aria-hidden="true">{user.name.charAt(0).toUpperCase()}</span>
+              <span>
+                <b>{user.name}</b>
+                <small>Signed in as {user.email}</small>
+              </span>
+            </Link>
+          ) : (
+            <Link className="btn outline nm-signin" href="/login">
+              Sign in
+            </Link>
+          )}
           <p className="nm-h">Features</p>
           {features.map((f) => (
             <Link key={f.href} href={f.href} className="nm-sub">

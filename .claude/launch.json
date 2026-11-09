@@ -48,6 +48,42 @@
         "MOCK_ADMIN_EMAILS": "admin@example.test"
       },
       "port": 3200
+    },
+    {
+      "name": "pagelyt-auth-test",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:mock",
+        "--prefix",
+        "web"
+      ],
+      "env": {
+        "PORT": "3300",
+        "MOCK_PORT": "54323",
+        "NEXT_DIST_DIR": ".next-auth",
+        "MOCK_CONFIRM": "on",
+        "MOCK_PLAN": "professional"
+      },
+      "port": 3300
+    },
+    {
+      "name": "pagelyt-share-test",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:mock",
+        "--prefix",
+        "web"
+      ],
+      "env": {
+        "PORT": "3400",
+        "MOCK_PORT": "54324",
+        "NEXT_DIST_DIR": ".next-share",
+        "MOCK_PLAN": "business",
+        "EMAILS_ON": "1"
+      },
+      "port": 3400
     }
   ]
 }

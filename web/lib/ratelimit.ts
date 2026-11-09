@@ -43,6 +43,12 @@ export const LIMITS = {
     { key: `forgot:em:hr:${email}`, limit: 5, windowSec: 3600 },
     { key: `forgot:ip:${ip}`, limit: 15, windowSec: 3600 },
   ],
+  site: (ip: string): Rule[] => [{ key: `site:ip:${ip}`, limit: 30, windowSec: 900 }],
+  verify: (ip: string, email: string): Rule[] => [
+    { key: `verify:em:${email}`, limit: 6, windowSec: 900 },
+    { key: `verify:ip:${ip}`, limit: 30, windowSec: 900 },
+  ],
+  claim: (ip: string): Rule[] => [{ key: `claim:ip:${ip}`, limit: 20, windowSec: 3600 }],
   resend: (ip: string, email: string): Rule[] => [
     { key: `resend:em:min:${email}`, limit: 1, windowSec: 60 },
     { key: `resend:em:hr:${email}`, limit: 5, windowSec: 3600 },

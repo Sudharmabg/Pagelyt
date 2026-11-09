@@ -1,15 +1,12 @@
+import { emailsOn, sendEmail } from "../email";
 import { previousSnap, toSnap } from "./history";
 import { live, rest, type ScanRow } from "./store";
 import type { ScanResult } from "./types";
 import { isBigChange } from "./visual";
 
 /* Email the site owner after a scheduled rescan when the score dropped or a new high-severity
-   issue appeared. Needs RESEND_API_KEY; without it this does nothing. Alerts are sent only for
+   issue appeared. Needs emails switched on (lib/email.ts); otherwise this does nothing. Alerts are sent only for
    saved sites with a schedule and alerts switched on, never for one-off scans. */
-
-/* TEMPORARY: alert emails (Resend) are switched off. Set to true once the Resend domain is verified and
-   RESEND_API_KEY is set; until then a finished scan never tries to send mail. */
-const EMAILS_ON = false;
 
 const DROP_POINTS = 5;
 
@@ -23,8 +20,8 @@ async function ownerEmail(userId: string): Promise<string | null> {
 }
 
 export async function alertAfterScan(row: ScanRow, result: ScanResult): Promise<void> {
-  const resend = process.env.RESEND_API_KEY;
-  if (!EMAILS_ON || !resend || !live() || !row.site_id) return;
+  // Off until EMAILS_ON=1 and RESEND_API_KEY are set (see lib/email.ts).
+  if (!emailsOn() || !live() || !row.site_id) return;
   const sites = await rest<SiteRow[]>(`sites?id=eq.${encodeURIComponent(row.site_id)}&select=id,cadence,alerts,user_id&limit=1`);
   const site = sites[0];
   if (!site || site.cadence === "none" || !site.alerts) return;
@@ -60,9 +57,5 @@ export async function alertAfterScan(row: ScanRow, result: ScanResult): Promise<
     "You get these emails because scheduled scans and alerts are on for this site. Change this under Account on Pagelyt.",
   ];
   const subject = newHigh.length ? `${result.host}: new high-priority issue found` : drop >= DROP_POINTS ? `${result.host}: score dropped ${drop} points` : `${result.host}: your homepage changed`;
-  await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: { authorization: `Bearer ${resend}`, "content-type": "application/json" },
-    body: JSON.stringify({ from: process.env.ALERT_FROM ?? "Pagelyt <alerts@pagelyt.com>", to, subject, text: lines.join("\n") }),
-  });
+  await sendEmail({ from: process.env.ALERT_FROM ?? "Pagelyt <alerts@pagelyt.com>", to, subject, text: lines.join("\n") });
 }

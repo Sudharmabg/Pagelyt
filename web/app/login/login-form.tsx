@@ -2,7 +2,8 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { adoptSession, claimAndFindReport, rememberVerifyEmail, type SessionTokens } from "@/lib/pending";
+import { adoptSession, claimAndFindReport, type SessionTokens } from "@/lib/pending";
+import { CodeForm } from "../code-form";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { checkEmail } from "@/lib/validate";
 import { useTurnstile } from "../use-turnstile";
@@ -62,7 +63,8 @@ export function LoginForm({ next, startForgot }: { next: string; startForgot: bo
     if (r.status !== 200 || !session) {
       if (r.json.code === "unverified") {
         setEmail(em.value);
-        setUnverified(true);
+        setBusy(false);
+        return setUnverified(true);
       }
       return fail(msg(r.json, "We couldn't sign you in just now. Please try again."));
     }
@@ -85,14 +87,6 @@ export function LoginForm({ next, startForgot }: { next: string; startForgot: bo
       return setMode("sent");
     }
     setErr(msg(r.json, "We couldn't send that just now. Please try again."));
-  };
-
-  const resend = async () => {
-    setBusy(true);
-    await post("/api/auth/resend", { email, website: "" });
-    setBusy(false);
-    rememberVerifyEmail(email);
-    router.push("/check-email");
   };
 
   if (!sb) {
@@ -133,6 +127,24 @@ export function LoginForm({ next, startForgot }: { next: string; startForgot: bo
     );
   }
 
+  if (unverified) {
+    return (
+      <div className="panel auth-card auth-code">
+        <h2>Verify your email</h2>
+        <p className="panel-note">We&rsquo;ve sent a 6-digit code to <strong>{email}</strong>. Enter it to finish signing in. You only need to do this once.</p>
+        <CodeForm
+          email={email}
+          sendFirst
+          onVerified={async (session) => {
+            await claimAndFindReport(sb);
+            router.push(await landing(next, session.access_token));
+          }}
+        />
+        <button type="button" className="lm-link" onClick={() => { setUnverified(false); setErr(""); }}>Back to sign in</button>
+      </div>
+    );
+  }
+
   return (
     <form className="panel auth-card" onSubmit={signIn} noValidate>
       <div className="tf">
@@ -145,11 +157,6 @@ export function LoginForm({ next, startForgot }: { next: string; startForgot: bo
       </div>
       {honeypot}
       {err && <p className="lm-err" role="alert">{err}</p>}
-      {unverified && (
-        <p className="lm-fine">
-          <button type="button" className="lm-link" onClick={resend}>Send the confirmation link again</button>
-        </p>
-      )}
       {humanKey && <div ref={humanBox} className="lm-ts" />}
       <button type="submit" className="btn" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</button>
       <button type="button" className="lm-link" onClick={() => { setMode("forgot"); setErr(""); }}>Forgot password?</button>

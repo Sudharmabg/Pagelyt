@@ -7,7 +7,6 @@ export type Checked<T> = { ok: true; value: T } | { ok: false; error: string };
 export const LIMITS = {
   name: { min: 2, max: 100 },
   email: { max: 254, local: 64 },
-  phone: { minDigits: 7, maxDigits: 15 },
   password: { min: 8, maxBytes: 72 }, // bcrypt only uses the first 72 bytes
 } as const;
 
@@ -46,16 +45,6 @@ export function checkEmail(raw: unknown): Checked<string> {
   return { ok: true, value: v };
 }
 
-export function checkPhone(raw: unknown): Checked<string> {
-  const bad = fail("Please enter a valid phone number.");
-  if (typeof raw !== "string") return bad;
-  const v = raw.trim();
-  if (v.length > 30 || !/^\+?[\d\s().-]+$/.test(v)) return bad; // "+" only at the very start
-  const digits = v.replace(/\D/g, "");
-  if (digits.length < LIMITS.phone.minDigits || digits.length > LIMITS.phone.maxDigits) return bad;
-  return { ok: true, value: (v.startsWith("+") ? "+" : "") + digits }; // stored in one plain format
-}
-
 const COMMON = new Set([
   "password", "password1", "password12", "password123", "passw0rd", "p@ssw0rd", "12345678", "123456789", "1234567890",
   "11111111", "00000000", "88888888", "qwertyui", "qwerty123", "qwertyuiop", "1q2w3e4r", "1qaz2wsx", "zaq12wsx",
@@ -80,18 +69,19 @@ export function checkPassword(raw: unknown, email?: string): Checked<string> {
 /** Checks a password typed twice. Returns an error message, or null when they match. */
 export const passwordsMatch = (a: string, b: string): string | null => (a === b ? null : "The two passwords don't match.");
 
-export type NewLead = { name: string; email: string; phone: string };
+export type NewLead = { name: string; email: string };
 
-/** Validates and normalises the contact details. Phone is optional (the modal no longer asks for it): blank or
-   missing becomes "", anything else must still be a valid number. */
-export function checkLead(input: { name?: unknown; email?: unknown; phone?: unknown } | undefined | null): { lead: NewLead } | { error: string } {
+/** Validates and normalises the sign-up details (name and email; phone numbers are no longer collected). */
+export function checkLead(input: { name?: unknown; email?: unknown } | undefined | null): { lead: NewLead } | { error: string } {
   const name = checkName(input?.name);
   if (!name.ok) return { error: name.error };
   const email = checkEmail(input?.email);
   if (!email.ok) return { error: email.error };
-  const rawPhone = typeof input?.phone === "string" ? input.phone.trim() : input?.phone;
-  if (rawPhone == null || rawPhone === "") return { lead: { name: name.value, email: email.value, phone: "" } };
-  const phone = checkPhone(rawPhone);
-  if (!phone.ok) return { error: phone.error };
-  return { lead: { name: name.value, email: email.value, phone: phone.value } };
+  return { lead: { name: name.value, email: email.value } };
+}
+
+/** A 6-digit email code, as typed (spaces and dashes allowed). */
+export function checkCode(raw: unknown): Checked<string> {
+  const v = typeof raw === "string" ? raw.replace(/[\s-]/g, "") : "";
+  return /^\d{6}$/.test(v) ? { ok: true, value: v } : fail("Enter the 6-digit code from the email.");
 }

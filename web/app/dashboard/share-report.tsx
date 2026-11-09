@@ -1,29 +1,39 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
-/* "Share branded report": creates a client-facing link with your brand and none of ours.
-   The report must belong to your account (Save this site first). Hidden without Supabase. */
-export function ShareReport({ scanId }: { scanId: string }) {
+type Brand = { id: string; name: string; logo_url: string | null; color: string; footer: string | null };
+type Made = { link: string; sentTo: string | null; mailFailed: boolean };
+
+const NOTE_MAX = 500;
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+/* "Share branded report": a modal that creates a client-facing link with your brand and none of ours,
+   with a preview of the branded cover and (when emails are on) an optional email to the client.
+   Only the signed-in owner sees it. The last link stays on screen until "Make another". */
+export function ShareReport({ scanId, host, score, canEmail }: { scanId: string; host: string; score: number; canEmail: boolean }) {
   const sb = supabaseBrowser();
+  const ref = useRef<HTMLDialogElement>(null);
   const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
-  const [brands, setBrands] = useState<{ id: string; name: string }[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [brandId, setBrandId] = useState("");
   const [details, setDetails] = useState(true);
   const [ai, setAi] = useState(false);
   const [days, setDays] = useState("0");
-  const [state, setState] = useState<"idle" | "busy" | "done">("idle");
-  const [link, setLink] = useState("");
+  const [email, setEmail] = useState("");
+  const [note, setNote] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [made, setMade] = useState<Made | null>(null);
   const [err, setErr] = useState("");
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!sb) return;
     const load = async () => {
-      const { data } = await sb.from("brands").select("id,name").order("created_at");
-      setBrands(data ?? []);
+      const { data } = await sb.from("brands").select("id,name,logo_url,color,footer").order("created_at");
+      setBrands((data as Brand[] | null) ?? []);
       setBrandId((cur) => cur || data?.[0]?.id || "");
     };
     sb.auth.getSession().then(({ data }) => {
@@ -39,78 +49,157 @@ export function ShareReport({ scanId }: { scanId: string }) {
 
   if (!sb || !signedIn) return null;
 
-  const create = async () => {
-    setState("busy");
+  const brand = brands.find((b) => b.id === brandId) ?? null;
+  const color = brand && HEX.test(brand.color) ? brand.color : "#14202b";
+  const sending = canEmail && email.trim() !== "";
+
+  const create = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
     setErr("");
     try {
       const token = (await sb.auth.getSession()).data.session?.access_token;
       const r = await fetch("/api/share", {
         method: "POST",
         headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-        body: JSON.stringify({ scanId, brandId: brandId || null, showDetails: details, includeAi: ai, expiresInDays: Number(days) || undefined }),
+        body: JSON.stringify({
+          scanId,
+          brandId: brandId || null,
+          showDetails: details,
+          includeAi: ai,
+          expiresInDays: Number(days) || undefined,
+          ...(sending ? { email: email.trim(), note: note.trim() } : {}),
+        }),
       });
-      const j = await r.json();
+      const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || "Could not create the link.");
-      setLink(`${window.location.origin}${j.path}`);
-      setState("done");
+      setMade({ link: `${window.location.origin}${j.path}`, sentTo: j.sentTo ?? null, mailFailed: sending && !j.emailed });
+      setCopied(false);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not create the link.");
-      setState("idle");
+    } finally {
+      setBusy(false);
     }
   };
 
   const copy = async () => {
+    if (!made) return;
     try {
-      await navigator.clipboard.writeText(link);
+      await navigator.clipboard.writeText(made.link);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
-      /* the link is selectable below */
+      /* the link is selectable */
     }
   };
 
+  const again = () => {
+    setMade(null);
+    setEmail("");
+    setNote("");
+    setErr("");
+  };
+
   return (
-    <details className="xmenu">
-      <summary className="dash-btn">Share branded report</summary>
-      <div className="xmenu-pop save-pop">
-        {state === "done" ? (
-          <>
-            <p className="panel-note">Your client-facing link:</p>
-            <input className="fnd-search" readOnly value={link} onFocus={(e) => e.currentTarget.select()} aria-label="Shared report link" />
-            <div className="brand-act">
-              <button type="button" className="dash-btn primary" onClick={copy}>{copied ? "Copied" : "Copy link"}</button>
-              <a className="dash-btn" href={link} target="_blank" rel="noopener noreferrer">Open</a>
-            </div>
-          </>
-        ) : (
-          <>
-            {brands.length === 0 ? (
-              <p className="panel-note">No brand yet. <Link className="fnd-link" href="/account/brand">Create one</Link> to put your logo and colour on the report.</p>
+    <>
+      <button type="button" className="dash-btn" onClick={() => ref.current?.showModal()} aria-haspopup="dialog">Share branded report</button>
+      <dialog
+        ref={ref}
+        className="lead-modal share-modal"
+        aria-labelledby="share-h"
+        onClick={(e) => e.target === e.currentTarget && ref.current?.close()} // a click on the backdrop closes it
+      >
+        <div className="lm-body">
+          <div className="sm-top">
+            <h2 id="share-h">Share branded report</h2>
+            <button type="button" className="sm-x" onClick={() => ref.current?.close()} aria-label="Close">×</button>
+          </div>
+
+          <div className="sm-grid">
+            {made ? (
+              <div className="sm-done" role="status">
+                {made.sentTo && <p className="sm-sent">Sent to <strong>{made.sentTo}</strong>.</p>}
+                {made.mailFailed && <p className="lm-err">The link is ready, but the email didn&rsquo;t go out. Copy the link and send it yourself.</p>}
+                <label>
+                  Your client-facing link
+                  <input readOnly value={made.link} onFocus={(e) => e.currentTarget.select()} />
+                </label>
+                <div className="lm-act">
+                  <a className="btn ghost" href={made.link} target="_blank" rel="noopener noreferrer">Open</a>
+                  <button type="button" className="btn" onClick={copy}>{copied ? "Copied" : "Copy link"}</button>
+                </div>
+                <p className="lm-fine">
+                  Links stay listed under <Link href="/account/brand">Account → Brand</Link>, where you can withdraw them.{" "}
+                  <button type="button" className="lm-link" onClick={again}>Make another</button>
+                </p>
+              </div>
             ) : (
-              <label className="as-f">
-                Brand
-                <select value={brandId} onChange={(e) => setBrandId(e.target.value)}>
-                  {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
-                  <option value="">No brand (neutral)</option>
-                </select>
-              </label>
+              <form className="sm-form" onSubmit={create} noValidate>
+                {brands.length === 0 ? (
+                  <p className="lm-fine sm-nobrand">No brand yet. <Link href="/account/brand">Create one</Link> to put your logo and colour on the report.</p>
+                ) : (
+                  <label>
+                    Brand
+                    <select value={brandId} onChange={(e) => setBrandId(e.target.value)}>
+                      {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
+                      <option value="">No brand (neutral)</option>
+                    </select>
+                  </label>
+                )}
+                <label className="sm-check"><input type="checkbox" checked={details} onChange={(e) => setDetails(e.target.checked)} />Include &ldquo;how to fix&rdquo; steps</label>
+                <label className="sm-check"><input type="checkbox" checked={ai} onChange={(e) => setAi(e.target.checked)} />Include AI visibility summary</label>
+                <label>
+                  Link expires
+                  <select value={days} onChange={(e) => setDays(e.target.value)}>
+                    <option value="0">Never</option>
+                    <option value="7">In 7 days</option>
+                    <option value="30">In 30 days</option>
+                    <option value="90">In 90 days</option>
+                  </select>
+                </label>
+                {canEmail && (
+                  <>
+                    <label>
+                      <span>Email it to your client <small className="sm-opt">optional</small></span>
+                      <input type="email" inputMode="email" autoComplete="off" maxLength={254} placeholder="client@theirsite.com" value={email} onChange={(e) => setEmail(e.target.value)} />
+                    </label>
+                    {sending && (
+                      <label>
+                        <span>Note <small className="sm-opt">{note.length}/{NOTE_MAX}</small></span>
+                        <textarea rows={3} maxLength={NOTE_MAX} placeholder="Hi, here's the report we discussed." value={note} onChange={(e) => setNote(e.target.value)} />
+                      </label>
+                    )}
+                  </>
+                )}
+                {err && <p className="lm-err" role="alert">{err}</p>}
+                <button type="submit" className="btn" disabled={busy}>{busy ? (sending ? "Sending…" : "Creating…") : sending ? "Create & send" : "Create link"}</button>
+              </form>
             )}
-            <label className="as-f check"><input type="checkbox" checked={details} onChange={(e) => setDetails(e.target.checked)} />Include “how to fix” steps</label>
-            <label className="as-f check"><input type="checkbox" checked={ai} onChange={(e) => setAi(e.target.checked)} />Include AI visibility summary</label>
-            <label className="as-f">
-              Link expires
-              <select value={days} onChange={(e) => setDays(e.target.value)}>
-                <option value="0">Never</option>
-                <option value="7">In 7 days</option>
-                <option value="30">In 30 days</option>
-                <option value="90">In 90 days</option>
-              </select>
-            </label>
-            {err && <p className="lm-err" role="alert">{err} {err.includes("Save this site") && "Use “Save this site” first."}</p>}
-            <button type="button" className="dash-btn primary" onClick={create} disabled={state === "busy"}>{state === "busy" ? "Creating…" : "Create link"}</button>
-          </>
-        )}
-      </div>
-    </details>
+
+            <figure className="sm-preview" aria-label="Preview of the shared report">
+              <div className="brand-preview" style={{ ["--brand" as string]: color }}>
+                <div className="bp-head">
+                  {brand?.logo_url?.startsWith("https://") ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={brand.logo_url} alt="" height={32} />
+                  ) : (
+                    <b>{brand?.name || "Website report"}</b>
+                  )}
+                  <span className="bp-btn">Download PDF</span>
+                </div>
+                <div className="bp-body">
+                  <small>Website report</small>
+                  <strong className="sm-host">{host}</strong>
+                  <p className="sm-score"><b>{score}</b> / 100</p>
+                  <div className="bp-bar"><i style={{ width: `${Math.max(4, Math.min(100, score))}%` }} /></div>
+                  <p>{brand?.footer || (brand ? "" : "A neutral report, with no logo or brand colour.")}</p>
+                </div>
+              </div>
+              <figcaption className="lm-fine">What your client sees</figcaption>
+            </figure>
+          </div>
+        </div>
+      </dialog>
+    </>
   );
 }

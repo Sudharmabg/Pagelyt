@@ -5,8 +5,9 @@ import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
 /* "Save this site": keeps the report in your account and optionally turns on scheduled rescans and
-   uptime checks. Hidden entirely when Supabase is not configured. */
-export function SaveSite({ scanId }: { scanId: string }) {
+   uptime checks. Hidden entirely when Supabase is not configured. `inline` shows the form on the page (the
+   dashboard's "Save & monitor" section) instead of in a drop-down. */
+export function SaveSite({ scanId, inline = false }: { scanId: string; inline?: boolean }) {
   const sb = supabaseBrowser();
   const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
   const [cadence, setCadence] = useState("weekly");
@@ -39,10 +40,8 @@ export function SaveSite({ scanId }: { scanId: string }) {
     }
   };
 
-  return (
-    <details className="xmenu">
-      <summary className="dash-btn">{state === "saved" ? "Saved ✓" : "Save this site"}</summary>
-      <div className="xmenu-pop save-pop">
+  const form = (
+    <>
         {state === "saved" ? (
           <p className="panel-note">Saved. <Link className="fnd-link" href="/account">Manage your sites</Link></p>
         ) : (
@@ -66,7 +65,13 @@ export function SaveSite({ scanId }: { scanId: string }) {
             </button>
           </>
         )}
-      </div>
+    </>
+  );
+  if (inline) return <div className="panel save-inline">{form}</div>;
+  return (
+    <details className="xmenu">
+      <summary className="dash-btn">{state === "saved" ? "Saved ✓" : "Save this site"}</summary>
+      <div className="xmenu-pop save-pop">{form}</div>
     </details>
   );
 }

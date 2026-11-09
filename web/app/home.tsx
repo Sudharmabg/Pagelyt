@@ -12,9 +12,9 @@ import { AreaStrip, ToolsAndGuides, TrustRow } from "./home-extras";
 import { SiteFooter, SiteNav } from "./site-chrome";
 import { Sources } from "./sources";
 import { ScanPreview, type ModScore } from "./ui";
-import { LeadModal, type ScanStart } from "./lead-modal";
-import { STAGE_LABELS } from "@/lib/scan/labels";
+import { LeadModal, type ScanProblem, type ScanStart } from "./lead-modal";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { sessionFresh } from "@/lib/session-age";
 
 const BASE: ModScore[] = [
   { name: "Website health", score: 92 },
@@ -25,11 +25,10 @@ const BASE: ModScore[] = [
   { name: "Accessibility", score: 87 },
 ];
 
-const SCAN_STEPS = [...STAGE_LABELS];
 
 const AUDIENCE = {
   biz: {
-    sub: "Free website analysis for speed, SEO, security, accessibility and AI search readiness.",
+    sub: "A free AI-powered website audit for SEO, page speed, security, accessibility and GEO (AI search). One clear score, with fixes ranked by impact.",
     cta: "Analyse My Website",
     adv: [
       "Free to start, nothing to install",
@@ -57,9 +56,9 @@ export default function Home() {
   const [host, setHost] = useState("");
   const router = useRouter();
   const [modal, setModal] = useState(false);
-  const [progress, setProgress] = useState(0);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState("");
+  const [claimDomain, setClaimDomain] = useState(""); // set when a signed-in visitor's site belongs to another account
 
   const overall = Math.round(BASE.reduce((a, m) => a + m.score, 0) / BASE.length);
 
@@ -86,9 +85,11 @@ export default function Home() {
       return;
     }
     setError("");
+    setClaimDomain("");
     setHost(url.trim().replace(/^https?:\/\//i, "").replace(/^www\./, "").split("/")[0]);
     // Signed-in visitors are already known to us: skip the form and scan straight away.
-    const token = (await supabaseBrowser()?.auth.getSession())?.data.session?.access_token;
+    const session = (await supabaseBrowser()?.auth.getSession())?.data.session;
+    const token = session && sessionFresh(session.access_token) ? session.access_token : undefined; // older than 7 days: log in again
     if (token) {
       setRunning(true);
       setModal(true);
@@ -96,17 +97,17 @@ export default function Home() {
       if (problem) {
         setRunning(false);
         setModal(false);
-        setError(problem);
+        setError(problem.error);
+        if (problem.code === "not_owner") setClaimDomain(problem.domain ?? "");
       }
       return;
     }
     setModal(true);
   };
 
-  /* Runs the scan with the visitor's details, then opens their dashboard (or, for a brand-new account that still
-     has to confirm its email, the check-your-email page). */
-  const startScan = async ({ lead, turnstile, ticket, token, after }: ScanStart): Promise<string | null> => {
-    setProgress(0);
+  /* Runs the scan with the visitor's details, then opens their dashboard. A brand-new account that still has to
+     enter its email code goes to its (locked) dashboard at once, and the scan carries on from there. */
+  const startScan = async ({ lead, turnstile, ticket, token }: ScanStart): Promise<ScanProblem | null> => {
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
@@ -114,22 +115,14 @@ export default function Home() {
         body: JSON.stringify({ url: url.trim(), ...(lead ? { lead } : {}), turnstile, ticket }),
       });
       const start = await res.json();
-      if (!res.ok) return start.error || "Scan failed.";
-      // Each request runs one stage; the loop is what makes the progress steps real.
-      let done = !!start.done;
-      while (!done) {
-        const r = await fetch(`/api/scan/${start.id}/step`, { method: "POST" });
-        const p = await r.json();
-        if (!r.ok) return p.error || "Scan failed.";
-        setProgress(p.stage);
-        done = p.done;
-      }
-      // A signed-in visitor's scan is theirs: attach it to their account before opening it.
-      if (token) await fetch("/api/account/claim", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ scanId: start.id }) }).catch(() => {});
-      router.push(after === "verify" ? "/check-email" : `/dashboard/${start.id}`);
+      if (!res.ok) return { error: start.error || "Scan failed.", code: start.code, domain: start.domain };
+      // The dashboard runs the scan and shows each area as it finishes. A signed-in visitor's scan is theirs:
+      // the dashboard saves it to their account when it's done (?new=1); a cached, finished scan is saved here.
+      if (token && start.done) await fetch("/api/account/claim", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ scanId: start.id }) }).catch(() => {});
+      router.push(`/dashboard/${start.id}${token && !start.done ? "?new=1" : ""}`);
       return null;
     } catch {
-      return "Could not reach the server. Please try again.";
+      return { error: "Could not reach the server. Please try again." };
     }
   };
 
@@ -170,7 +163,7 @@ export default function Home() {
         <Arcs />
         <div className="container hero-stack">
           <h1 id="h1" data-r>
-            Your website has more to tell. Discover it.
+            Audit your website. Fix what holds it back.
           </h1>
           <p className="sub" data-r style={{ ["--d" as string]: 1 }}>
             {copy.sub}
@@ -180,6 +173,12 @@ export default function Home() {
             {renderForm("hero-url", "url-form mega")}
             <p className={`note${error ? " err" : ""}`} role="status">
               {note}
+              {claimDomain && (
+                <>
+                  {" "}
+                  <Link href={`/claim?domain=${encodeURIComponent(claimDomain)}`}>Prove you own it</Link>
+                </>
+              )}
             </p>
           </div>
 
@@ -198,9 +197,8 @@ export default function Home() {
 
       <LeadModal
         open={modal}
+        url={url.trim()}
         host={host}
-        steps={SCAN_STEPS}
-        step={Math.min(progress, SCAN_STEPS.length - 1)}
         running={running}
         onClose={() => setModal(false)}
         onSubmit={startScan}

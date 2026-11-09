@@ -3,8 +3,10 @@
    Run it with `npm run dev:mock` (starts this and the site together).
 
    MOCK_CONFIRM=off (default)  accounts are confirmed instantly, so sign-up goes straight to the dashboard.
-   MOCK_CONFIRM=on             like real Supabase with "Confirm email" on: sign-up waits for a confirmation link.
-                               Confirm by hand with  http://localhost:54321/__confirm?email=you@example.com  */
+   MOCK_CONFIRM=on             like real Supabase with "Confirm email" on: sign-up waits for the 6-digit email code.
+                               Read the code with  http://localhost:54321/__code?email=you@example.com
+                               (or confirm by hand with  /__confirm?email=you@example.com).
+   MOCK_SESSION_AGE_DAYS=8     tokens claim the sign-in happened that many days ago (tries the 7-day limit). */
 import http from "node:http";
 import crypto from "node:crypto";
 
@@ -14,18 +16,25 @@ const CONFIRM_EMAIL = process.env.MOCK_CONFIRM === "on";
 
 const users = new Map(); // email -> { id, email, password, confirmed, meta }
 const sessions = new Map(); // access token -> email
-const tables = { scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [], ai_prompts: [], ai_runs: [], uptime_checks: [], admins: [], requests: [] };
+const tables = { site_owners: [], site_claims: [], scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [], ai_prompts: [], ai_runs: [], uptime_checks: [], admins: [], requests: [] };
 // MOCK_ADMIN_EMAILS=a@x.test,b@x.test seeds the admins table, so those accounts can open /admin once signed up.
 for (const email of (process.env.MOCK_ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)) tables.admins.push({ email, created_at: new Date().toISOString() });
 // The account plan for every new profile. MOCK_PLAN=professional lets you try the paid-only agency features.
 const MOCK_PLAN = process.env.MOCK_PLAN || "free";
 const hits = new Map();
-const log = { resends: [], signups: 0, logins: 0, redirects: [] };
+const log = { resends: [], signups: 0, logins: 0, redirects: [], emails: [] };
+const codes = new Map(); // email -> the current 6-digit sign-up code
+const newCode = (email) => { const c = String(crypto.randomInt(0, 1_000_000)).padStart(6, "0"); codes.set(email, c); return c; };
+const AGE_DAYS = Number(process.env.MOCK_SESSION_AGE_DAYS || 0);
+// Primary keys, so "resolution=ignore-duplicates" skips a row that already exists.
+const KEYS = { site_owners: ["domain"], site_claims: ["domain", "user_id"] };
+const canon = (e) => { const [l, d] = String(e).toLowerCase().split("@"); const base = l.split("+")[0]; return ["gmail.com", "googlemail.com"].includes(d) ? `${base.replaceAll(".", "")}@gmail.com` : `${base}@${d}`; };
 
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 function tokensFor(u) {
   const exp = Math.floor(Date.now() / 1000) + 3600;
-  const access = `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: u.id, email: u.email, role: "authenticated", aud: "authenticated", exp })}.sig`;
+  const signedIn = Math.floor(Date.now() / 1000) - AGE_DAYS * 86400;
+  const access = `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: u.id, email: u.email, role: "authenticated", aud: "authenticated", exp, iat: exp - 3600, amr: [{ method: "password", timestamp: signedIn }] })}.sig`;
   sessions.set(access, u.email);
   return { access_token: access, refresh_token: crypto.randomUUID(), token_type: "bearer", expires_in: 3600, expires_at: exp, user: userJson(u) };
 }
@@ -58,6 +67,7 @@ function matches(row, key, expr) {
   if (op === "gte") return String(v) >= arg;
   if (op === "lte") return String(v) <= arg;
   if (op === "in") return arg.replace(/^\(|\)$/g, "").split(",").includes(String(v));
+  if (op === "like") { const [pre, ...rest] = arg.split("*"); const post = rest.join("*"); const t = String(v); return rest.length ? t.length >= pre.length + post.length && t.startsWith(pre) && t.endsWith(post) : t === arg; } // one "*" wildcard
   if (op === "is") return arg === "null" ? v == null : String(v) === arg;
   return true;
 }
@@ -78,8 +88,11 @@ http
 
     // ---- test helpers ----
     if (p === "/__confirm") { const u = users.get(url.searchParams.get("email")); if (u) u.confirmed = true; return send(res, 200, { ok: !!u }); }
+    if (p === "/__code") { const c = codes.get(url.searchParams.get("email")); return send(res, c ? 200 : 404, { code: c ?? null }); }
     if (p === "/__tokens") { const u = users.get(url.searchParams.get("email")); return send(res, u ? 200 : 404, u ? tokensFor(u) : {}); }
-    if (p === "/__state") return send(res, 200, { users: [...users.values()].map((u) => ({ ...u, password: "***" })), leads: tables.leads, scans: tables.scans.map((s) => ({ id: s.id, user_id: s.user_id, status: s.status, url: s.url })), log });
+    if (p === "/__state") return send(res, 200, { owners: tables.site_owners, claims: tables.site_claims, users: [...users.values()].map((u) => ({ ...u, password: "***" })), leads: tables.leads, scans: tables.scans.map((s) => ({ id: s.id, user_id: s.user_id, status: s.status, url: s.url })), log });
+    // Stand-in for Resend (dev-mock points RESEND_API_URL here): nothing is sent, /__state shows each email.
+    if (p === "/emails" && req.method === "POST") { log.emails.push(body); return send(res, 200, { id: crypto.randomUUID() }); }
     if (p === "/__seed-scan") { tables.scans.push(body); return send(res, 200, { ok: true }); }
 
     // ---- GoTrue ----
@@ -98,6 +111,7 @@ http
       }
       const u = { id: crypto.randomUUID(), email, password, confirmed: !CONFIRM_EMAIL, meta: data ?? {}, created_at: new Date().toISOString() };
       users.set(email, u);
+      if (CONFIRM_EMAIL) newCode(email);
       return CONFIRM_EMAIL ? send(res, 200, { ...userJson(u), email_confirmed_at: null }) : send(res, 200, tokensFor(u)); // a session straight away
     }
     if (p === "/auth/v1/token") {
@@ -109,7 +123,14 @@ http
       return send(res, 200, tokensFor(u));
     }
     if (p === "/auth/v1/recover") { log.recovers = (log.recovers || []).concat(body.email); log.recoverRedirect = url.searchParams.get("redirect_to"); return send(res, 200, {}); }
-    if (p === "/auth/v1/resend") { log.resends.push(body.email); return send(res, 200, {}); }
+    if (p === "/auth/v1/resend") { log.resends.push(body.email); const u = users.get(body.email); if (u && !u.confirmed) newCode(body.email); return send(res, 200, {}); }
+    if (p === "/auth/v1/verify") {
+      const u = users.get(body.email);
+      if (!u || !codes.get(body.email) || codes.get(body.email) !== body.token) return send(res, 403, { error_code: "otp_expired", msg: "Token has expired or is invalid" });
+      codes.delete(body.email);
+      u.confirmed = true;
+      return send(res, 200, tokensFor(u));
+    }
     if (p === "/auth/v1/user" && req.method === "PUT") {
       const email = sessions.get((req.headers.authorization || "").replace(/^Bearer /, ""));
       const u = email && users.get(email);
@@ -124,6 +145,8 @@ http
     }
 
     // ---- PostgREST ----
+    if (p === "/rest/v1/rpc/email_confirmed") return send(res, 200, [...users.values()].some((u) => u.id === body.p_user && u.confirmed));
+    if (p === "/rest/v1/rpc/inbox_has_account") return send(res, 200, [...users.values()].some((u) => canon(u.email) === canon(body.p_email)));
     if (p === "/rest/v1/rpc/account_exists") return send(res, 200, users.has(String(body.p_email).toLowerCase()));
     if (p === "/rest/v1/rpc/rate_limit_hit") {
       const now = Date.now();
@@ -141,9 +164,11 @@ http
         // Upsert (on_conflict + resolution=merge-duplicates) updates the matching row; otherwise insert.
         const conflict = url.searchParams.get("on_conflict")?.split(",");
         const merge = conflict && /merge-duplicates/.test(String(req.headers.prefer || ""));
+        const ignore = /ignore-duplicates/.test(String(req.headers.prefer || "")) && KEYS[m[1]];
         const saved = [];
         for (const r of Array.isArray(body) ? body : [body]) {
           const hit = merge && rows.find((x) => conflict.every((c) => String(x[c]) === String(r[c])));
+          if (ignore && rows.some((x) => ignore.every((c) => String(x[c]) === String(r[c])))) continue;
           if (hit) saved.push(Object.assign(hit, r));
           else {
             const row = { id: crypto.randomUUID(), created_at: new Date().toISOString(), ...(m[1] === "profiles" ? { plan: MOCK_PLAN, account_type: null } : {}), ...(m[1] === "requests" ? { status: "new" } : {}), ...r };
@@ -153,6 +178,7 @@ http
         }
         return /return=representation/.test(String(req.headers.prefer || "")) ? send(res, 201, saved) : send(res, 201);
       }
+      if (req.method === "DELETE") { for (const r of pick()) rows.splice(rows.indexOf(r), 1); return send(res, 204); }
       if (req.method === "PATCH") { for (const r of pick()) Object.assign(r, body); return send(res, 204); }
       if (req.method === "GET") {
         let out = pick();

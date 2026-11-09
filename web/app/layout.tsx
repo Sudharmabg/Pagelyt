@@ -16,9 +16,9 @@ const body = Inter({
   subsets: ["latin"],
 });
 
-const TITLE = "Free Website Analysis: SEO, Speed, Security and AI Readiness";
+const TITLE = "Free AI-Powered Website Audit: SEO, Speed, Security & GEO";
 const DESCRIPTION =
-  "Analyse any website from one URL. Get a scored report on speed, Core Web Vitals, SEO, AI search readiness, security and accessibility, with fixes ranked by impact.";
+  "Free AI-powered website audit from one URL. Check SEO, speed, Core Web Vitals, security, accessibility and GEO for AI search, with fixes ranked by impact.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),

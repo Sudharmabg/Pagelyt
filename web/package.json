@@ -19,7 +19,8 @@
     "jpeg-js": "^0.4.4",
     "next": "16.4.5",
     "react": "19.3.0",
-    "react-dom": "19.3.0"
+    "react-dom": "19.3.0",
+    "tldts": "7.4.19"
   },
   "devDependencies": {
     "@opennextjs/cloudflare": "^1.20.16",

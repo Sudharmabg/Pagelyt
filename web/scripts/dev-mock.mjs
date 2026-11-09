@@ -13,6 +13,9 @@ const env = {
   NEXT_PUBLIC_SUPABASE_ANON_KEY: "mock-anon-key",
   SUPABASE_URL: `http://localhost:${MOCK_PORT}`,
   SUPABASE_SERVICE_ROLE_KEY: KEY,
+  // Emails (when EMAILS_ON=1) go to the mock, never to Resend; see /__state for what would have been sent.
+  RESEND_API_URL: `http://localhost:${MOCK_PORT}`,
+  RESEND_API_KEY: process.env.EMAILS_ON === "1" ? "mock-resend-key" : "",
 };
 // The human check would need real Cloudflare keys, so it stays off in this mode.
 delete env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;

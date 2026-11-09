@@ -2,10 +2,10 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { runScan } from "@/lib/run-scan";
+import { beginScan } from "@/lib/run-scan";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 
-/* Owner-only: scans the same address again and opens the fresh report. */
+/* Owner-only: starts a fresh scan of the same address and opens its dashboard, which shows the scan live. */
 export function RescanButton({ url }: { url: string }) {
   const router = useRouter();
   const [label, setLabel] = useState("");
@@ -16,19 +16,18 @@ export function RescanButton({ url }: { url: string }) {
     if (!token) return setErr("Please sign in again.");
     setErr("");
     setLabel("Starting…");
-    const r = await runScan(url, token, (l) => setLabel(l));
+    const r = await beginScan(url, token, { fresh: true });
     if ("error" in r) {
       setLabel("");
       return setErr(r.error);
     }
     router.push(`/dashboard/${r.id}`);
-    router.refresh();
   };
 
   return (
     <>
       <button type="button" className="dash-btn" onClick={go} disabled={!!label} aria-live="polite">
-        {label ? `Scanning: ${label}` : "Rescan"}
+        {label || "Rescan"}
       </button>
       {err && <span className="lm-err" role="alert">{err}</span>}
     </>

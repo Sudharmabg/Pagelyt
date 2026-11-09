@@ -35,7 +35,7 @@ export function CompareButton({ scanId, host, paid }: { scanId: string; host: st
     const ids: string[] = [];
     for (const [i, u] of list.entries()) {
       setStatus(`Scanning competitor ${i + 1} of ${list.length}…`);
-      const r = await runScan(u, token, (l) => setStatus(`Competitor ${i + 1} of ${list.length}: ${l}`));
+      const r = await runScan(u, token, (l) => setStatus(`Competitor ${i + 1} of ${list.length}: ${l}`), { purpose: "compare" });
       if ("error" in r) {
         setStatus("");
         return setErr(`${u}: ${r.error}`);

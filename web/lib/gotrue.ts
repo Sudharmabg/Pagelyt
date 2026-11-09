@@ -33,21 +33,23 @@ const isTokens = (j: Record<string, unknown>): j is Tokens & Record<string, unkn
   typeof j.access_token === "string" && typeof j.refresh_token === "string";
 
 export type SignUpResult =
-  | { ok: true; session: Tokens | null; created: boolean } // session is null while the email still has to be confirmed
+  | { ok: true; session: Tokens | null; created: boolean; userId: string | null } // session is null while the email still has to be confirmed
   | { ok: false; reason: "weak" | "unavailable" };
 
-export async function signUp(email: string, password: string, meta: { name: string; phone: string }, redirectTo: string): Promise<SignUpResult> {
+export async function signUp(email: string, password: string, meta: { name: string }, redirectTo: string): Promise<SignUpResult> {
   const { status, json } = await call("signup", { email, password, data: meta }, redirectTo);
   if (status >= 200 && status < 300) {
     // When the address already has an account Supabase answers with a look-alike user that has no identities.
-    const created = Array.isArray(json.identities) ? json.identities.length > 0 : true;
-    return { ok: true, created, session: isTokens(json) ? { access_token: json.access_token, refresh_token: json.refresh_token, expires_in: Number(json.expires_in) || undefined } : null };
+    const user = (json.user && typeof json.user === "object" ? json.user : json) as { id?: unknown; identities?: unknown };
+    const created = Array.isArray(user.identities) ? user.identities.length > 0 : true;
+    const userId = created && typeof user.id === "string" ? user.id : null;
+    return { ok: true, created, userId, session: isTokens(json) ? { access_token: json.access_token, refresh_token: json.refresh_token, expires_in: Number(json.expires_in) || undefined } : null };
   }
   const code = codeOf(json);
   if (code === "weak_password") return { ok: false, reason: "weak" };
   // An address that already has an account is reported exactly like success, so this endpoint cannot be used
   // to discover which emails are registered (the email-check endpoint is the only, rate-limited, place that does).
-  if (code === "user_already_exists" || code === "email_exists") return { ok: true, session: null, created: false };
+  if (code === "user_already_exists" || code === "email_exists") return { ok: true, session: null, created: false, userId: null };
   return { ok: false, reason: "unavailable" };
 }
 
@@ -62,6 +64,21 @@ export async function signInWithPassword(email: string, password: string): Promi
   if (code === "email_not_confirmed") return { ok: false, reason: "unverified" };
   if (status === 400 || status === 401 || status === 422 || code === "invalid_credentials") return { ok: false, reason: "invalid" };
   return { ok: false, reason: "unavailable" };
+}
+
+export type VerifyResult = { ok: true; session: Tokens } | { ok: false; reason: "wrong" | "unavailable" };
+
+/** Confirms a new account with the 6-digit code from its sign-up email, and signs it in. */
+export async function verifyEmailCode(email: string, code: string): Promise<VerifyResult> {
+  let last = 0;
+  // "email" is the current type for an email code; older projects still issue sign-up codes as "signup".
+  for (const type of ["email", "signup"]) {
+    const { status, json } = await call("verify", { type, email, token: code });
+    if (status === 200 && isTokens(json)) return { ok: true, session: { access_token: json.access_token, refresh_token: json.refresh_token, expires_in: Number(json.expires_in) || undefined } };
+    last = status;
+    if (status >= 500 || status === 429) break;
+  }
+  return last >= 400 && last < 500 && last !== 429 ? { ok: false, reason: "wrong" } : { ok: false, reason: "unavailable" };
 }
 
 /** Sends the confirmation email again. Always resolves quietly: the caller never reveals whether the address exists. */

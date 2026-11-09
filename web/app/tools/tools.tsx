@@ -282,17 +282,22 @@ function Headers({ ctx }: { ctx: Ctx }) {
   );
 }
 
-export function Tools({ ctx = null }: { ctx?: Ctx }) {
+/* `embedded`: shown inside a report's dashboard ("Free tools" section), which has its own way back. */
+export function Tools({ ctx = null, embedded = false }: { ctx?: Ctx; embedded?: boolean }) {
   // Open on the tool that fixes the most findings from the scan.
   const first = ctx ? (TOOLS.map((t) => t.id).sort((a, b) => ctx.fixes[b].length - ctx.fixes[a].length)[0] ?? "llms") : "llms";
   const [tool, setTool] = useState<ToolId>(ctx && ctx.fixes[first].length ? first : "llms");
   const cur = TOOLS.find((t) => t.id === tool)!;
   return (
     <div className="tools">
+      {ctx && !embedded && (
+        <Link className="back-btn" href={`/dashboard/${ctx.scanId}`}>
+          <span aria-hidden="true">←</span> Back to your report
+        </Link>
+      )}
       {ctx && (
         <p className="tctx" role="status">
-          Pre-filled from your scan of <b>{ctx.host}</b>. Check everything before you publish it.{" "}
-          <Link href={`/dashboard/${ctx.scanId}`}>Back to your report</Link>
+          Pre-filled from your scan of <b>{ctx.host}</b>. Check everything before you publish it.
         </p>
       )}
       <div className="ttabs" role="tablist" aria-label="Free tools">

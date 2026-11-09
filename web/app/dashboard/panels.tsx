@@ -84,7 +84,8 @@ function download(name: string, mime: string, body: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function ExportMenu({ scan, findings, fixed }: { scan: StoredScan; findings: Finding[]; fixed: Set<string> }) {
+/* "Export ▾": PDF, the fix checklist and raw data. Sharing lives in the dashboard's own "Share ▾" menu. */
+export function ExportMenu({ scan, findings, fixed, pdfLabel, onPdf }: { scan: StoredScan; findings: Finding[]; fixed: Set<string>; pdfLabel: string; onPdf: () => void }) {
   const [note, setNote] = useState("");
   const flash = (m: string) => {
     setNote(m);
@@ -116,23 +117,24 @@ export function ExportMenu({ scan, findings, fixed }: { scan: StoredScan; findin
     (document.activeElement as HTMLElement | null)?.closest("details")?.removeAttribute("open");
   };
 
-  const share = (kind: "mail" | "wa") => {
-    const msg = encodeURIComponent(`Website report for ${scan.host}: ${scan.overall}/100`);
-    const href = encodeURIComponent(window.location.href);
-    if (kind === "mail") window.location.href = `mailto:?subject=${msg}&body=${href}`;
-    else window.open(`https://wa.me/?text=${msg}%20${href}`, "_blank", "noopener,noreferrer");
-    (document.activeElement as HTMLElement | null)?.closest("details")?.removeAttribute("open");
-  };
   return (
     <details className="xmenu">
-      <summary className="dash-btn">{note || "Export & share"}</summary>
+      <summary className="dash-btn">{note || "Export"} <span className="caret" aria-hidden="true">▾</span></summary>
       <div className="xmenu-pop" role="menu">
+        <button
+          type="button"
+          role="menuitem"
+          onClick={() => {
+            (document.activeElement as HTMLElement | null)?.closest("details")?.removeAttribute("open");
+            onPdf();
+          }}
+        >
+          {pdfLabel}
+        </button>
+        <hr />
         <button type="button" role="menuitem" onClick={() => run("copy")}>Copy fix checklist</button>
         <button type="button" role="menuitem" onClick={() => run("csv")}>Download CSV</button>
         <button type="button" role="menuitem" onClick={() => run("json")}>Download JSON</button>
-        <hr />
-        <button type="button" role="menuitem" onClick={() => share("mail")}>Share by email</button>
-        <button type="button" role="menuitem" onClick={() => share("wa")}>Share on WhatsApp</button>
       </div>
     </details>
   );

@@ -3,6 +3,7 @@ import { JsonLd, crumbLd } from "../json-ld";
 import { CtaBand, PageHero } from "../page-shell";
 import { SiteFooter, SiteNav } from "../site-chrome";
 import { connection } from "next/server";
+import { redirect } from "next/navigation";
 import { getScan, live } from "@/lib/scan/store";
 import { toolContext } from "@/lib/scan/tools-context";
 import { Tools } from "./tools";
@@ -17,6 +18,8 @@ export const metadata: Metadata = {
 export default async function ToolsPage({ searchParams }: { searchParams: Promise<{ scan?: string | string[] }> }) {
   const { scan } = await searchParams;
   const scanId = typeof scan === "string" ? scan : undefined;
+  // Tools for one report open inside that report's dashboard, pre-filled from its site.
+  if (scanId && /^[\w-]{1,64}$/.test(scanId)) redirect(`/dashboard/${encodeURIComponent(scanId)}?view=tools`);
 
   // With accounts switched on, the tools need a sign-in and pre-fill only from the signed-in owner's own report
   // (fetched by the browser with its token). Without Supabase (local development) they stay open, as before.

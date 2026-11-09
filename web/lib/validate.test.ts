@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { checkEmail, checkLead, checkName, checkPassword, checkPhone, passwordsMatch } from "./validate.ts";
+import { checkCode, checkEmail, checkLead, checkName, checkPassword, passwordsMatch } from "./validate.ts";
 
 const val = <T>(r: { ok: boolean; value?: T }) => (r.ok ? r.value : null);
 
@@ -45,19 +45,6 @@ test("email: a hostile long input is rejected quickly (no catastrophic backtrack
   assert.ok(Date.now() - t0 < 200);
 });
 
-test("phone: normalises to digits with an optional leading +", () => {
-  assert.equal(val(checkPhone("+91 98765-43210")), "+919876543210");
-  assert.equal(val(checkPhone("(022) 2345 6789")), "02223456789");
-  assert.equal(val(checkPhone("9876543210")), "9876543210");
-});
-
-test("phone: rejects letters, markup, misplaced +, and wrong lengths", () => {
-  for (const bad of ["abc", "98765x43210", "<b>98765432</b>", "98765+43210", "123456", "1".repeat(16), "", "+", "9876543210; DROP"]) {
-    assert.equal(checkPhone(bad).ok, false, JSON.stringify(bad));
-  }
-  assert.equal(checkPhone(12345678).ok, false);
-});
-
 test("password: length, byte limit, common and personal passwords", () => {
   assert.equal(checkPassword("correct horse battery").ok, true);
   assert.equal(checkPassword("Tr0ub4dor&3x").ok, true);
@@ -78,16 +65,19 @@ test("passwords must match", () => {
   assert.ok(passwordsMatch("abc", "abd"));
 });
 
-test("lead: returns normalised values or the first error", () => {
-  const ok = checkLead({ name: " Asha  Rao ", email: "ASHA@Example.com", phone: "+91 98765 43210" });
-  assert.deepEqual(ok, { lead: { name: "Asha Rao", email: "asha@example.com", phone: "+919876543210" } });
-  assert.deepEqual(checkLead({ name: "<b>", email: "a@b.com", phone: "9876543210" }), { error: "Names can only use letters, spaces, apostrophes, full stops and hyphens." });
-  assert.ok("error" in checkLead({ name: "Asha Rao", email: "nope", phone: "9876543210" }));
+test("lead: returns normalised name and email or the first error", () => {
+  assert.deepEqual(checkLead({ name: " Asha  Rao ", email: "ASHA@Example.com" }), { lead: { name: "Asha Rao", email: "asha@example.com" } });
+  assert.deepEqual(checkLead({ name: "<b>", email: "a@b.com" }), { error: "Names can only use letters, spaces, apostrophes, full stops and hyphens." });
+  assert.ok("error" in checkLead({ name: "Asha Rao", email: "nope" }));
   assert.ok("error" in checkLead(undefined));
 });
 
-test("lead: phone is optional, but a given phone must be valid", () => {
-  assert.deepEqual(checkLead({ name: "Asha Rao", email: "asha@example.com" }), { lead: { name: "Asha Rao", email: "asha@example.com", phone: "" } });
-  assert.deepEqual(checkLead({ name: "Asha Rao", email: "asha@example.com", phone: "  " }), { lead: { name: "Asha Rao", email: "asha@example.com", phone: "" } });
-  assert.ok("error" in checkLead({ name: "Asha Rao", email: "asha@example.com", phone: "call me" }));
+test("lead: a phone number is ignored, never stored", () => {
+  assert.deepEqual(checkLead({ name: "Asha Rao", email: "asha@example.com", phone: "+91 98765 43210" } as never), { lead: { name: "Asha Rao", email: "asha@example.com" } });
+});
+
+test("code: six digits, spaces and dashes allowed", () => {
+  assert.equal(val(checkCode(" 123 456 ")), "123456");
+  assert.equal(val(checkCode("123-456")), "123456");
+  for (const bad of ["12345", "1234567", "abcdef", "", undefined, 123456]) assert.equal(checkCode(bad).ok, false, String(bad));
 });

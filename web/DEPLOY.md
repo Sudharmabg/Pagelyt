@@ -30,8 +30,13 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
    npx wrangler secret put CRON_SECRET            # any long random string
    npx wrangler secret put TURNSTILE_SECRET_KEY
    npx wrangler secret put PAGESPEED_API_KEY
-   npx wrangler secret put RESEND_API_KEY         # optional: score-drop alert emails (also set ALERT_FROM)
+   npx wrangler secret put RESEND_API_KEY         # optional: alert and client report emails
    ```
+   Emails stay off until you also set the variable `EMAILS_ON=1` (do that once the Resend domain is
+   verified). One switch covers score alerts (`ALERT_FROM`, default `Pagelyt <alerts@pagelyt.com>`) and
+   "Share branded report" emails to clients (`REPORTS_FROM`, default `reports@pagelyt.com`; the sender shows
+   as "<Brand> via Pagelyt" and replies go to the brand's contact email, else the account email). Client
+   emails: one address per send, 20 a day per account, 3 a day to the same address.
 6. **Build-time public variables** (Workers Builds > Settings > Variables, or `.env.local` locally):
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
    (the other `NEXT_PUBLIC_*` values are in `wrangler.jsonc`).
@@ -51,13 +56,26 @@ cannot read it or add itself; only the server's service-role key can.
 
 ## Password accounts (modal sign-up, `/login`)
 
-Visitors enter an email in the scan modal. A new email gets name, phone, password and confirm password, plus one
-confirmation link; a known email just asks for the password. Reports opened with only a link are **view only**; the
-signed-in owner can edit, mark findings fixed and rescan.
+Entering a website decides the form. The modal asks `/api/auth/site` whether that website (its **root domain**:
+`www.`, subdomains, paths and http/https all count as one site) is already registered:
+
+- **Registered** → *Log in* (email + password). Only the account that owns the website can scan it; anyone else is told
+  it belongs to another account and can **prove ownership** at `/claim` (a meta tag on the homepage or a DNS TXT record),
+  which moves the website to them.
+- **New** → *Create account* (name, email, password; no phone number). The scan starts at once and the new account lands on
+  its dashboard, **locked** behind the 6-digit code from its email; the scan keeps running from that page. The code is
+  asked for once per account. The server sends no report data for an unverified account's scan.
+- An unverified sign-up holds its website for 24 hours. Throwaway inboxes are refused, and Gmail-style aliases
+  (`name+1@`, `n.ame@gmail.com`) count as the same inbox as an existing account.
+- Signed in on a device lasts **7 days from sign-in** (enforced by the server from the token's sign-in time, and by the
+  browser, which signs itself out). The header shows the signed-in name with a Log out menu; the owner's dashboard says
+  "Hi, <name>" and their PDF cover says "Prepared for <name>". Shared-link viewers never see the name.
+- Competitor scans (paid plans) don't take ownership of the rival's website.
 
 Do these once, in this order:
 
-1. **Run `supabase/migrations/0004_password_auth.sql`** (SQL editor). Deploy the code only after it has run.
+1. **Run `supabase/migrations/0004_password_auth.sql`**, then **`0009_site_owners.sql`** (SQL editor). Deploy the code only
+   after 0009 has run: it removes the `leads.phone` column, which the new code no longer sends.
 2. **Supabase > Authentication > Sign In / Providers > Email**: keep **Confirm email** ON, set **Minimum password length** to 8.
 3. **Resend** (sends the confirmation and password-reset emails). **This needs a domain you own**: without a verified
    domain Resend only sends to your own account address, and Supabase's built-in email only reaches team members, so real
@@ -71,7 +89,10 @@ Do these once, in this order:
 5. **Supabase > Authentication > URL Configuration**: Site URL = your live address. Add these Redirect URLs
    (replace the domain): `https://YOUR-DOMAIN/auth/verified`, `https://YOUR-DOMAIN/auth/reset`, `https://YOUR-DOMAIN/account`,
    and for local testing `http://localhost:3000/**`.
-6. **Supabase > Authentication > Email Templates**: edit *Confirm signup* and *Reset password* to Pagelyt wording. Keep `{{ .ConfirmationURL }}`.
+6. **Supabase > Authentication > Email Templates**: edit *Confirm signup* so it shows the code, not a link, for example
+   `<p>Your Pagelyt code is</p><h2>{{ .Token }}</h2><p>Enter it on your dashboard. It expires in an hour.</p>`.
+   In *Sign In / Providers > Email*, keep **Email OTP length** at 6. Edit *Reset password* to Pagelyt wording and keep
+   `{{ .ConfirmationURL }}` there (password resets still use a link).
 7. **Supabase > Authentication > Rate Limits**: with custom SMTP on, raise *emails per hour* (default is only a few).
 8. **Turnstile**: set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. Without them the human check is skipped,
    which leaves sign-up and sign-in open to bots (the rate limits below still apply).
@@ -80,8 +101,8 @@ Security behaviour worth knowing:
 
 - Every field is validated twice (browser and server) from one shared set of rules in `lib/validate.ts`
   (`node --experimental-strip-types --test lib/validate.test.ts`).
-- Rate limits (Postgres `rate_limit_hit`, keyed by IP and by a hash of the email): email check 10/15 min per IP and 5/15 min per
-  address; sign-up 3/hour; password sign-in 5/15 min per address and 20/15 min per IP; resend 1/min and 5/hour. They answer `429`
+- Rate limits (Postgres `rate_limit_hit`, keyed by IP and by a hash of the email): website lookup 30/15 min per IP; email
+  code 6 tries/15 min per address and 30 per IP; ownership checks 20/hour per IP; sign-up 3/hour; password sign-in 5/15 min per address and 20/15 min per IP; resend 1/min and 5/hour. They answer `429`
   with `Retry-After`, and sign-up and sign-in **block** (not allow) if the limiter is unreachable.
 - The caller's IP comes only from Cloudflare's `cf-connecting-ip` header in production.
 - Passwords are sent to our own `/api/auth/*` routes over HTTPS only to be forwarded to Supabase. They are never logged or stored by the app.
