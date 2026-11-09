@@ -27,6 +27,7 @@ export function Body({ blocks }: { blocks: Block[] }) {
         if ("h3" in b) return <h3 key={i}>{b.h3}</h3>;
         if ("p" in b) return <p key={i}><Inline text={b.p} /></p>;
         if ("tip" in b) return <aside key={i} className="post-tip"><Inline text={b.tip} /></aside>;
+        if ("code" in b) return <pre key={i} className="post-code"><code>{b.code}</code></pre>;
         const items = "ul" in b ? b.ul : b.ol;
         const Tag = "ul" in b ? "ul" : "ol";
         return (

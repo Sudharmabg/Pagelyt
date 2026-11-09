@@ -1,4 +1,5 @@
 // Blog posts live in the repo. Paragraphs support internal links written as [text](/path).
+import { MORE_POSTS } from "./blog-posts-more";
 
 export type Block =
   | { h2: string }
@@ -6,7 +7,8 @@ export type Block =
   | { p: string }
   | { ul: string[] }
   | { ol: string[] }
-  | { tip: string };
+  | { tip: string }
+  | { code: string };
 
 export type Post = {
   slug: string;
@@ -124,7 +126,7 @@ export const POSTS: Post[] = [
         "llms.txt is not a confirmed ranking factor. It is a low-effort way to give AI tools a clear summary and map of your site, which can help them describe your business accurately.",
       ],
     ],
-    related: ["technical-seo-checklist", "free-website-audit-what-to-check"],
+    related: ["how-to-get-cited-in-google-ai-overviews", "robots-txt-for-ai-crawlers", "what-is-llms-txt"],
   },
 
   {
@@ -240,7 +242,7 @@ export const POSTS: Post[] = [
         "Mobile tests simulate a slower processor and network, so heavy images and JavaScript have a much bigger impact. Most real visitors are on mobile, which is why Google uses mobile performance for ranking.",
       ],
     ],
-    related: ["why-is-my-website-slow", "technical-seo-checklist"],
+    related: ["pagespeed-insights-score-explained", "image-optimisation-for-website-speed", "why-is-my-website-slow"],
   },
 
   {
@@ -428,7 +430,7 @@ export const POSTS: Post[] = [
         "Yes. Most technical SEO fixes, such as titles, descriptions, sitemaps and alt text, can be done in a CMS like WordPress, Shopify or Webflow without coding. An automated audit tells you which ones your site needs.",
       ],
     ],
-    related: ["what-is-geo-generative-engine-optimisation", "free-website-audit-what-to-check"],
+    related: ["why-is-my-website-not-showing-on-google", "schema-markup-guide", "meta-title-and-description-guide"],
   },
 
   {
@@ -536,7 +538,7 @@ export const POSTS: Post[] = [
         "Yes. Free certificates from providers like Let's Encrypt use the same encryption as paid ones. Paid certificates mainly add warranties or organisation validation.",
       ],
     ],
-    related: ["free-website-audit-what-to-check", "website-accessibility-checklist"],
+    related: ["spf-dkim-dmarc-explained", "website-accessibility-checklist", "free-website-audit-what-to-check"],
   },
 
   {
@@ -737,12 +739,13 @@ export const POSTS: Post[] = [
     ],
     related: ["technical-seo-checklist", "why-is-my-website-slow"],
   },
+  ...MORE_POSTS,
 ];
 
 export const postBySlug = (slug: string) => POSTS.find((p) => p.slug === slug);
 
 const words = (b: Block) =>
-  ("p" in b ? b.p : "tip" in b ? b.tip : "h2" in b ? b.h2 : "h3" in b ? b.h3 : ("ul" in b ? b.ul : b.ol).join(" "))
+  ("p" in b ? b.p : "tip" in b ? b.tip : "code" in b ? b.code : "h2" in b ? b.h2 : "h3" in b ? b.h3 : ("ul" in b ? b.ul : b.ol).join(" "))
     .split(/\s+/).length;
 
 export const readMins = (p: Post) =>

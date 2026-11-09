@@ -288,23 +288,41 @@ export const PERSONAS = [
 export const CONSULTS = [
   {
     t: "Quick Website Consultation",
-    m: "30 minutes.",
-    d: "Discuss your website, understand important issues and identify improvement opportunities.",
+    mins: 30,
     p: "₹499",
+    d: "For a second opinion on your audit and a clear first step.",
+    get: [
+      "A walkthrough of your Pagelyt report in plain English",
+      "Your top three fixes, in the order to do them",
+      "Answers to your questions, with no jargon",
+    ],
   },
   {
     t: "Technical Website Consultation",
-    m: "60 minutes.",
-    d: "Discuss performance, technical SEO, website architecture, security and implementation approaches.",
+    mins: 60,
     p: "₹999",
+    d: "For owners and developers fixing speed, SEO or security.",
+    get: [
+      "A review of your Core Web Vitals, crawlability and security setup",
+      "Step-by-step fixes for your platform: WordPress, Shopify or custom code",
+      "A prioritised fix list, emailed after the call",
+    ],
   },
   {
     t: "Website Growth Strategy",
-    m: "90 minutes.",
-    d: "Explore website optimisation, SEO/GEO opportunities, conversion improvements and a practical growth roadmap.",
+    mins: 90,
     p: "₹1,499",
+    d: "For businesses planning the next three to six months.",
+    get: [
+      "Your SEO and AI search (GEO) gaps, compared with up to two competitors",
+      "A conversion review of your most important pages",
+      "A written 90-day roadmap, emailed after the call",
+    ],
   },
 ];
+
+/** Session choices in the consultation form. The request API only accepts these exact labels. */
+export const SESSIONS = CONSULTS.map((c) => `${c.t} · ${c.mins} min · ${c.p}`);
 
 export const PLANS = [
   {

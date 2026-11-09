@@ -2,56 +2,78 @@
 
 import { Arrow } from "./arrow";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { SESSIONS } from "./content";
 import { CONTACT_EMAIL } from "./site-config";
+import { useTurnstile } from "./use-turnstile";
 
 type Kind = "consultation" | "contact";
 
-const SLOTS = [
-  "Quick Website Consultation · 30 min · ₹499",
-  "Technical Website Consultation · 60 min · ₹999",
-  "Website Growth Strategy · 90 min · ₹1,499",
-];
+/** Fired by the session cards on the consultation page to pick a session in this form. */
+export const SESSION_EVENT = "pagelyt:session";
 
-/* No backend yet: the form opens the visitor's email app with the details filled in. */
+/* Consultation and contact form. Sends to /api/request, which stores it in Supabase for the admin panel. */
 export function RequestForm({ kind }: { kind: Kind }) {
-  const [sent, setSent] = useState(false);
+  const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
   const [err, setErr] = useState("");
+  const [session, setSession] = useState(SESSIONS[0]);
+  const { box, siteKey, token, reset } = useTurnstile(state !== "sent");
 
-  const onSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  useEffect(() => {
+    const pick = (e: Event) => {
+      const i = (e as CustomEvent<number>).detail;
+      if (SESSIONS[i]) setSession(SESSIONS[i]);
+    };
+    window.addEventListener(SESSION_EVENT, pick);
+    return () => window.removeEventListener(SESSION_EVENT, pick);
+  }, []);
+
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
-    const name = String(f.get("name") || "").trim();
-    const email = String(f.get("email") || "").trim();
-    if (!name || !/^\S+@\S+\.\S+$/.test(email)) {
-      setErr("Please enter your name and a valid email address.");
-      return;
-    }
+    const get = (k: string) => String(f.get(k) || "").trim();
+    if (!get("name") || !/^\S+@\S+\.\S+$/.test(get("email"))) return setErr("Please enter your name and a valid email address.");
+    if (kind === "contact" && !get("msg")) return setErr("Please write a short message.");
+    if (siteKey && !token()) return setErr("Please complete the human check below.");
     setErr("");
-    const lines = [
-      `Name: ${name}`,
-      `Email: ${email}`,
-      `Website: ${String(f.get("site") || "").trim() || "Not given"}`,
-      kind === "consultation" ? `Session: ${String(f.get("slot") || "")}` : "",
-      kind === "consultation" ? `Preferred time: ${String(f.get("when") || "").trim() || "Flexible"}` : "",
-      "",
-      String(f.get("msg") || "").trim(),
-    ].filter((l, i, a) => l || i === a.length - 2 || i === a.length - 1);
-    const subject = kind === "consultation" ? "Consultation request" : "Message from the Pagelyt website";
-    window.location.href = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines.join("\n"))}`;
-    setSent(true);
+    setState("sending");
+    try {
+      const r = await fetch("/api/request", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          kind,
+          name: get("name"),
+          email: get("email"),
+          website: get("site"),
+          session: kind === "consultation" ? session : undefined,
+          preferredTime: get("when"),
+          message: get("msg"),
+          company: get("company"),
+          turnstile: token(),
+        }),
+      });
+      const j = (await r.json().catch(() => ({}))) as { error?: string };
+      if (!r.ok) throw new Error(j.error || "We couldn't send that just now.");
+      setState("sent");
+    } catch (e2) {
+      setErr(e2 instanceof Error ? e2.message : "We couldn't send that just now.");
+      setState("idle");
+      reset();
+    }
   };
 
-  if (sent)
+  if (state === "sent")
     return (
       <div className="rq rq-done" role="status">
-        <h3>Almost there.</h3>
+        <h3>{kind === "consultation" ? "Request received." : "Message sent."}</h3>
         <p>
-          Your email app should have opened with your details filled in. Press send and we will reply within one
-          business day. If nothing opened, write to <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+          {kind === "consultation"
+            ? "Thanks. We'll email you within one business day to confirm a time for your session."
+            : "Thanks for getting in touch. We'll reply within one business day."}
         </p>
-        <button className="btn ghost" onClick={() => setSent(false)}>
-          Edit my details
+        <button className="btn ghost" onClick={() => setState("idle")}>
+          Send another
         </button>
       </div>
     );
@@ -61,43 +83,51 @@ export function RequestForm({ kind }: { kind: Kind }) {
       <h3>{kind === "consultation" ? "Request a consultation" : "Send us a message"}</h3>
       <label>
         Your name
-        <input name="name" autoComplete="name" required />
+        <input name="name" autoComplete="name" maxLength={100} required />
       </label>
       <label>
         Email
-        <input name="email" type="email" autoComplete="email" required />
+        <input name="email" type="email" autoComplete="email" maxLength={254} required />
       </label>
       <label>
         Website <span>(optional)</span>
-        <input name="site" inputMode="url" placeholder="https://yourwebsite.com" />
+        <input name="site" inputMode="url" maxLength={300} placeholder="https://yourwebsite.com" />
       </label>
       {kind === "consultation" && (
         <>
           <label>
             Session
-            <select name="slot" defaultValue={SLOTS[0]}>
-              {SLOTS.map((s) => (
+            <select name="slot" value={session} onChange={(e) => setSession(e.target.value)}>
+              {SESSIONS.map((s) => (
                 <option key={s}>{s}</option>
               ))}
             </select>
           </label>
           <label>
             Preferred day and time <span>(optional)</span>
-            <input name="when" placeholder="For example, weekday mornings IST" />
+            <input name="when" maxLength={120} placeholder="For example, weekday mornings IST" />
           </label>
         </>
       )}
       <label>
         {kind === "consultation" ? "What would you like help with?" : "How can we help?"}
-        <textarea name="msg" rows={4} />
+        <textarea name="msg" rows={4} maxLength={3000} />
       </label>
+      {/* Honeypot: hidden from people, often filled in by bots. */}
+      <input name="company" tabIndex={-1} autoComplete="off" aria-hidden="true" className="rq-hp" />
+      {siteKey && <div ref={box} className="rq-ts" />}
       {err && (
         <p className="rq-err" role="alert">
-          {err}
+          {err}{" "}
+          {state === "idle" && err.startsWith("We couldn") && (
+            <>
+              You can also email <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
+            </>
+          )}
         </p>
       )}
-      <button className="btn" type="submit">
-        {kind === "consultation" ? "Request my consultation" : "Send message"} <Arrow />
+      <button className="btn" type="submit" disabled={state === "sending"}>
+        {state === "sending" ? "Sending…" : kind === "consultation" ? "Request my consultation" : "Send message"} <Arrow />
       </button>
     </form>
   );

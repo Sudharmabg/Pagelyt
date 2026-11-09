@@ -14,7 +14,7 @@ const CONFIRM_EMAIL = process.env.MOCK_CONFIRM === "on";
 
 const users = new Map(); // email -> { id, email, password, confirmed, meta }
 const sessions = new Map(); // access token -> email
-const tables = { scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [], ai_prompts: [], ai_runs: [], uptime_checks: [], admins: [] };
+const tables = { scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [], ai_prompts: [], ai_runs: [], uptime_checks: [], admins: [], requests: [] };
 // MOCK_ADMIN_EMAILS=a@x.test,b@x.test seeds the admins table, so those accounts can open /admin once signed up.
 for (const email of (process.env.MOCK_ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)) tables.admins.push({ email, created_at: new Date().toISOString() });
 // The account plan for every new profile. MOCK_PLAN=professional lets you try the paid-only agency features.
@@ -146,7 +146,7 @@ http
           const hit = merge && rows.find((x) => conflict.every((c) => String(x[c]) === String(r[c])));
           if (hit) saved.push(Object.assign(hit, r));
           else {
-            const row = { id: crypto.randomUUID(), created_at: new Date().toISOString(), ...(m[1] === "profiles" ? { plan: MOCK_PLAN, account_type: null } : {}), ...r };
+            const row = { id: crypto.randomUUID(), created_at: new Date().toISOString(), ...(m[1] === "profiles" ? { plan: MOCK_PLAN, account_type: null } : {}), ...(m[1] === "requests" ? { status: "new" } : {}), ...r };
             rows.push(row);
             saved.push(row);
           }
