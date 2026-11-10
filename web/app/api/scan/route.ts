@@ -31,6 +31,11 @@ export async function POST(req: Request) {
     return Response.json({ error: "Invalid request." }, { status: 400 });
   }
   const user = await userFromRequest(req);
+  // The browser thinks it is signed in, but the server no longer accepts that session (expired, revoked or the
+  // account is gone). Say so, so the page can sign out and show the form, instead of asking for a missing name.
+  if (!user && !body.lead && req.headers.get("authorization")) {
+    return Response.json({ error: "Your sign-in has expired. Please log in again.", code: "signed_out" }, { status: 401 });
+  }
   // Signed-in users are already known to us; a new sign-up sends its name and email with the ticket.
   const v = user && !body.lead ? null : validateLead(body.lead);
   if (v && "error" in v) return Response.json({ error: v.error }, { status: 400 });

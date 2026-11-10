@@ -94,13 +94,13 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 
 | Route | Purpose |
 |---|---|
-| `scan` POST | Start a scan: validation, limits, site-ownership check, lead, row. A finished scan of the same URL from the last 10 minutes is reused, unless `siteId` is given or a signed-in user sends `fresh: true` |
+| `scan` POST | Start a scan: validation, limits, site-ownership check, lead, row. A finished scan of the same URL from the last 10 minutes is reused, unless `siteId` is given or a signed-in user sends `fresh: true`. A bearer token the server no longer accepts gets 401 `code: "signed_out"` (the homepage then signs out locally and shows the form) |
 | `scan/[id]/step` POST | Run the next stage. Returns `{stage, done, label, areas}` |
 | `scan/[id]/fixed` PUT | Owner marks findings as fixed |
 | `auth/signup`, `auth/login`, `auth/verify`, `auth/resend`, `auth/forgot` | Sign-up, password sign-in, 6-digit code check, resend the code, reset link |
 | `auth/site` POST | Asks whether a site is already registered (a known site forces login) |
 | `sites/claim` POST | Ownership proof for a site registered to another account |
-| `account/claim` | Save a report to the account |
+| `account/claim` | Save a report to the account and make it the saved site's latest scan. Changes the schedule and uptime only when `cadence` / `uptime` are sent |
 | `account/claim-leads` | After confirmation, attach earlier scans made with that email |
 | `account/sites` | Agency overview data |
 | `account/type` | Plan, and the "are you an agency?" answer |
@@ -142,7 +142,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
   - `share-report.tsx`: the share modal, with a brand preview and an optional email to the client.
   - `save-site.tsx`: save the site with a schedule and alerts. `inline` shows it as a form instead of a drop-down.
   - `compare-button.tsx`: scan competitors.
-  - `rescan.tsx`: starts a fresh scan and opens its live dashboard.
+  - `rescan.tsx`: starts a fresh scan and opens its live dashboard with `?new=1`, so the result is saved to the account and the site.
 - `agency-modal.tsx`: the "are you an agency?" question, plus `useAccount` (plan and paid status).
 
 **Reports:**

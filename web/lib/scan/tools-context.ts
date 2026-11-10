@@ -39,7 +39,8 @@ export function toolContext(scanId: string, r: ScanResult): ToolContext {
   const u = new URL(r.url);
   const home = r.crawl?.list[0];
   const tech = new Set((r.tech ?? []).map((t) => t.name));
-  const title = home?.title ?? "";
+  // No crawl (only the homepage was checked): the homepage fingerprint still has its title.
+  const title = home?.title || r.snapshot?.title || "";
   const fixes = Object.fromEntries(
     (Object.keys(MAP) as ToolId[]).map((k) => [k, r.findings.filter((f) => MAP[k].includes(f.id)).map((f) => f.title)])
   ) as ToolContext["fixes"];

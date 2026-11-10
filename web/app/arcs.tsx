@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { BANDS } from "./bands";
+
+const REDUCE = "(prefers-reduced-motion: reduce)";
+const subscribeMotion = (cb: () => void) => {
+  const mq = window.matchMedia(REDUCE);
+  mq.addEventListener("change", cb);
+  return () => mq.removeEventListener("change", cb);
+};
 
 
 /* Three poses per ribbon. The curve morphs between them forever, each ribbon on its own timing. */
@@ -16,15 +23,8 @@ const pose = (i: number, k: 0 | 1 | 2) => {
 
 /* A fan of ribbons that starts together on the left, opens out to the right, and keeps flowing. */
 export function Arcs({ flip = false, soft = false }: { flip?: boolean; soft?: boolean }) {
-  const [still, setStill] = useState(false);
-
-  useEffect(() => {
-    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setStill(mq.matches);
-    const on = () => setStill(mq.matches);
-    mq.addEventListener("change", on);
-    return () => mq.removeEventListener("change", on);
-  }, []);
+  // Follows the visitor's reduced-motion setting, live; the server render assumes motion is fine.
+  const still = useSyncExternalStore(subscribeMotion, () => window.matchMedia(REDUCE).matches, () => false);
 
   return (
     <svg

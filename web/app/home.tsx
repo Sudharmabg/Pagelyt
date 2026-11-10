@@ -94,6 +94,12 @@ export default function Home() {
       setRunning(true);
       setModal(true);
       const problem = await startScan({ lead: null, token, after: "dashboard" });
+      if (problem?.code === "signed_out") {
+        // The saved session is no longer valid: drop it and show the login / sign-up form instead.
+        await supabaseBrowser()?.auth.signOut({ scope: "local" });
+        setRunning(false);
+        return;
+      }
       if (problem) {
         setRunning(false);
         setModal(false);

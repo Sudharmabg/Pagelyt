@@ -13,6 +13,10 @@ const eslintConfig = defineConfig([
     // Default ignores of eslint-config-next:
     ".next/**",
     ".next-test/**",
+    // Build output of the other Claude preview servers (../.claude/launch.json), Wrangler and the local data folder.
+    ".next-*/**",
+    ".wrangler/**",
+    ".data/**",
     ".open-next/**",
     "out/**",
     "build/**",

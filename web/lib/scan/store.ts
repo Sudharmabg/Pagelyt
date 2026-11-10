@@ -217,11 +217,16 @@ export const nextRun = (cadence: Site["cadence"], from = Date.now()) =>
 /** Save (or update) a site for a user and attach the scan to it. Returns the site, or null in memory mode. */
 export async function saveSite(userId: string, scan: { id: string; host: string; url: string }, opts: { cadence?: Site["cadence"]; uptime?: boolean }): Promise<Site | null> {
   if (!live()) return null;
-  const cadence = opts.cadence ?? "none";
+  // Only send the schedule and uptime when the caller chose them. A plain "save this report" (after a signed-in
+  // scan or a rescan) must keep an existing site's settings; a new site gets the table defaults (none, off).
+  const settings = {
+    ...(opts.cadence !== undefined ? { cadence: opts.cadence, next_run_at: nextRun(opts.cadence) } : {}),
+    ...(opts.uptime !== undefined ? { uptime: opts.uptime } : {}),
+  };
   const rows = await rest<Site[]>("sites?on_conflict=user_id,host", {
     method: "POST",
     prefer: "resolution=merge-duplicates,return=representation",
-    body: JSON.stringify({ user_id: userId, host: scan.host, url: scan.url, cadence, uptime: !!opts.uptime, last_scan_id: scan.id, next_run_at: nextRun(cadence) }),
+    body: JSON.stringify({ user_id: userId, host: scan.host, url: scan.url, last_scan_id: scan.id, ...settings }),
   });
   const site = rows[0];
   // Claim an unowned scan, or link the user's own scan to the site; never take over someone else's report.

@@ -171,7 +171,7 @@ http
           if (ignore && rows.some((x) => ignore.every((c) => String(x[c]) === String(r[c])))) continue;
           if (hit) saved.push(Object.assign(hit, r));
           else {
-            const row = { id: crypto.randomUUID(), created_at: new Date().toISOString(), ...(m[1] === "profiles" ? { plan: MOCK_PLAN, account_type: null } : {}), ...(m[1] === "requests" ? { status: "new" } : {}), ...r };
+            const row = { id: crypto.randomUUID(), created_at: new Date().toISOString(), ...(m[1] === "profiles" ? { plan: MOCK_PLAN, account_type: null } : {}), ...(m[1] === "requests" ? { status: "new" } : {}), ...(m[1] === "sites" ? { cadence: "none", uptime: false, next_run_at: null, brand_terms: [], competitors: [], ai_track: false } : {}), ...r };
             rows.push(row);
             saved.push(row);
           }

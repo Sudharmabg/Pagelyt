@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   if (scan.user_id && scan.user_id !== user.id) return Response.json({ error: "This report belongs to another account." }, { status: 403 });
 
   try {
-    const site = await saveSite(user.id, { id: scan.id, host: scan.host, url: scan.url }, { cadence: body.cadence, uptime: body.uptime });
+    const site = await saveSite(user.id, { id: scan.id, host: scan.host, url: scan.url }, { cadence: body.cadence || undefined, uptime: typeof body.uptime === "boolean" ? body.uptime : undefined });
     return Response.json({ site });
   } catch {
     return Response.json({ error: "Could not save the site. Please try again." }, { status: 500 });

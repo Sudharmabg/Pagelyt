@@ -50,8 +50,8 @@ export function Visibility({ siteId }: { siteId: string }) {
     const st = s.data as Site | null;
     setSite(st);
     if (st) {
-      setTerms(st.brand_terms.join(", "));
-      setComps(st.competitors.join(", "));
+      setTerms((st.brand_terms ?? []).join(", "));
+      setComps((st.competitors ?? []).join(", "));
     }
     setPrompts((p.data as Prompt[]) ?? []);
     setRuns((r.data as Run[]) ?? []);

@@ -11,8 +11,11 @@ import { providerLabel } from "@/lib/ai/providers";
 
 export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
   const r = await loadSharedReport((await params).token);
-  const name = r?.brand?.name ?? "Website report";
-  return { title: { absolute: `${name}: website report` }, robots: { index: false, follow: false }, openGraph: { siteName: name, title: `${name}: website report` } };
+  const brand = r?.brand?.name;
+  const host = r?.scan.host;
+  // "Acme Digital: website report", or without a brand "Website report: example.com" (never "Website report: website report").
+  const title = brand ? `${brand}: website report` : host ? `Website report: ${host}` : "Website report";
+  return { title: { absolute: title }, robots: { index: false, follow: false }, openGraph: { siteName: brand ?? "Website report", title } };
 }
 
 export default async function SharedReport({ params }: { params: Promise<{ token: string }> }) {

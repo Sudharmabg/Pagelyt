@@ -5487,6 +5487,13 @@ button.fnd-link:disabled { opacity: .5; cursor: default; }
 .dash-top > .dash-site { flex: 0 1 auto; min-width: 120px; max-width: 280px; }
 .dash-top > .dash-act { flex: 1 1 auto; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: thin; justify-content: safe flex-end; padding-block: 2px; }
 @media (max-width: 720px) { .dash-top > .dash-act { overflow-x: visible; flex-wrap: wrap; } .dash-top > .dash-site { max-width: none; flex: 1; } }
+/* Laptop and tablet widths: the actions don't fit beside the site name, so they move to their own row instead of
+   scrolling sideways (a scrolling row would also clip the Share / Export / More menus). */
+@media (min-width: 721px) and (max-width: 1240px) {
+  .dash-top { flex-wrap: wrap; row-gap: .6rem; }
+  .dash-top > .dash-site { flex: 1 1 auto; max-width: none; }
+  .dash-top > .dash-act { order: 3; flex: 1 1 100%; overflow: visible; flex-wrap: wrap; justify-content: flex-start; }
+}
 
 /* Share branded report modal: options on the left, a preview of the branded cover on the right. */
 .share-modal { width: min(780px, calc(100vw - 2rem)); }
