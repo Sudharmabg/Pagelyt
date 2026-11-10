@@ -49,6 +49,11 @@ export const LIMITS = {
     { key: `verify:ip:${ip}`, limit: 30, windowSec: 900 },
   ],
   claim: (ip: string): Rule[] => [{ key: `claim:ip:${ip}`, limit: 20, windowSec: 3600 }],
+  /** Free tools that fetch other sites from our server (AI bot checker, hreflang, domain age…). */
+  tool: (ip: string, user: string): Rule[] => [
+    { key: `tool:u:${user}`, limit: 40, windowSec: 900 },
+    { key: `tool:ip:${ip}`, limit: 60, windowSec: 900 },
+  ],
   resend: (ip: string, email: string): Rule[] => [
     { key: `resend:em:min:${email}`, limit: 1, windowSec: 60 },
     { key: `resend:em:hr:${email}`, limit: 5, windowSec: 3600 },

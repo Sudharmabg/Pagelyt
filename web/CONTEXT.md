@@ -58,6 +58,15 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `analytics.ts` | `adminAnalytics` | Admin usage analytics |
 | `tools-context.ts` | `toolContext` | Data the free tools pre-fill from a scan |
 
+## Free tool checks (`lib/tools/`)
+
+| File | Key exports | Purpose |
+|---|---|---|
+| `robots.ts` | `parseRobots`, `robotsVerdict`, `pathMatches`, `robotsPath` | RFC 9309 robots.txt parsing and matching (no regex, so hostile patterns stay fast). Runs on the server and in the browser. Tests in `robots.test.ts` |
+| `ai-bots.ts` | `AI_BOTS`, `checkAiBots` | 14 AI crawlers: robots.txt verdict, plus a request with each bot's user agent compared with a normal browser request |
+| `hreflang.ts` | `checkHreflang` | Language codes, then opens up to 12 alternates for status, return links and canonicals |
+| `domain-age.ts` | `cleanDomain`, `domainAge` | Registration, expiry and registrar from RDAP (rdap.org) |
+
 ## AI visibility (`lib/ai/`)
 
 | File | Purpose |
@@ -105,6 +114,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `account/sites` | Agency overview data |
 | `account/type` | Plan, and the "are you an agency?" answer |
 | `account/tools-context` | Data the free tools pre-fill from |
+| `tools` POST | The free checkers that fetch another site: `ai-bots`, `hreflang`, `robots` (returns the file; testing runs in the browser), `domain-age` (up to 10). Signed-in only (open without Supabase), 40 per account and 60 per IP per 15 minutes |
 | `share` POST | Branded client link, plus an optional email to the client (20 a day per account, 3 a day per address) |
 | `report/pdf` POST | Branded PDF (paid plans) |
 | `compare` POST | Save a competitor comparison |
@@ -166,10 +176,15 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 - `features-data.ts`: features and homepage copy.
 - `blog-data.ts` + `blog-posts-more.ts`: blog posts.
 - `blog/`: blog pages, with `rich.tsx` and `toc.tsx`.
-- `tools-list.ts`: list of free tools.
+- `tools-list.ts`: list of free tools for the Features page, built from `tools/catalog.ts`.
 - `site-config.ts`: name, URL and contact.
 - Pages: `about`, `pricing`, `faq`, `features`, `fix`, `how-it-works`, `use-cases`, `consultation`, `contact`, `privacy`, `terms`, `tools`.
-- `/tools` is the public page for the free tools (`tools/tools.tsx`: `Tools`, `embedded` hides the back button). `/tools?scan=<id>` redirects to that report's `?view=tools`.
+- `/tools` is the directory of free tools, grouped by category. `/tools?scan=<id>` redirects to that report's `?view=tools`.
+- `/tools/[slug]` is one page per tool (title, description, "Why it matters", FAQ with FAQPage JSON-LD, related tools). The pages are public; using a tool needs sign-in.
+  - `tools/catalog.ts`: `TOOL_LIST`, `TOOLS_BY_SLUG`, `CATEGORIES`, `ToolSlug`. Every tool's slug, category, copy and FAQ. Add a tool here first.
+  - `tools/tool-view.tsx`: `ToolView` picks the tool by slug. Signed out it shows a disabled preview with a sign-in prompt; signed in it pre-fills from the latest report.
+  - `tools/tools.tsx`: the five generators (`Llms`, `Robots`, `Schema`, `Serp`, `Headers`, plus `Field`, `Output`) and `Tools`, the tabbed version used inside the dashboard (`embedded`).
+  - `tools/checkers.tsx`: `AiBotChecker`, `RobotsTester`, `DomainAgeChecker`, `HreflangChecker`, `ReviewLink`.
 
 **Shared UI:**
 - `site-chrome.tsx`: nav and footer.

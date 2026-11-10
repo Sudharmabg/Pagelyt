@@ -4309,6 +4309,64 @@ button:hover > .arr,
 .serp-desc { color: #4d5156; font-size: .9rem; line-height: 1.5; }
 @media (prefers-reduced-motion: reduce) { .ttabs button, .tout-act button { transition: none; } }
 
+/* ---- tool pages (/tools/<slug>) and the directory ---- */
+.tcrumb { margin: .75rem 0 0; font-size: .9rem; font-weight: 600; color: #55616d; }
+.tcrumb a { color: inherit; }
+.tgate { display: flex; gap: 1rem; align-items: center; justify-content: space-between; flex-wrap: wrap; padding: 1rem 1.25rem; background: #fff7e6; border: 1px solid #f0d9a8; border-radius: 14px; }
+.tgate div { display: grid; gap: .2rem; font-size: .92rem; line-height: 1.45; }
+.tgate .btn { flex: none; }
+.tpreview { border: 0; margin: 0; padding: 0; min-width: 0; opacity: .72; }
+.tpreview[disabled] * { cursor: not-allowed; }
+.tcheck { display: grid; gap: 1.25rem; }
+.tform.trow { grid-template-columns: minmax(0, 1fr) auto; align-items: end; }
+.tform.trow .btn, .tinline .btn { white-space: nowrap; }
+.tinline { display: flex; gap: .5rem; }
+.tinline input { flex: 1; min-width: 0; }
+.tf textarea.mono { font: .85rem/1.55 ui-monospace, "Cascadia Code", Consolas, monospace; }
+.terr { margin: 0; padding: .7rem 1rem; border-radius: 10px; background: #fdecea; color: #a12a1d; font-size: .9rem; font-weight: 600; }
+.tres { display: grid; gap: 1rem; min-width: 0; background: #fff; border: 1px solid #e6dfd4; border-radius: 18px; padding: 1.25rem 1.4rem; }
+.tres-sum { margin: 0; font-size: 1.05rem; }
+.tres-url { overflow-wrap: anywhere; font-weight: 600; }
+.tres .crawl-wrap { margin-top: 0; }
+.tres .crawl { font-size: .85rem; }
+.tres .crawl td { white-space: normal; max-width: 360px; overflow-wrap: anywhere; vertical-align: top; }
+.tres .crawl td small { display: block; color: #667085; font-size: .78rem; margin-top: .2rem; }
+.tres .crawl td small.bad, .tres b.bad { color: #b42318; }
+.tres b.ok { color: #1a7f4e; }
+.tfacts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .5rem 1.5rem; font-size: .9rem; }
+.tfacts li { display: flex; gap: .5rem; align-items: center; }
+.tchip { display: inline-block; padding: .12rem .55rem; border-radius: 999px; font-size: .76rem; font-weight: 700; white-space: nowrap; }
+.tchip.ok { background: #e3f4ea; color: #146c40; }
+.tchip.bad { background: #fdecea; color: #a12a1d; }
+.tchip.warn { background: #fff1d6; color: #8a5300; }
+.tchip.na { background: #eef0f3; color: #55616d; }
+.tissues { margin: 0; padding-left: 1.1rem; display: grid; gap: .5rem; font-size: .9rem; line-height: 1.5; }
+.tissues small { display: block; color: #667085; overflow-wrap: anywhere; }
+.tnote.pad-top { padding-top: .75rem; }
+.tabout { padding-top: 0; }
+.tabout-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2.5rem; }
+.tabout h2, .trel-h { font-size: 1.35rem; margin: 0 0 .75rem; }
+.tabout p { color: #3a4754; line-height: 1.65; margin: 0 0 .9rem; }
+.tfaq { margin: 0; display: grid; gap: 1rem; }
+.tfaq dt { font-weight: 700; }
+.tfaq dd { margin: .3rem 0 0; color: #3a4754; line-height: 1.6; }
+.trel-h { margin-top: 2.5rem; }
+.tcards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 1rem; }
+.tcards a { display: grid; gap: .4rem; align-content: start; height: 100%; box-sizing: border-box; padding: 1.15rem 1.25rem; background: #fff; border: 1px solid #e6dfd4; border-radius: 16px; color: inherit; text-decoration: none; transition: border-color .15s, transform .15s; }
+.tcards a:hover { border-color: #7c5cd6; transform: translateY(-2px); }
+.tcards a:focus-visible { outline: 2px solid #7c5cd6; outline-offset: 2px; }
+.tcards b { font-size: 1.02rem; }
+.tcards span { color: #55616d; font-size: .9rem; line-height: 1.5; }
+.tcards i { font-style: normal; justify-self: start; margin-top: .3rem; padding: .1rem .55rem; border-radius: 999px; background: #efe9ff; color: #5a35b0; font-size: .74rem; font-weight: 700; }
+.tdir { display: grid; gap: 2.75rem; }
+.tdir-group h2 { margin: 0; font-size: 1.4rem; }
+.tdir-lead { margin: .35rem 0 1rem; color: #55616d; }
+@media (max-width: 720px) {
+  .tabout-grid { grid-template-columns: 1fr; gap: 1.5rem; }
+  .tform.trow { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .tcards a { transition: none; } .tcards a:hover { transform: none; } }
+
 /* ---- fix guides ---- */
 .guide { max-width: 760px; display: grid; gap: 1rem; }
 .guide h2, .guide h3 { margin: .5rem 0 0; }

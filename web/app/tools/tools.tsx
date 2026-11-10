@@ -7,7 +7,7 @@ import type { ToolContext } from "@/lib/scan/tools-context";
 /* Five free, fully client-side generators. Nothing typed here leaves the browser. */
 
 type ToolId = "llms" | "robots" | "schema" | "serp" | "headers";
-type Ctx = ToolContext | null;
+export type Ctx = ToolContext | null;
 
 const TOOLS: { id: ToolId; name: string; blurb: string }[] = [
   { id: "llms", name: "llms.txt", blurb: "A guide that helps AI assistants understand your site." },
@@ -17,7 +17,7 @@ const TOOLS: { id: ToolId; name: string; blurb: string }[] = [
   { id: "headers", name: "Security headers", blurb: "Copy-paste config for your host." },
 ];
 
-function Field({ label, hint, children }: { label: string; hint?: string; children: (id: string) => React.ReactNode }) {
+export function Field({ label, hint, children }: { label: string; hint?: string; children: (id: string) => React.ReactNode }) {
   const id = useId();
   return (
     <div className="tf">
@@ -28,7 +28,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-function Output({ text, filename }: { text: string; filename: string }) {
+export function Output({ text, filename }: { text: string; filename: string }) {
   const [done, setDone] = useState("");
   const flash = (m: string) => {
     setDone(m);
@@ -67,7 +67,7 @@ function Output({ text, filename }: { text: string; filename: string }) {
 }
 
 /* ---------------- llms.txt ---------------- */
-function Llms({ ctx }: { ctx: Ctx }) {
+export function Llms({ ctx }: { ctx: Ctx }) {
   const [name, setName] = useState(ctx?.name ?? "Acme Plumbing");
   const [about, setAbout] = useState(ctx?.description || (ctx ? "" : "Family-run plumbers serving Pune since 2009. Emergency call-outs, boiler repairs and installations."));
   const [pages, setPages] = useState(ctx && ctx.pages.length ? ctx.pages.map((p) => `${p.title} | ${p.url} | `).join("\n") : ctx ? `Home | ${ctx.url || ctx.origin} | ` : "Services | https://example.com/services | What we do and prices\nAbout us | https://example.com/about | Who we are\nContact | https://example.com/contact | Phone, address and opening hours");
@@ -96,7 +96,7 @@ const BOTS = [
   ["CCBot", "Common Crawl dataset"],
 ] as const;
 
-function Robots({ ctx }: { ctx: Ctx }) {
+export function Robots({ ctx }: { ctx: Ctx }) {
   const [blocked, setBlocked] = useState<Set<string>>(new Set());
   const [sitemap, setSitemap] = useState(ctx?.sitemap ?? "https://example.com/sitemap.xml");
   const [disallow, setDisallow] = useState("/admin\n/cart");
@@ -137,7 +137,7 @@ function Robots({ ctx }: { ctx: Ctx }) {
 }
 
 /* ---------------- JSON-LD ---------------- */
-function Schema({ ctx }: { ctx: Ctx }) {
+export function Schema({ ctx }: { ctx: Ctx }) {
   const [type, setType] = useState<"Organization" | "LocalBusiness" | "FAQPage">("Organization");
   const [name, setName] = useState(ctx?.name ?? "Acme Plumbing");
   const [url, setUrl] = useState(ctx?.url || ctx?.origin || "https://example.com");
@@ -188,7 +188,7 @@ function Schema({ ctx }: { ctx: Ctx }) {
 }
 
 /* ---------------- SERP preview ---------------- */
-function Serp({ ctx }: { ctx: Ctx }) {
+export function Serp({ ctx }: { ctx: Ctx }) {
   const [title, setTitle] = useState(ctx ? ctx.title : "Emergency Plumber in Pune | Acme Plumbing");
   const [desc, setDesc] = useState(ctx ? ctx.description : "24-hour plumbers in Pune. Boiler repairs, leaks and installations with fixed quotes and a 12-month guarantee. Call now for a fast response.");
   const [url, setUrl] = useState(ctx ? ctx.url || ctx.origin : "https://example.com/emergency-plumber");
@@ -237,7 +237,7 @@ const HDRS: [string, string, string][] = [
 ];
 type Host = "netlify" | "nginx" | "apache" | "vercel";
 
-function Headers({ ctx }: { ctx: Ctx }) {
+export function Headers({ ctx }: { ctx: Ctx }) {
   const [host, setHost] = useState<Host>(ctx?.hostKind ?? "netlify");
   const [on, setOn] = useState<Set<number>>(new Set([0, 1, 2, 3, 4]));
   const sel = HDRS.filter((_, i) => on.has(i));
@@ -325,6 +325,11 @@ export function Tools({ ctx = null, embedded = false }: { ctx?: Ctx; embedded?: 
         {tool === "serp" && <Serp ctx={ctx} />}
         {tool === "headers" && <Headers ctx={ctx} />}
       </div>
+      {embedded && (
+        <p className="tnote">
+          More free checkers for this site: <Link href="/tools/ai-bot-checker">AI bot access</Link> · <Link href="/tools/robots-txt-tester">robots.txt tester</Link> · <Link href="/tools/hreflang-checker">hreflang</Link> · <Link href="/tools/domain-age-checker">domain age</Link> · <Link href="/tools">all tools</Link>
+        </p>
+      )}
     </div>
   );
 }

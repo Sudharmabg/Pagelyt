@@ -106,7 +106,7 @@ export default function FeaturesPage() {
                 Free tools to fix common findings.
               </h2>
               <p className="lead">
-                Small generators that run in your browser, so nothing you type is sent anywhere.
+                Checkers and generators for search, AI assistants and security, free with a Pagelyt account.
               </p>
             </div>
             <div className="replace">
