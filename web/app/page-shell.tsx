@@ -2,6 +2,7 @@ import { Arrow } from "./arrow";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Arcs } from "./art";
+import { MainCta } from "./main-cta";
 
 export function PageHero({
   h1,
@@ -39,9 +40,7 @@ export function CtaBand({
         </h2>
         <p className="lead">{text}</p>
         <div className="btn-row" style={{ justifyContent: "center" }}>
-          <Link className="btn" href="/">
-            Analyse My Website <Arrow />
-          </Link>
+          <MainCta arrow />
           <Link className="btn ghost" href="/consultation">
             Book a consultation
           </Link>

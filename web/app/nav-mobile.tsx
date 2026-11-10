@@ -49,6 +49,12 @@ export function NavMobile({ features, links }: { features: Item[]; links: Item[]
                 <small>Signed in as {user.email}</small>
               </span>
             </Link>
+          ) : null}
+          {user ? (
+            // Signed in: the dashboard comes first, since the header hides its button on the narrowest phones.
+            <Link className="btn sm nm-dash" href="/dashboard">
+              Go to dashboard
+            </Link>
           ) : (
             <Link className="btn outline nm-signin" href="/login">
               Sign in
@@ -66,9 +72,11 @@ export function NavMobile({ features, links }: { features: Item[]; links: Item[]
               {l.name}
             </Link>
           ))}
-          <Link className="btn sm" href="/">
-            Analyse a website
-          </Link>
+          {!user && (
+            <Link className="btn sm" href="/">
+              Analyse a website
+            </Link>
+          )}
         </nav>
       )}
     </div>

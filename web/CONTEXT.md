@@ -85,6 +85,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `session-age.ts` | `SESSION_DAYS` (7), `sessionFresh`, `signedInAt` | Hard 7-day session limit |
 | `supabase-browser.ts` | `supabaseBrowser` | Browser client (anon key) |
 | `use-signed-in.ts` | `useSignedInUser`, `useSignedIn`, `firstName` | Client hook for the signed-in user |
+| `use-latest-report.ts` | `useLatestReport`, `fetchLatestReport` | Client hook for the signed-in person's newest report (one shared request per page view) |
 | `pending.ts` | `rememberVerifyEmail`, `useVerifyEmail`, `adoptSession`, `claimAndFindReport` | Browser helpers for the email-code flow |
 | `ticket.ts` | `issueTicket`, `checkTicket` | Short-lived proof that the visitor passed the human check |
 | `validate.ts` | `checkName`, `checkEmail`, `checkPassword`, `checkCode`, `checkLead`, `LIMITS` | Input rules (pure; shared by client and server) |
@@ -182,6 +183,8 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 - `/tools` is the directory of free tools, grouped by category. `/tools?scan=<id>` redirects to that report's `?view=tools`.
 - `/tools/[slug]` is one page per tool (title, description, "Why it matters", FAQ with FAQPage JSON-LD, related tools). The pages are public; using a tool needs sign-in.
   - `tools/catalog.ts`: `TOOL_LIST`, `TOOLS_BY_SLUG`, `CATEGORIES`, `ToolSlug`. Every tool's slug, category, copy and FAQ. Add a tool here first.
+  - `tools/tool-browser.tsx`: `ToolBrowser`, the /tools directory's search box, category chips and tool cards (filtering only hides cards).
+  - `tools/icons.tsx`: `ToolIcon` (line icon per tool) and `TONE` (category colour class, `.tc-*`).
   - `tools/tool-view.tsx`: `ToolView` picks the tool by slug. Signed out it shows a disabled preview with a sign-in prompt; signed in it pre-fills from the latest report.
   - `tools/tools.tsx`: the five generators (`Llms`, `Robots`, `Schema`, `Serp`, `Headers`, plus `Field`, `Output`) and `Tools`, the tabbed version used inside the dashboard (`embedded`).
   - `tools/checkers.tsx`: `AiBotChecker`, `RobotsTester`, `DomainAgeChecker`, `HreflangChecker`, `ReviewLink`.
@@ -192,6 +195,10 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 - `ui.tsx`: rings, sparklines and mock graphics.
 - `home-parts.tsx`, `home-extras.tsx`, `steps.tsx`: homepage sections.
 - `art.tsx`, `arcs.tsx`, `arrow.tsx`: decorative art.
+- `main-cta.tsx`: `MainCta`, the site's main button. "Analyse My Website" for visitors, "Go to dashboard" (/dashboard) when signed in.
+- `welcome-back.tsx`: `WelcomeBack`, the signed-in bar above the home headline with the latest report and an Open dashboard button.
+- `dashboard/page.tsx` + `dashboard/open-latest.tsx`: /dashboard sends signed-in people to their newest report (or /account if none) and visitors to sign in.
+- `api/account/latest/route.ts`: GET the signed-in person's newest finished report (id, host, score).
 - `nav-mobile.tsx`, `scroll-top.tsx`, `json-ld.tsx`, `use-turnstile.ts`, `request-form.tsx`.
 - Styles are all in `globals.css`. Modals reuse `.lead-modal`; the share modal is `.share-modal`.
 

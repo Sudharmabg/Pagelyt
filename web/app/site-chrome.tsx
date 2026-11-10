@@ -3,6 +3,7 @@ import { BowlArcs } from "./art";
 import { AuthLink } from "./auth-link";
 import { FEATURES } from "./features-data";
 import { NavMobile } from "./nav-mobile";
+import { MainCta } from "./main-cta";
 import { CONTACT_EMAIL } from "./site-config";
 
 const MENU: [string, string][] = [
@@ -54,9 +55,7 @@ export function SiteNav() {
             FAQ
           </Link>
           <AuthLink />
-          <Link className="btn sm" href="/">
-            Analyse a website
-          </Link>
+          <MainCta className="btn sm nav-cta" label="Analyse a website" signedLabel="Dashboard" signedClassName="is-dash" />
           <NavMobile
             features={FEATURE_ITEMS}
             links={[...MENU.map(([name, href]) => ({ name, href })), { name: "FAQ", href: "/faq" }]}

@@ -6,6 +6,7 @@ import { JsonLd, crumbLd, faqLd } from "../json-ld";
 import { PageHero } from "../page-shell";
 import { SiteFooter, SiteNav } from "../site-chrome";
 import { FaqList } from "./faq-list";
+import { MainCta } from "../main-cta";
 
 export const metadata: Metadata = {
   title: "Pagelyt FAQ: Website Analysis, GEO, Plans and Consultations",
@@ -46,9 +47,7 @@ export default function FaqPage() {
               <Link className="btn" href="/consultation">
                 Book a Consultation <Arrow />
               </Link>
-              <Link className="btn ghost" href="/">
-                Analyse My Website
-              </Link>
+              <MainCta className="btn ghost" />
             </div>
           </div>
         </section>

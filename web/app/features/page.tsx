@@ -6,6 +6,7 @@ import { JsonLd, crumbLd } from "../json-ld";
 import { CtaBand, PageHero } from "../page-shell";
 import { SiteFooter, SiteNav } from "../site-chrome";
 import { FREE_TOOLS } from "../tools-list";
+import { MainCta } from "../main-cta";
 import {
   AiMock,
   AnalyticsMock,
@@ -151,9 +152,7 @@ export default function FeaturesPage() {
               ))}
             </div>
             <div className="cta-line" style={{ justifyContent: "center" }}>
-              <Link className="btn" href="/">
-                Analyse My Website <Arrow />
-              </Link>
+              <MainCta arrow />
               <Link className="btn ghost" href="/how-it-works">
                 See how it works
               </Link>

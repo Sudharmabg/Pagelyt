@@ -6,6 +6,7 @@ import { PageHero } from "../page-shell";
 import { SiteFooter, SiteNav } from "../site-chrome";
 import { RequestForm } from "../request-form";
 import { SessionCards } from "./sessions";
+import { MainCta } from "../main-cta";
 
 export const metadata: Metadata = {
   title: "Book a Website Consultation with the Pagelyt Founder",
@@ -94,9 +95,7 @@ export default async function ConsultationPage({ searchParams }: { searchParams:
               <Link className="btn" href="/faq">
                 Read the FAQ <Arrow />
               </Link>
-              <Link className="btn ghost" href="/">
-                Analyse a website
-              </Link>
+              <MainCta className="btn ghost" label="Analyse a website" />
             </div>
           </div>
         </section>

@@ -11,6 +11,7 @@ import { Glance, NumberedRows, RibbonFrame } from "./home-parts";
 import { AreaStrip, ToolsAndGuides, TrustRow } from "./home-extras";
 import { SiteFooter, SiteNav } from "./site-chrome";
 import { Sources } from "./sources";
+import { WelcomeBack } from "./welcome-back";
 import { ScanPreview, type ModScore } from "./ui";
 import { LeadModal, type ScanProblem, type ScanStart } from "./lead-modal";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -168,6 +169,7 @@ export default function Home() {
       <section className="hero hero-c" aria-labelledby="h1">
         <Arcs />
         <div className="container hero-stack">
+          <WelcomeBack />
           <h1 id="h1" data-r>
             Audit your website. Fix what holds it back.
           </h1>

@@ -31,12 +31,12 @@ export function ToolsAndGuides() {
       <div className="container">
         <div className="head-center">
           <h2 className="title" id="tools-h">Fix things yourself, free.</h2>
-          <p className="lead">Generators and guides for the issues scans find most often. Nothing you type leaves your browser.</p>
+          <p className="lead">Checkers, generators and guides for the issues scans find most often. Free with a Pagelyt account.</p>
         </div>
         <div className="tg-cards">
           <Link href="/tools" className="tg-card">
             <h3>Free tools</h3>
-            <p>Generate <code>llms.txt</code>, <code>robots.txt</code>, schema markup and security headers, and preview your search snippet.</p>
+            <p>Check which AI bots can reach you, test <code>robots.txt</code> and hreflang, and generate <code>llms.txt</code>, schema markup and security headers.</p>
             <span>Open the tools <Arrow /></span>
           </Link>
           <Link href="/fix" className="tg-card">
@@ -55,7 +55,7 @@ export function TrustRow() {
     ["Private by link", "Reports are only visible to people you share the link with, and are never indexed."],
     ["Evidence, not guesses", "Every finding shows what we saw and how to fix it."],
     ["Honest limits", "Automated checks aren’t a compliance certificate. We say what the scan can’t tell you."],
-    ["Runs in your browser", "Free tools process your input locally. Nothing is uploaded."],
+    ["Free tools, no install", "Checkers and generators for the most common fixes, free with an account."],
   ];
   return (
     <section className="sec tight trust-sec" aria-label="Why you can trust Pagelyt">

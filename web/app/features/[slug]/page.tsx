@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 import { FEATURES, featureBySlug } from "../../features-data";
 import { JsonLd, crumbLd, faqLd } from "../../json-ld";
 import { CtaBand, PageHero } from "../../page-shell";
+import { MainCta } from "../../main-cta";
 import { SiteFooter, SiteNav } from "../../site-chrome";
 import {
   AiMock,
@@ -68,9 +69,7 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
           lead={f.lead}
         >
           <div className="btn-row" style={{ justifyContent: "center" }}>
-            <Link className="btn" href="/">
-              Analyse My Website <Arrow />
-            </Link>
+            <MainCta arrow />
             <Link className="btn ghost" href="/features">
               All features
             </Link>
