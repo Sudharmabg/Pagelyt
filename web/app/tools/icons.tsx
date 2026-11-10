@@ -64,6 +64,28 @@ const PATHS: Record<ToolSlug, React.ReactNode> = {
       <path d="m12 3.5 2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9z" />
     </>
   ),
+  "bulk-schema-checker": (
+    <>
+      <path d="M7 4H5.5A1.5 1.5 0 0 0 4 5.5V9l-1.5 1.5L4 12v3.5A1.5 1.5 0 0 0 5.5 17H7" />
+      <path d="M11 6h9M11 11h6M11 16h4" />
+      <path d="m15 19.5 1.8 1.8 3.7-3.8" />
+    </>
+  ),
+  "sitemap-generator": (
+    <>
+      <rect x="9" y="3" width="6" height="5" rx="1.2" />
+      <rect x="3" y="16" width="6" height="5" rx="1.2" />
+      <rect x="15" y="16" width="6" height="5" rx="1.2" />
+      <path d="M12 8v4M6 16v-2a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v2" />
+    </>
+  ),
+  "raw-vs-rendered-html": (
+    <>
+      <rect x="2.5" y="4" width="8" height="16" rx="2" />
+      <rect x="13.5" y="4" width="8" height="16" rx="2" />
+      <path d="M5 8.5h3M5 11.5h2M16 8.5h3M16 11.5h3M16 14.5h3M16 17h2" />
+    </>
+  ),
 };
 
 export function ToolIcon({ slug, size = 24 }: { slug: ToolSlug; size?: number }) {

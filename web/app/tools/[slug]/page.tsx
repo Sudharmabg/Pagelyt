@@ -56,7 +56,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
             <span className="thero-ic"><ToolIcon slug={t.slug} size={28} /></span>
             <span className="thero-chip">{t.category}</span>
             <span className="thero-chip plain">{t.kind === "checker" ? "Checker" : "Generator"}</span>
-            <span className="thero-chip plain">Free</span>
+            <span className="thero-chip plain">{t.paid ? "Paid plans" : "Free"}</span>
           </div>
         </PageHero>
         <section className="sec tool-sec" aria-label={t.name}>
@@ -103,7 +103,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                 <li key={r.slug}>
                   <Link href={`/tools/${r.slug}`} className={`tcard ${TONE[r.category]}`}>
                     <span className="tcard-ic"><ToolIcon slug={r.slug} /></span>
-                    <span className="tcard-kind">{r.kind === "checker" ? "Checker" : "Generator"}</span>
+                    <span className="tcard-kind">{r.kind === "checker" ? "Checker" : "Generator"}{r.paid && " · Paid"}</span>
                     <b>{r.name}</b>
                     <span className="tcard-txt">{r.blurb}</span>
                     <span className="tcard-go">Open tool <Arrow /></span>
@@ -111,7 +111,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                 </li>
               ))}
             </ul>
-            <p className="tall"><Link href="/tools">See all {TOOL_LIST.length} free tools <Arrow /></Link></p>
+            <p className="tall"><Link href="/tools">See all {TOOL_LIST.length} tools <Arrow /></Link></p>
           </div>
         </section>
         <CtaBand title="Want the full picture?" text="This tool checks one thing. A free Pagelyt scan checks speed, SEO, AI readiness, security and more, and tells you what to fix first." />

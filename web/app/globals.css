@@ -5797,3 +5797,33 @@ button.fnd-link:disabled { opacity: .5; cursor: default; }
 }
 
 .nav-mob-panel .nm-dash { margin: 4px 0 6px; }
+
+/* ---------- Phase 2 tools: bulk schema, sitemap generator, raw vs rendered ---------- */
+.tload { display: flex; gap: .75rem; align-items: flex-end; flex-wrap: wrap; }
+.tload .tf { flex: 1 1 260px; }
+.tprog { display: grid; gap: .45rem; font-size: .92rem; }
+.tprog progress { width: 100%; height: 8px; appearance: none; border: 0; border-radius: 999px; overflow: hidden; background: var(--i100); }
+.tprog progress::-webkit-progress-bar { background: var(--i100); }
+.tprog progress::-webkit-progress-value { background: var(--i600); border-radius: 999px; transition: width .3s var(--ease); }
+.tprog progress::-moz-progress-bar { background: var(--i600); border-radius: 999px; }
+.tmore { border: 1px solid var(--n100); border-radius: 12px; background: #fff; }
+.tmore > summary { cursor: pointer; padding: .8rem 1rem; font-weight: 700; font-size: .92rem; }
+.tmore[open] > summary { border-bottom: 1px solid var(--n100); }
+.tmore .crawl-wrap { border: 0; margin: 0; }
+.tmore > .tnote { padding: 0 1rem .9rem; }
+.tonly { margin: 0; padding: .8rem 1rem .9rem 2rem; display: grid; gap: .35rem; font-size: .9rem; line-height: 1.45; max-height: 420px; overflow: auto; overflow-wrap: anywhere; }
+.tverdict { display: grid; gap: .25rem; padding: .95rem 1.1rem; border-radius: 12px; border-left: 4px solid; }
+.tverdict b { font-size: 1.05rem; }
+.tverdict span { font-size: .92rem; line-height: 1.5; }
+.tverdict small { font-size: .82rem; opacity: .85; }
+.tverdict.ok { background: var(--good-bg); border-color: var(--good); color: var(--good-ink); }
+.tverdict.warn { background: var(--warn-bg); border-color: var(--warn); color: var(--warn-ink); }
+.tverdict.bad { background: var(--bad-bg); border-color: var(--bad); color: var(--bad-ink); }
+.trender td { max-width: 300px; overflow-wrap: anywhere; vertical-align: top; }
+.trender tr.chg td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+.tschema td { vertical-align: top; overflow-wrap: anywhere; }
+.tschema td:first-child { max-width: 240px; }
+@media (max-width: 560px) {
+  .tload .btn { width: 100%; }
+  .trender td, .tschema td:first-child { max-width: 180px; }
+}

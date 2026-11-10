@@ -11,9 +11,9 @@ import { Field, Output, type Ctx } from "./tools";
 
 /* The free checkers. The ones that fetch another site call /api/tools with the visitor's session. */
 
-type Problem = { error: string; signedOut?: boolean };
+export type Problem = { error: string; signedOut?: boolean; upgrade?: boolean };
 
-async function callTool<T>(payload: Record<string, unknown>): Promise<T | Problem> {
+export async function callTool<T>(payload: Record<string, unknown>): Promise<T | Problem> {
   try {
     const token = (await supabaseBrowser()?.auth.getSession())?.data.session?.access_token;
     const r = await fetch("/api/tools", {
@@ -21,26 +21,27 @@ async function callTool<T>(payload: Record<string, unknown>): Promise<T | Proble
       headers: { "content-type": "application/json", ...(token ? { authorization: `Bearer ${token}` } : {}) },
       body: JSON.stringify(payload),
     });
-    const j = (await r.json().catch(() => ({}))) as T & { error?: string; code?: string };
-    if (!r.ok) return { error: j.error || "Something went wrong. Please try again.", signedOut: j.code === "signed_out" };
+    const j = (await r.json().catch(() => ({}))) as T & { error?: string; code?: string; upgrade?: boolean };
+    if (!r.ok) return { error: j.error || "Something went wrong. Please try again.", signedOut: j.code === "signed_out", upgrade: !!j.upgrade };
     return j;
   } catch {
     return { error: "Couldn't reach Pagelyt. Check your connection and try again." };
   }
 }
-const isProblem = (x: unknown): x is Problem => !!x && typeof x === "object" && "error" in x && typeof (x as Problem).error === "string";
+export const isProblem = (x: unknown): x is Problem => !!x && typeof x === "object" && "error" in x && typeof (x as Problem).error === "string";
 
-function ErrorNote({ p }: { p: Problem | null }) {
+export function ErrorNote({ p }: { p: Problem | null }) {
   if (!p) return null;
   return (
     <p className="terr" role="alert">
       {p.error}
       {p.signedOut && <> <Link href={`/login?next=${encodeURIComponent(location.pathname)}`}>Sign in again</Link></>}
+      {p.upgrade && <> <Link href="/pricing">See plans</Link></>}
     </p>
   );
 }
 
-function Chip({ tone, children }: { tone: "ok" | "bad" | "warn" | "na"; children: React.ReactNode }) {
+export function Chip({ tone, children }: { tone: "ok" | "bad" | "warn" | "na"; children: React.ReactNode }) {
   return <span className={`tchip ${tone}`}>{children}</span>;
 }
 

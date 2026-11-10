@@ -3,6 +3,8 @@
    Where the binding is missing (next dev, or before it is configured) this throws NoBrowser and callers fall back
    to the browser's own print-to-PDF. */
 
+import type { Browser } from "@cloudflare/puppeteer";
+
 export class NoBrowser extends Error {}
 
 async function browserBinding(): Promise<unknown> {
@@ -18,18 +20,25 @@ async function browserBinding(): Promise<unknown> {
   }
 }
 
-export async function renderPdf(url: string): Promise<Uint8Array> {
+/** Opens a Browser Rendering session, runs `fn`, and always closes the browser. Throws NoBrowser when unavailable. */
+export async function withBrowser<T>(fn: (browser: Browser) => Promise<T>): Promise<T> {
   const binding = await browserBinding();
   if (!binding) throw new NoBrowser("Browser Rendering is not configured.");
   const puppeteer = (await import("@cloudflare/puppeteer")).default;
   const browser = await puppeteer.launch(binding as Parameters<typeof puppeteer.launch>[0]);
   try {
+    return await fn(browser);
+  } finally {
+    await browser.close().catch(() => {});
+  }
+}
+
+export async function renderPdf(url: string): Promise<Uint8Array> {
+  return withBrowser(async (browser) => {
     const page = await browser.newPage();
     await page.emulateMediaType("print");
     await page.goto(url, { waitUntil: "networkidle0", timeout: 25_000 });
     const pdf = await page.pdf({ format: "A4", printBackground: true, margin: { top: "14mm", bottom: "14mm", left: "12mm", right: "12mm" } });
     return new Uint8Array(pdf);
-  } finally {
-    await browser.close().catch(() => {});
-  }
+  });
 }

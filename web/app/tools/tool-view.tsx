@@ -7,6 +7,7 @@ import { useSignedIn } from "@/lib/use-signed-in";
 import type { ToolContext } from "@/lib/scan/tools-context";
 import type { ToolSlug } from "./catalog";
 import { AiBotChecker, DomainAgeChecker, HreflangChecker, ReviewLink, RobotsTester } from "./checkers";
+import { BulkSchemaChecker, RenderedChecker, SitemapGenerator } from "./checkers-bulk";
 import { Headers, Llms, Robots, Schema, Serp, type Ctx } from "./tools";
 
 const VIEWS: Record<ToolSlug, (p: { ctx: Ctx }) => React.ReactNode> = {
@@ -20,6 +21,9 @@ const VIEWS: Record<ToolSlug, (p: { ctx: Ctx }) => React.ReactNode> = {
   "security-headers-generator": Headers,
   "domain-age-checker": DomainAgeChecker,
   "google-review-link-generator": ReviewLink,
+  "bulk-schema-checker": BulkSchemaChecker,
+  "sitemap-generator": SitemapGenerator,
+  "raw-vs-rendered-html": RenderedChecker,
 };
 
 /* One tool on its own page. Everyone (and search engines) sees it; using it needs an account, so signed-out

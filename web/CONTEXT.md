@@ -66,6 +66,12 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `ai-bots.ts` | `AI_BOTS`, `checkAiBots` | 14 AI crawlers: robots.txt verdict, plus a request with each bot's user agent compared with a normal browser request |
 | `hreflang.ts` | `checkHreflang` | Language codes, then opens up to 12 alternates for status, return links and canonicals |
 | `domain-age.ts` | `cleanDomain`, `domainAge` | Registration, expiry and registrar from RDAP (rdap.org) |
+| `limits.ts` | `BULK_SCHEMA`, `SITEMAP` | Free and paid limits and batch sizes for the bulk tools (shared by the API and the browser) |
+| `bulk-schema.ts` | `checkSchemaPage`, `schemaOf`, `SchemaPage` | One page's JSON-LD: types, invalid blocks, microdata count, and missing fields by the scan's rules (`schemaIssues`) |
+| `sitemap.ts` | `existingSitemap`, `crawlPages`, `CrawledPage` | Reads the current sitemap (robots.txt lines, then /sitemap.xml; indexes one level deep), and crawls one batch of pages, deciding if each belongs in a sitemap (not a redirect, error, noindex or canonicalised page) |
+| `sitemap-xml.ts` | `sitemapXml` | Builds sitemap.xml text in the browser (loc and lastmod only) |
+| `rendered.ts` | `compareHtml`, `RenderReport` | Pure compare of raw and rendered HTML: key SEO tags, word counts and text that only appears after JavaScript. Tests in `rendered.test.ts` |
+| `rendered-live.ts` | `compareRendered` | Fetches the raw HTML and renders the page with Browser Rendering (images, media and fonts skipped), then `compareHtml` |
 
 ## AI visibility (`lib/ai/`)
 
@@ -93,10 +99,10 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `domain.ts` | `rootDomain` | Registrable root domain, the unit a site is owned by |
 | `owners.ts` | `ownerOf`, `claimDomain`, `setOwner`, `confirmOwner`, `claimToken`, `dropClaims` | One owner per site (`site_owners`, `site_claims`) |
 | `ownership-proof.ts` | `provesOwnership`, `META_NAME` | Ownership proof via a meta tag or DNS TXT record |
-| `ratelimit.ts` | `guard`, `digest`, `LIMITS`, `Rule` | Rate limits for auth and email |
+| `ratelimit.ts` | `guard`, `digest`, `LIMITS`, `Rule` | Rate limits for auth, email and the tools (`tool`, `toolBatch` for batched tools, `render` for Browser Rendering) |
 | `email.ts` | `emailsOn`, `sendEmail`, `headerName`, `escapeHtml` | Resend; on only when `EMAILS_ON=1` and `RESEND_API_KEY` are set |
 | `requests.ts` | `checkRequest`, `saveRequest`, `listRequests`, `setRequestStatus` | Consultation and contact requests |
-| `pdf.ts` | `renderPdf`, `NoBrowser` | Server PDF through Cloudflare Browser Rendering (opens `/print/[id]`) |
+| `pdf.ts` | `renderPdf`, `withBrowser`, `NoBrowser` | Server PDF through Cloudflare Browser Rendering (opens `/print/[id]`). `withBrowser` opens and always closes a browser session (also used by raw vs rendered) |
 | `download-pdf.ts` | `downloadPdf` | Client: fetch the PDF, or fall back to the browser's print |
 | `run-scan.ts` | `beginScan` (start only; `fresh` skips the 10-min cache), `runScan`, `stepScan` (callback gets `StepInfo` with `areas`) | Starts scans and drives their stages from the browser |
 
@@ -115,7 +121,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `account/sites` | Agency overview data |
 | `account/type` | Plan, and the "are you an agency?" answer |
 | `account/tools-context` | Data the free tools pre-fill from |
-| `tools` POST | The free checkers that fetch another site: `ai-bots`, `hreflang`, `robots` (returns the file; testing runs in the browser), `domain-age` (up to 10). Signed-in only (open without Supabase), 40 per account and 60 per IP per 15 minutes |
+| `tools` POST | The free checkers that fetch another site: `ai-bots`, `hreflang`, `robots` (returns the file; testing runs in the browser), `domain-age` (up to 10), `plan` (the caller's limits), `sitemap-urls` (current sitemap; `for: "schema"` caps it at the schema limit), `schema-bulk` and `sitemap-crawl` (one batch each, driven by the browser), `rendered` (paid only; 503 where Browser Rendering is off). Signed-in only (open without Supabase). Single checks: 40 per account and 60 per IP per 15 minutes; batches 150/200; rendered 20/30 per hour |
 | `share` POST | Branded client link, plus an optional email to the client (20 a day per account, 3 a day per address) |
 | `report/pdf` POST | Branded PDF (paid plans) |
 | `compare` POST | Save a competitor comparison |
@@ -182,12 +188,13 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 - Pages: `about`, `pricing`, `faq`, `features`, `fix`, `how-it-works`, `use-cases`, `consultation`, `contact`, `privacy`, `terms`, `tools`.
 - `/tools` is the directory of free tools, grouped by category. `/tools?scan=<id>` redirects to that report's `?view=tools`.
 - `/tools/[slug]` is one page per tool (title, description, "Why it matters", FAQ with FAQPage JSON-LD, related tools). The pages are public; using a tool needs sign-in.
-  - `tools/catalog.ts`: `TOOL_LIST`, `TOOLS_BY_SLUG`, `CATEGORIES`, `ToolSlug`. Every tool's slug, category, copy and FAQ. Add a tool here first.
+  - `tools/catalog.ts`: `TOOL_LIST`, `TOOLS_BY_SLUG`, `CATEGORIES`, `ToolSlug`. Every tool's slug, category, copy and FAQ, and `paid` for paid-only tools. Add a tool here first.
   - `tools/tool-browser.tsx`: `ToolBrowser`, the /tools directory's search box, category chips and tool cards (filtering only hides cards).
   - `tools/icons.tsx`: `ToolIcon` (line icon per tool) and `TONE` (category colour class, `.tc-*`).
   - `tools/tool-view.tsx`: `ToolView` picks the tool by slug. Signed out it shows a disabled preview with a sign-in prompt; signed in it pre-fills from the latest report.
   - `tools/tools.tsx`: the five generators (`Llms`, `Robots`, `Schema`, `Serp`, `Headers`, plus `Field`, `Output`) and `Tools`, the tabbed version used inside the dashboard (`embedded`).
-  - `tools/checkers.tsx`: `AiBotChecker`, `RobotsTester`, `DomainAgeChecker`, `HreflangChecker`, `ReviewLink`.
+  - `tools/checkers.tsx`: `AiBotChecker`, `RobotsTester`, `DomainAgeChecker`, `HreflangChecker`, `ReviewLink`, plus the shared `callTool`, `ErrorNote`, `Chip`.
+  - `tools/checkers-bulk.tsx`: `BulkSchemaChecker` (paste URLs or load from sitemap), `SitemapGenerator` (browser-driven crawl with progress and Stop), `RenderedChecker` (paid). The bulk ones send batches to `/api/tools` so each request stays inside the Worker subrequest limit.
 
 **Shared UI:**
 - `site-chrome.tsx`: nav and footer.

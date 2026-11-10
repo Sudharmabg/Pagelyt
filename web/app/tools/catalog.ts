@@ -11,7 +11,10 @@ export type ToolSlug =
   | "schema-markup-generator"
   | "security-headers-generator"
   | "domain-age-checker"
-  | "google-review-link-generator";
+  | "google-review-link-generator"
+  | "bulk-schema-checker"
+  | "sitemap-generator"
+  | "raw-vs-rendered-html";
 
 export type ToolCategory = "AI visibility" | "Crawling & indexing" | "Search appearance" | "Security & domain" | "Local business";
 
@@ -31,6 +34,8 @@ export type ToolInfo = {
   faq: [string, string][];
   /** Runs entirely in the browser (generators) or asks our server to fetch a site (checkers). */
   kind: "generator" | "checker";
+  /** Paid plans only (it spends Browser Rendering time). The page stays public. */
+  paid?: boolean;
 };
 
 export const CATEGORIES: { name: ToolCategory; text: string }[] = [
@@ -100,6 +105,26 @@ export const TOOL_LIST: ToolInfo[] = [
     ],
   },
   {
+    slug: "raw-vs-rendered-html",
+    name: "Raw vs rendered HTML",
+    category: "Crawling & indexing",
+    kind: "checker",
+    paid: true,
+    blurb: "Compare what crawlers that skip JavaScript see with what a browser shows.",
+    title: "Raw vs Rendered HTML: See What Crawlers Without JavaScript Miss",
+    description: "Compare a page's raw HTML with the version a browser renders. See which titles, headings, links, canonicals and structured data only appear after JavaScript runs.",
+    h1: "Raw vs rendered HTML",
+    lead: "See what changes when JavaScript runs: titles, headings, links, structured data and text that crawlers without a browser never see.",
+    about: [
+      "Many sites build their pages with JavaScript. Google renders them, but later and not always fully, and most AI crawlers (GPTBot, ClaudeBot, PerplexityBot) read only the raw HTML. Anything that appears only after JavaScript runs may be invisible to them.",
+      "We fetch the page twice: once as plain HTML, once in a real Chrome browser. Then we compare the parts that decide how a page is indexed and list the text that only exists after rendering.",
+    ],
+    faq: [
+      ["Why is this on paid plans only?", "Each check opens the page in a real Chrome browser in the cloud, which costs far more than a normal fetch."],
+      ["What should I do if a lot changes?", "Render the important content on the server: server-side rendering or static generation in frameworks such as Next.js, Nuxt or SvelteKit, or pre-rendering for single-page apps. At least the title, description, canonical, headings and main text should be in the raw HTML."],
+    ],
+  },
+  {
     slug: "robots-txt-generator",
     name: "robots.txt generator",
     category: "Crawling & indexing",
@@ -138,6 +163,26 @@ export const TOOL_LIST: ToolInfo[] = [
     ],
   },
   {
+    slug: "sitemap-generator",
+    name: "XML sitemap generator",
+    category: "Crawling & indexing",
+    kind: "checker",
+    blurb: "Crawl your site and download a clean sitemap.xml with only the pages that should be indexed.",
+    title: "XML Sitemap Generator: Crawl Your Site and Download sitemap.xml",
+    description: "Free XML sitemap generator. Crawls your site's links and current sitemap, leaves out redirects, errors, noindex and canonicalised pages, and gives you a valid sitemap.xml. Up to 100 pages free, 1,000 on paid plans.",
+    h1: "XML sitemap generator",
+    lead: "We crawl your site the way a search engine does and build a sitemap with only the pages that should be in Google.",
+    about: [
+      "A sitemap lists the pages you want search engines to find. It matters most for new sites, large sites and pages that few other pages link to.",
+      "A good sitemap lists only real, indexable pages. This generator follows your internal links and your current sitemap, then leaves out anything that redirects, returns an error, is set to noindex or points its canonical elsewhere, and tells you why.",
+    ],
+    faq: [
+      ["Where do I put the file?", "Upload it to the root of your site so it opens at https://yourdomain.com/sitemap.xml, add a Sitemap: line to robots.txt, and submit it in Google Search Console."],
+      ["Why are priority and changefreq missing?", "Google ignores both. It does use lastmod when it is accurate, so we add it only when your server reports when a page last changed."],
+      ["How many pages can it crawl?", "Up to 100 pages on a free account and 1,000 on paid plans."],
+    ],
+  },
+  {
     slug: "serp-preview",
     name: "Search preview",
     category: "Search appearance",
@@ -173,6 +218,26 @@ export const TOOL_LIST: ToolInfo[] = [
     faq: [
       ["Will schema improve my rankings?", "Not directly, but it can make your result richer and more clickable, and it helps search engines and AI tools understand your business."],
       ["Which type should I use?", "Organization for most companies, LocalBusiness if customers visit you or you serve a local area, and FAQPage on a page that shows questions and answers."],
+    ],
+  },
+  {
+    slug: "bulk-schema-checker",
+    name: "Bulk schema checker",
+    category: "Search appearance",
+    kind: "checker",
+    blurb: "Check the structured data on many pages at once and see which required fields are missing.",
+    title: "Bulk Schema Checker: Validate JSON-LD Structured Data on Many Pages",
+    description: "Free bulk schema checker. Paste up to 10 URLs (100 on paid plans) or load them from your sitemap, and see each page's JSON-LD types, invalid blocks and missing required or recommended fields.",
+    h1: "Bulk schema checker",
+    lead: "Check the structured data on many pages in one go: which types each page has, broken JSON, and the fields Google needs.",
+    about: [
+      "Structured data earns rich results such as stars, prices and FAQs, and gives AI assistants facts they can quote. One missing required field can make Google ignore a whole block.",
+      "This checker reads every JSON-LD block on each page and checks Product, Article, LocalBusiness, Organization, FAQ, Event, Recipe and Breadcrumb data against the fields Google documents. Load your sitemap to check a whole section at once.",
+    ],
+    faq: [
+      ["What's the difference between required and recommended?", "Without a required field Google won't show the rich result at all. Recommended fields make it more complete and more likely to be shown."],
+      ["Does it check microdata?", "We count microdata (itemtype attributes) so you know it's there, but only validate JSON-LD, the format Google recommends."],
+      ["How many pages can I check?", "Up to 10 URLs at a time on a free account, and 100 on paid plans."],
     ],
   },
   {

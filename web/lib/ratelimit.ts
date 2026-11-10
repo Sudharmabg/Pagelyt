@@ -54,6 +54,16 @@ export const LIMITS = {
     { key: `tool:u:${user}`, limit: 40, windowSec: 900 },
     { key: `tool:ip:${ip}`, limit: 60, windowSec: 900 },
   ],
+  /** Batched tools (bulk schema, sitemap crawl): one request per batch, so a 1,000-page sitemap is 50 requests. */
+  toolBatch: (ip: string, user: string): Rule[] => [
+    { key: `toolb:u:${user}`, limit: 150, windowSec: 900 },
+    { key: `toolb:ip:${ip}`, limit: 200, windowSec: 900 },
+  ],
+  /** Raw vs rendered HTML: each one spends paid Browser Rendering time. */
+  render: (ip: string, user: string): Rule[] => [
+    { key: `render:u:${user}`, limit: 20, windowSec: 3600 },
+    { key: `render:ip:${ip}`, limit: 30, windowSec: 3600 },
+  ],
   resend: (ip: string, email: string): Rule[] => [
     { key: `resend:em:min:${email}`, limit: 1, windowSec: 60 },
     { key: `resend:em:hr:${email}`, limit: 5, windowSec: 3600 },

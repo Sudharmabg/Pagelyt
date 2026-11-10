@@ -6,7 +6,7 @@ import { Arrow } from "../arrow";
 import type { ToolCategory, ToolInfo } from "./catalog";
 import { TONE, ToolIcon } from "./icons";
 
-type Card = Pick<ToolInfo, "slug" | "name" | "blurb" | "category" | "kind">;
+type Card = Pick<ToolInfo, "slug" | "name" | "blurb" | "category" | "kind" | "paid">;
 
 /* The /tools directory: a search box and category chips over the tool cards. Every card is in the server HTML;
    filtering only hides them, so search engines and no-JS visitors still see the full list. */
@@ -62,7 +62,7 @@ export function ToolBrowser({ tools, categories }: { tools: Card[]; categories: 
                 <li key={t.slug} hidden={!shown.has(t.slug)}>
                   <Link href={`/tools/${t.slug}`} className={`tcard ${TONE[t.category]}`}>
                     <span className="tcard-ic"><ToolIcon slug={t.slug} /></span>
-                    <span className="tcard-kind">{t.kind === "checker" ? "Checker" : "Generator"}</span>
+                    <span className="tcard-kind">{t.kind === "checker" ? "Checker" : "Generator"}{t.paid && " · Paid"}</span>
                     <b>{t.name}</b>
                     <span className="tcard-txt">{t.blurb}</span>
                     <span className="tcard-go">Open tool <Arrow /></span>

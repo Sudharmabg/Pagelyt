@@ -8,7 +8,7 @@ import { ToolBrowser } from "./tool-browser";
 
 export const metadata: Metadata = {
   title: "Free SEO and AI Visibility Tools: robots.txt, llms.txt, hreflang, Schema and More",
-  description: "Free website tools: AI bot access checker, robots.txt tester and generator, llms.txt generator, hreflang checker, schema markup, search preview, security headers, domain age and Google review links.",
+  description: "Free website tools: AI bot access checker, robots.txt tester and generator, llms.txt generator, XML sitemap generator, hreflang checker, bulk schema checker, schema markup, search preview, security headers, domain age and Google review links.",
   alternates: { canonical: "/tools" },
 };
 
@@ -24,14 +24,14 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
       <main>
         <PageHero h1="Free tools for a healthier website." lead="Quick checkers and generators for search engines, AI assistants and security. Free with a Pagelyt account.">
           <ul className="tstats" aria-label="At a glance">
-            <li><b>{TOOL_LIST.length}</b> free tools</li>
+            <li><b>{TOOL_LIST.filter((t) => !t.paid).length}</b> free tools</li>
             <li><b>{CATEGORIES.length}</b> categories</li>
             <li><b>0</b> installs</li>
           </ul>
         </PageHero>
         <section className="sec tdir-sec" aria-label="Free tools">
           <div className="container">
-            <ToolBrowser tools={TOOL_LIST.map(({ slug, name, blurb, category, kind }) => ({ slug, name, blurb, category, kind }))} categories={CATEGORIES} />
+            <ToolBrowser tools={TOOL_LIST.map(({ slug, name, blurb, category, kind, paid }) => ({ slug, name, blurb, category, kind, paid }))} categories={CATEGORIES} />
           </div>
         </section>
         <section className="sec ice tsteps-sec" aria-labelledby="tsteps-h">
