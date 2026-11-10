@@ -5545,6 +5545,8 @@ button.fnd-link:disabled { opacity: .5; cursor: default; }
 .dash-pn button:focus-visible { outline: 2px solid #7c5cd6; outline-offset: 2px; }
 .sec-hero .sec-ico { display: grid; place-items: center; width: 64px; height: 64px; border-radius: 18px; background: #efe9ff; color: #5a35b0; flex: none; }
 .sec-empty { color: #55616d; margin: 0; }
+.dash-hero p.sec-why { margin-top: .6rem; max-width: 64ch; font-size: .9rem; line-height: 1.5; color: #55616d; }
+.sec-why b { color: #14202b; font-weight: 600; }
 .sec-cta p { margin: 0; }
 .sec-cta .dash-btn { justify-self: start; }
 .sec-row { display: flex; gap: .6rem; flex-wrap: wrap; }

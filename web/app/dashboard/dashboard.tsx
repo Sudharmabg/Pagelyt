@@ -35,6 +35,28 @@ const BLURB: Record<ModuleKey, string> = {
   privacy: "Whether visitors can find your policies and whether tracking is handled in line with privacy laws.",
 };
 
+/* "Why it matters", shown under each page's description. Two short sentences, no figures we can't back up. */
+const WHY: Record<ModuleKey | Extra, string> = {
+  health: "If the site is down, redirects badly or shows errors, every visitor and every search crawler that arrives in that moment is lost. These are the problems to fix first, because nothing else counts while they last.",
+  performance: "Slow pages lose visitors before they see anything, especially on phones and patchy connections. Google also uses page speed as a ranking signal, so speed affects how many people arrive in the first place.",
+  seo: "Most people find a business through a search engine, and a page that can't be crawled or has no clear title won't be shown to them. Small fixes here often bring more visitors at no extra cost.",
+  geo: "More people now ask ChatGPT, Perplexity and Google's AI answers instead of clicking through search results. Sites that are easy for these tools to read and quote get recommended; the rest are left out of the answer.",
+  security: "Missing protections make it easier to hijack visitors, steal logins or inject content into your pages. Browsers also warn visitors away from sites that look unsafe, which costs trust and sales.",
+  accessibility: "Many people browse with a screen reader, keyboard or zoom, and an inaccessible site turns them away. In many countries it is also a legal requirement, and the same fixes usually make the site easier for everyone.",
+  domain: "A lapsed domain takes the whole site and its email offline, and anyone can buy it after. Missing email records let scammers send mail that looks like it came from you, and make your real mail more likely to land in spam.",
+  privacy: "Privacy laws such as GDPR require clear policies and consent before tracking, and fines and complaints follow when they are missing. Visitors also trust sites more when they can see how their data is used.",
+  speed: "These are the numbers Google uses to judge page experience, measured the way a visitor's phone or laptop actually loads the page. They show where the time goes, so you can fix the step that slows people down most.",
+  pages: "Problems rarely stop at the homepage: a broken or untitled page deeper in the site loses visitors just the same. Checking many pages at once finds the issues that repeat across the site, so one fix can solve them all.",
+  images: "Images are usually the heaviest part of a page, and oversized ones are the most common reason pages load slowly on phones. Shrinking a few large files is often the quickest speed win available.",
+  tech: "Your domain and email records keep you reachable and stop others sending mail in your name, and an expired domain can take everything offline at once. Knowing the technology behind a site also shows what can be updated or switched on.",
+  changes: "Tracking scores over time shows whether fixes are working and catches new problems early. An unexpected change to the homepage can also be the first sign that a site has been hacked.",
+  monitor: "Websites break without warning: a plugin update, an expired certificate or a host outage. Regular rescans and uptime checks tell you within minutes instead of when a customer complains.",
+  ai: "People increasingly ask AI assistants which business to choose, and those answers don't show a list of ten links. If you aren't mentioned, you aren't considered, so it is worth knowing where you stand.",
+  compare: "Your score means more next to the sites you compete with. Seeing where competitors are ahead shows which fixes will make the biggest difference to winning visitors from them.",
+  share: "A clear, branded report makes it easy to show a client what needs fixing and why. Sending it on a schedule also keeps them up to date without extra work.",
+  tools: "Files such as robots.txt, llms.txt and structured data tell search engines and AI tools how to read your site, but they are easy to get wrong by hand. These generators start from what we found on this site, so the output fits it.",
+};
+
 const VERDICT = (n: number) => (n >= 80 ? "In great shape" : n >= 65 ? "In good shape" : "Room to grow");
 
 /* Counts 0 -> target after `delay` ms. Skipped (returns target) when disabled or the user prefers reduced motion. */
@@ -355,6 +377,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
         <p className="dash-eyebrow">{groupOf(s.id)}{needsPlan(s.id) && <span className="plan-badge">Paid plans</span>}</p>
         <h1>{s.label}</h1>
         <p>{s.text}</p>
+        <p className="sec-why"><b>Why it matters:</b> {WHY[s.id]}</p>
         {extra}
       </div>
     </section>
@@ -491,6 +514,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
             <p className="dash-eyebrow">{MODULE_NAMES[area]}</p>
             <h1>{mod.score >= 80 ? "Looking good" : mod.score >= 50 ? "Needs work" : "Needs attention"}</h1>
             <p>{BLURB[area]}</p>
+            <p className="sec-why"><b>Why it matters:</b> {WHY[area]}</p>
             <p className="dash-sub">
               {inModule.length === 0
                 ? "No issues found in this area."
@@ -507,10 +531,12 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     const s = section;
     let content: React.ReactNode = null;
     if (s.id === "speed") content = scan.vitals ? <VitalsPanel vitals={scan.vitals} /> : empty("Speed wasn't measured in this scan. Rescan to try again.");
-    else if (s.id === "pages") content = scan.crawl ? <CrawlPanel crawl={scan.crawl} /> : empty("Only the homepage was checked in this scan, so there is no site-wide crawl to show.");
+    else if (s.id === "pages")
+      // The crawl table needs at least two pages; a one-page crawl found no other pages to visit.
+      content = (scan.crawl?.list.length ?? 0) >= 2 ? <CrawlPanel crawl={scan.crawl} /> : empty(scan.crawl ? "We couldn't find any pages beyond the homepage to crawl. Add a sitemap or link to your main pages from the homepage." : "Only the homepage was checked in this scan, so there is no site-wide crawl to show.");
     else if (s.id === "images") content = scan.images ? <ImagesPanel images={scan.images} weight={scan.vitals?.weight} /> : empty("No images were checked in this scan.");
     else if (s.id === "tech")
-      content = (
+      content = !scan.domain && !scan.tech ? empty("Domain and technology details weren't available for this scan. Rescan to try again.") : (
         <div className="panel-grid">
           <DomainPanel domain={scan.domain} links={scan.links} at={scan.scannedAt} />
           <TechPanel tech={scan.tech} />
