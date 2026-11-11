@@ -9,7 +9,7 @@ import { setSiteLastScan } from "./agency";
 import { getScanRow, previousResult, saveShot, updateScan, type ScanRow } from "./store";
 import type { ChangeInfo, CrawlPage, DomainInfo, Finding, ImageAudit, ModuleKey, ScanResult, Snapshot, TechItem, Vitals } from "./types";
 import { fetchVitals, vitalsFindings } from "./vitals";
-import { imageFindings, imageList, probeImages } from "./images";
+import { imageFindings, imageList, mergeRendered, probeImages, spreadSample } from "./images";
 import { a11yFindings, coveredStaticIds } from "./a11y";
 import { compareSnapshots, textSignature, visualSignature } from "./visual";
 import * as cheerio from "cheerio";
@@ -24,6 +24,10 @@ export class ScanError extends Error {}
 
 export { STAGE_LABELS, TOTAL_STAGES };
 
+/** Most images remembered across the site, and how many of the crawled pages' images get a HEAD check. */
+const SITE_IMAGES = 600;
+const EXTRA_PROBES = 24;
+
 type State = {
   finalUrl?: string;
   host?: string;
@@ -32,6 +36,8 @@ type State = {
   linkSample?: string[];
   imageSample?: string[];
   images?: ImageAudit | null;
+  /** Every image found so far on the homepage and crawled pages, with the page it was on (capped at SITE_IMAGES). */
+  siteImages?: { url: string; page: string }[];
   snapshot?: Snapshot;
   domain?: DomainInfo | null;
   links?: { checked: number; broken: number } | null;
@@ -105,7 +111,8 @@ async function stagePage(row: ScanRow): Promise<State> {
     tech: detectTech(page),
     linkSample: collectLinks(page).sample,
     imageSample: imgs.sample,
-    images: { count: imgs.count, probed: [] },
+    images: { count: imgs.count, pages: 1, probed: [] },
+    siteImages: imgs.all.map((url) => ({ url, page: page.url })),
     snapshot,
     sitemapUrls,
     crawlQueue: crawlQueue(finalUrl.href, host, sitemapUrls, internalLinks(page.body, page.url, host)),
@@ -122,20 +129,33 @@ async function stageDomain(st: State): Promise<State> {
   return { ...st, domain, findings: [...st.findings!, ...domainFindings(domain), ...exposed, ...sec] };
 }
 
-/* Stage 3: a sample of up to 18 links and 8 images (HEAD), one subrequest each. */
+/* Stage 3: a sample of up to 18 links and 16 images (HEAD), one subrequest each. */
 async function stageLinks(st: State): Promise<State> {
   const [r, probed] = await Promise.all([checkLinks(st.linkSample ?? []), probeImages(st.imageSample ?? [])]);
-  return { ...st, links: { checked: r.checked, broken: r.broken.length }, images: { count: st.images?.count ?? 0, probed }, imageSample: undefined, findings: [...st.findings!, ...linkFindings(r)] };
+  const home = st.finalUrl!;
+  return { ...st, links: { checked: r.checked, broken: r.broken.length }, images: { ...st.images, count: st.images?.count ?? 0, probed: probed.map((p) => ({ ...p, page: home })) }, imageSample: undefined, findings: [...st.findings!, ...linkFindings(r)] };
 }
 
 /* Stages 4 and 5: crawl up to MAX_PAGES pages (PER_STAGE per stage). */
 async function stageCrawl(st: State, part: 0 | 1): Promise<State> {
   const host = st.host!;
   const batch = (st.crawlQueue ?? []).slice(part * PER_STAGE, (part + 1) * PER_STAGE);
-  const r = batch.length ? await crawlBatch(batch, host) : { pages: [], linked: [] };
+  const r = batch.length ? await crawlBatch(batch, host) : { pages: [], linked: [], images: [] };
   const pages = [...(st.crawlPages ?? []), ...r.pages].slice(0, MAX_PAGES);
   const linked = [...new Set([...(st.crawlLinked ?? []), ...r.linked])].slice(0, 600);
-  const next: State = { ...st, crawlPages: pages, crawlLinked: linked };
+  // Images on the crawled pages join the homepage's (first page each image was seen on).
+  const seen = new Set((st.siteImages ?? []).map((i) => i.url));
+  const siteImages = [...(st.siteImages ?? [])];
+  for (const i of r.images) {
+    if (siteImages.length >= SITE_IMAGES) break;
+    if (!seen.has(i.url)) {
+      seen.add(i.url);
+      siteImages.push(i);
+    }
+  }
+  const withImages = new Set(siteImages.map((i) => i.page)).size;
+  const images = st.images ? { ...st.images, count: siteImages.length, pages: withImages } : st.images;
+  const next: State = { ...st, crawlPages: pages, crawlLinked: linked, siteImages, images };
   if (part === 1) {
     // Last crawl stage: turn what we saw into findings.
     next.findings = [...st.findings!, ...crawlFindings(pages, { sitemap: st.sitemapUrls ?? [], linked, home: st.finalUrl! })];
@@ -145,10 +165,16 @@ async function stageCrawl(st: State, part: 0 | 1): Promise<State> {
   return next;
 }
 
-/* Stage 6: PageSpeed Insights, mobile and desktop (2 subrequests, slow), plus storing its screenshot. */
+/* Stage 6: PageSpeed Insights, mobile and desktop (2 subrequests, slow), plus storing its screenshot. Meanwhile, a
+   HEAD request for up to EXTRA_PROBES images from the crawled pages (spread across pages). */
 async function stageSpeed(row: ScanRow, st: State): Promise<State> {
-  const { vitals, shot, a11y } = await fetchVitals(st.finalUrl!);
-  const img = st.images ? imageFindings(st.images, vitals?.weight) : [];
+  const site = st.siteImages ?? [];
+  const extra = spreadSample(site, new Set((st.images?.probed ?? []).map((p) => p.url)), EXTRA_PROBES);
+  const [{ vitals, shot, a11y, images: rendered }, extraProbed] = await Promise.all([fetchVitals(st.finalUrl!), probeImages(extra.map((i) => i.url))]);
+  const pageOf = new Map(extra.map((i) => [i.url, i.page]));
+  const checked = st.images ? { ...st.images, probed: [...st.images.probed, ...extraProbed.map((p) => ({ ...p, page: pageOf.get(p.url) }))] } : null;
+  const images = checked || rendered.length ? mergeRendered(checked ?? { count: 0, probed: [] }, rendered, st.finalUrl!, new Set(site.map((i) => i.url))) : null;
+  const img = images ? imageFindings(images, vitals?.weight) : [];
   let snapshot = st.snapshot;
   if (snapshot && shot) {
     snapshot = { ...snapshot, sig: visualSignature(shot.thumb ?? shot.full) };
@@ -160,7 +186,7 @@ async function stageSpeed(row: ScanRow, st: State): Promise<State> {
   // Rendered accessibility results replace the static checks Lighthouse re-ran on the real page.
   const covered = a11y ? coveredStaticIds(a11y) : new Set<string>();
   const base = st.findings!.filter((f) => !(f.module === "accessibility" && covered.has(f.id)));
-  return { ...st, vitals, snapshot, findings: [...base, ...(vitals ? vitalsFindings(vitals) : []), ...img, ...(a11y ? a11yFindings(a11y) : [])] };
+  return { ...st, vitals, snapshot, images: images ?? st.images, siteImages: undefined, findings: [...base, ...(vitals ? vitalsFindings(vitals) : []), ...img, ...(a11y ? a11yFindings(a11y) : [])] };
 }
 
 /** Difference from the previous scan of the same site; never fails the scan. */

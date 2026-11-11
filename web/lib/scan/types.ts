@@ -59,7 +59,9 @@ export type Snapshot = { title: string; sig: number[] | null; text: number[]; sh
 export type ChangeInfo = { prevId: string; prevAt: string; visual: number | null; text: number | null; title: { from: string; to: string } | null };
 
 /** `probed`: what the server actually delivered for a sample of the page's images. */
-export type ImageAudit = { count: number; probed: { url: string; type: string; bytes: number | null }[] };
+/** `count`: distinct images found across the homepage and crawled pages (`pages` of them). `probed`: the ones
+    whose format and size were checked; `page` is the address of a page that shows it (missing in older reports). */
+export type ImageAudit = { count: number; pages?: number; probed: { url: string; type: string; bytes: number | null; page?: string }[] };
 /** From Lighthouse (mobile run), bytes. */
 export type PageWeight = { total: number | null; images: number | null; imageSavings: number | null; requests: number | null };
 

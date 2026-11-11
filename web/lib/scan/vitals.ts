@@ -9,7 +9,7 @@ import { parseA11y, type A11yResult, type LhAudit, type LhCategory } from "./a11
 const API = "https://www.googleapis.com/pagespeedonline/v5/runPagespeed";
 const TIMEOUT_MS = 28_000; // the mobile run also does the accessibility audit
 
-type Audit = Omit<LhAudit, "details"> & { numericValue?: number; details?: { overallSavingsBytes?: number; data?: string; items?: { resourceType?: string; transferSize?: number; requestCount?: number; data?: string; node?: { snippet?: string; selector?: string; nodeLabel?: string } }[] } };
+type Audit = Omit<LhAudit, "details"> & { numericValue?: number; details?: { overallSavingsBytes?: number; data?: string; items?: { resourceType?: string; transferSize?: number; requestCount?: number; url?: string; mimeType?: string; statusCode?: number; data?: string; node?: { snippet?: string; selector?: string; nodeLabel?: string } }[] } };
 
 const IMG_AUDITS = ["modern-image-formats", "uses-optimized-images", "uses-responsive-images", "image-delivery-insight"];
 
@@ -29,6 +29,21 @@ function weightOf(a: Record<string, Audit>): PageWeight {
   };
 }
 
+export type RenderedImage = { url: string; type: string; bytes: number | null };
+
+/** The images the rendered page actually loaded (Lighthouse's network log), largest first, up to 60. */
+function imagesOf(a: Record<string, Audit>): RenderedImage[] {
+  const items = a["network-requests"]?.details?.items ?? [];
+  const seen = new Set<string>();
+  const out: RenderedImage[] = [];
+  for (const i of items) {
+    if (i.resourceType !== "Image" || !i.url || !/^https?:/.test(i.url) || (i.statusCode ?? 200) >= 400 || seen.has(i.url)) continue;
+    seen.add(i.url);
+    out.push({ url: i.url, type: (i.mimeType ?? "").toLowerCase(), bytes: typeof i.transferSize === "number" && i.transferSize > 0 ? i.transferSize : null });
+  }
+  return out.sort((x, y) => (y.bytes ?? 0) - (x.bytes ?? 0)).slice(0, 60);
+}
+
 function shotOf(a: Record<string, Audit>): Shot {
   const ok = (d: unknown) => (typeof d === "string" && d.startsWith("data:image/jpeg;base64,") && d.length < 400_000 ? d : null);
   const thumbs = a["screenshot-thumbnails"]?.details?.items ?? [];
@@ -39,8 +54,8 @@ type Psi = {
   loadingExperience?: { metrics?: Record<string, { percentile?: number }> };
 };
 
-type Run = { lab: VitalsRun | null; field: Vitals["field"]; weight: PageWeight | null; shot: Shot | null; a11y: A11yResult | null };
-const EMPTY: Run = { lab: null, field: null, weight: null, shot: null, a11y: null };
+type Run = { lab: VitalsRun | null; field: Vitals["field"]; weight: PageWeight | null; shot: Shot | null; a11y: A11yResult | null; images: RenderedImage[] };
+const EMPTY: Run = { lab: null, field: null, weight: null, shot: null, a11y: null, images: [] };
 
 async function run(url: string, strategy: "mobile" | "desktop"): Promise<Run> {
   const key = process.env.PAGESPEED_API_KEY;
@@ -77,6 +92,7 @@ async function run(url: string, strategy: "mobile" | "desktop"): Promise<Run> {
       weight: weightOf(a),
       shot: shotOf(a),
       a11y: parseA11y(j.lighthouseResult?.categories?.accessibility, a),
+      images: imagesOf(a),
     };
   } catch {
     return EMPTY;
@@ -85,13 +101,15 @@ async function run(url: string, strategy: "mobile" | "desktop"): Promise<Run> {
   }
 }
 
-export async function fetchVitals(url: string): Promise<{ vitals: Vitals | null; shot: Shot | null; a11y: A11yResult | null }> {
+export async function fetchVitals(url: string): Promise<{ vitals: Vitals | null; shot: Shot | null; a11y: A11yResult | null; images: RenderedImage[] }> {
   const [mobile, desktop] = await Promise.all([run(url, "mobile"), run(url, "desktop")]);
-  if (!mobile.lab && !desktop.lab) return { vitals: null, shot: null, a11y: null };
+  if (!mobile.lab && !desktop.lab) return { vitals: null, shot: null, a11y: null, images: [] };
   return {
     vitals: { mobile: mobile.lab, desktop: desktop.lab, field: mobile.field ?? desktop.field, weight: mobile.weight ?? desktop.weight, a11y: mobile.a11y?.score ?? null },
     shot: mobile.shot ?? desktop.shot,
     a11y: mobile.a11y,
+    // Desktop usually loads more (fewer lazy images held back on a wider screen).
+    images: desktop.images.length > mobile.images.length ? desktop.images : mobile.images,
   };
 }
 

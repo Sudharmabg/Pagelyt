@@ -41,9 +41,9 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `checks-extra.ts` | `extraChecks` | ARIA and keyboard, content and privacy checks |
 | `seo-deep.ts` | `schemaFindings`, `hreflangChecks`, `paginationChecks`, `crawlDeepFindings` | Structured data, hreflang and pagination |
 | `crawl.ts` | `crawlBatch`, `crawlQueue`, `crawlSummary`, `crawlFindings`, `MAX_PAGES` | Multi-page crawl |
-| `images.ts` | `probeImages`, `imageFindings` | Image audit (HEAD request per sampled image) |
+| `images.ts` | `imageList`, `probeImages`, `mergeRendered`, `imageFindings` | Image audit: images from the homepage HTML (lazy-load attributes before placeholder `src`, srcset, `<picture>`, `<noscript>`, backgrounds, preloads), a HEAD request for up to 16; `imagesIn` also runs on every crawled page (`crawl.ts`), so the count covers the whole crawl (up to 600) and `spreadSample` picks 24 more to check, spread across pages, during the PageSpeed stage; plus the images Lighthouse saw on the rendered homepage. Each checked image records the `page` it was on (Images panel: Found on) |
 | `extras.ts` | `domainIntel`, `exposedFiles`, `securityTxt`, `checkLinks`, `detectTech` | DNS and email records, domain expiry, broken links, tech stack |
-| `vitals.ts` | `fetchVitals`, `vitalsFindings`, `Shot` | Core Web Vitals through the PageSpeed Insights API |
+| `vitals.ts` | `fetchVitals`, `vitalsFindings`, `Shot`, `RenderedImage` | Core Web Vitals through the PageSpeed Insights API; also returns the images the rendered page loaded (`network-requests`) |
 | `a11y.ts` | `parseA11y`, `a11yFindings` | Lighthouse accessibility (axe) results |
 | `visual.ts` | `visualDiff`, `textDiff`, `compareSnapshots`, `isBigChange`, `defacementChecks` | Visual change and defacement monitoring |
 | `score.ts` | `scoreModules`, `overallScore`, `finishedAreas`, `WEIGHTS`, `PENALTY`, `findingKey` | Scoring, including the area scores so far in a running scan (client-safe) |

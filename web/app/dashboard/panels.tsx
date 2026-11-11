@@ -528,6 +528,15 @@ const size = (n: number | null | undefined) => (n == null ? "–" : n >= 1_000_0
 
 export function ImagesPanel({ images, weight }: { images: StoredScan["images"]; weight: PageWeight | null | undefined }) {
   if (!images && !weight) return null;
+  const hasPage = !!images?.probed.some((p) => p.page); // reports before this change don't say where each image was
+  const pathOf = (u: string) => {
+    try {
+      const x = new URL(u);
+      return x.pathname + x.search || "/";
+    } catch {
+      return u;
+    }
+  };
   const file = (u: string) => {
     try {
       return new URL(u).pathname.split("/").pop() || u;
@@ -546,19 +555,20 @@ export function ImagesPanel({ images, weight }: { images: StoredScan["images"]; 
           <li><span className="dot na" aria-hidden="true" /><span className="fk">Image bytes</span><span className="fv">{size(weight.images)}{weight.imageSavings ? ` · could save ${size(weight.imageSavings)}` : ""}</span></li>
         )}
         {images && (
-          <li><span className="dot na" aria-hidden="true" /><span className="fk">Images found</span><span className="fv">{images.count} ({images.probed.length} checked)</span></li>
+          <li><span className="dot na" aria-hidden="true" /><span className="fk">Images found</span><span className="fv">{images.count}{images.pages && images.pages > 1 ? ` across ${images.pages} pages` : ""} ({images.probed.length} checked)</span></li>
         )}
       </ul>
       {images && images.probed.length > 0 && (
         <div className="crawl-wrap">
           <table className="crawl">
             <thead>
-              <tr><th>Image</th><th>Format</th><th>Size</th></tr>
+              <tr><th>Image</th>{hasPage && <th>Found on</th>}<th>Format</th><th>Size</th></tr>
             </thead>
             <tbody>
               {[...images.probed].sort((a, b) => (b.bytes ?? 0) - (a.bytes ?? 0)).map((p) => (
                 <tr key={p.url} className={(p.bytes ?? 0) > 300_000 ? "bad" : undefined}>
-                  <td title={p.url}>{file(p.url)}</td>
+                  <td title={p.url}>{/^https?:\/\//i.test(p.url) ? <a href={p.url} target="_blank" rel="noopener noreferrer nofollow">{file(p.url)}</a> : file(p.url)}</td>
+                  {hasPage && <td title={p.page}>{p.page ? pathOf(p.page) : "–"}</td>}
                   <td>{p.type.replace("image/", "") || "–"}</td>
                   <td>{size(p.bytes)}</td>
                 </tr>

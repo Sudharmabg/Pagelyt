@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import type { CheerioAPI } from "cheerio";
 import { safeFetch, type FetchResult } from "./fetcher";
 import type { Finding, ImageAudit, PageWeight } from "./types";
 
@@ -7,34 +8,125 @@ import type { Finding, ImageAudit, PageWeight } from "./types";
    server actually delivers, so CDNs that convert images on the fly are judged fairly.
    Lighthouse (PageSpeed) adds total page weight and its own savings estimate when available. */
 
-export const IMAGE_SAMPLE = 8;
+export const IMAGE_SAMPLE = 16;
 const BIG = 300_000;
 const HUGE = 1_000_000;
 const LEGACY = /^image\/(jpeg|jpg|png|gif|bmp|tiff)/i;
+const SVG = /\.svg(\?|$)/i;
 
-/** First URL of a srcset / src-like attribute. */
-const firstSrc = (v: string | undefined) => (v || "").trim().split(/\s*,\s*/)[0]?.split(/\s+/)[0] || "";
+/** Every URL in a srcset, largest candidate first (by its w or x descriptor). */
+const srcsetUrls = (v: string | undefined): string[] =>
+  (v || "")
+    .split(/,\s+(?=\S)/)
+    .map((c) => c.trim().split(/\s+/))
+    .filter((c) => c[0])
+    .map(([u, d]) => ({ u, n: d ? parseFloat(d) || 0 : 1 }))
+    .sort((x, y) => y.n - x.n)
+    .map((c) => c.u);
 
-/** Distinct image URLs in page order (sync, no network): <img>, lazy-load attributes, then og:image. SVGs are skipped. */
-export function imageList(page: FetchResult): { count: number; sample: string[] } {
-  const $ = cheerio.load(page.body);
-  const base = new URL(page.url);
+/** Lazy-load attributes used by common plugins and frameworks, checked before `src` (which is often a placeholder). */
+const LAZY = ["data-src", "data-lazy-src", "data-original", "data-lazy", "data-url", "data-echo", "data-orig-src", "data-hi-res-src", "data-full-src"];
+const LAZY_SET = ["data-srcset", "data-lazy-srcset"];
+const PLACEHOLDER = /(^data:)|(blank|spacer|placeholder|transparent|pixel|lazy|loading)[^/]*\.(gif|png|svg)/i;
+const BG_ATTRS = ["data-bg", "data-background", "data-bg-src", "data-background-image"];
+
+/** Distinct image URLs in page order (sync, no network): <img> with lazy-load attributes, <noscript> fallbacks,
+    <picture> sources, inline and lazy background images, preloaded images, then og/twitter images. A placeholder
+    `src` shared by every lazy image counts once at most. SVGs are skipped (vectors, not a weight problem). */
+export function imageList(page: FetchResult): { count: number; sample: string[]; all: string[] } {
+  const all = imagesIn(cheerio.load(page.body), page.url);
+  return { count: all.length, sample: all.slice(0, IMAGE_SAMPLE), all };
+}
+
+/** Most images kept per page (the crawl visits up to 30 pages; the site total is capped in index.ts). */
+export const PER_PAGE_IMAGES = 150;
+
+/** The image URLs on one parsed page. Call before scripts and <noscript> are stripped. */
+export function imagesIn($: CheerioAPI, pageUrl: string): string[] {
+  const base = new URL(pageUrl);
   const seen = new Set<string>();
-  const add = (raw: string) => {
-    if (!raw || raw.startsWith("data:")) return;
+  const add = (raw: string | undefined): boolean => {
+    const v = (raw || "").trim();
+    if (!v || v.startsWith("data:") || v.startsWith("blob:")) return false;
     try {
-      const u = new URL(raw, base);
-      if (/^https?:$/.test(u.protocol) && !/\.svg(\?|$)/i.test(u.pathname)) seen.add(u.href);
+      const u = new URL(v, base);
+      if (!/^https?:$/.test(u.protocol) || SVG.test(u.pathname)) return false;
+      seen.add(u.href);
+      return true;
     } catch {
-      /* malformed */
+      return false;
     }
+  };
+  const fromImg = (attr: (name: string) => string | undefined) => {
+    // A real lazy-load URL wins over the src placeholder; then src, then the largest srcset candidate.
+    for (const a of LAZY) if (add(attr(a))) return;
+    for (const a of LAZY_SET) if (add(srcsetUrls(attr(a))[0])) return;
+    const src = attr("src");
+    if (src && !PLACEHOLDER.test(src) && add(src)) return;
+    if (add(srcsetUrls(attr("srcset"))[0])) return;
+    add(src); // only a placeholder was there
   };
   $("img").each((_, el) => {
     const e = $(el);
-    add(e.attr("src") || e.attr("data-src") || e.attr("data-lazy-src") || firstSrc(e.attr("srcset") || e.attr("data-srcset")));
+    fromImg((n) => e.attr(n));
   });
-  add($('meta[property="og:image"]').attr("content") || "");
-  return { count: seen.size, sample: [...seen].slice(0, IMAGE_SAMPLE) };
+  // Lazy-load scripts often keep the real <img> inside <noscript>.
+  $("noscript").each((_, el) => {
+    const inner = cheerio.load($(el).text() || $(el).html() || "");
+    inner("img").each((__, i) => {
+      const e = inner(i);
+      fromImg((n) => e.attr(n));
+    });
+  });
+  $("picture source, source[srcset]").each((_, el) => {
+    const e = $(el);
+    add(srcsetUrls(e.attr("srcset") || e.attr("data-srcset"))[0]);
+  });
+  $("[style*='url(']").each((_, el) => {
+    for (const m of ($(el).attr("style") || "").matchAll(/url\(\s*['"]?([^'")]+)['"]?\s*\)/gi)) add(m[1]);
+  });
+  $(BG_ATTRS.map((a) => `[${a}]`).join(",")).each((_, el) => {
+    const e = $(el);
+    for (const a of BG_ATTRS) add(e.attr(a));
+  });
+  $('link[rel="preload"][as="image"]').each((_, el) => {
+    const e = $(el);
+    add(e.attr("href") || srcsetUrls(e.attr("imagesrcset"))[0]);
+  });
+  add($('meta[property="og:image"]').attr("content"));
+  add($('meta[name="twitter:image"]').attr("content"));
+  return [...seen].slice(0, PER_PAGE_IMAGES);
+}
+
+/** Adds the images Lighthouse saw load on the rendered homepage, which catches images that JavaScript inserts (the
+    raw HTML doesn't have them). Our probed ones come first; Lighthouse fills in the rest with its transfer size.
+    `known`: every image URL already counted from the HTML, so the total isn't counted twice. */
+export function mergeRendered(img: ImageAudit, rendered: ImageAudit["probed"] | null | undefined, home: string, known: Set<string> = new Set()): ImageAudit {
+  if (!rendered?.length) return img;
+  const have = new Set(img.probed.map((p) => p.url));
+  const extra = rendered.filter((r) => !have.has(r.url) && !SVG.test(r.url) && r.type !== "image/svg+xml").map((r) => ({ ...r, page: r.page ?? home }));
+  const unseen = extra.filter((r) => !known.has(r.url)).length;
+  return { ...img, count: img.count + unseen, probed: [...img.probed, ...extra] };
+}
+
+/** Up to `n` site images not checked yet, taking one from each page in turn so every page is represented. */
+export function spreadSample(list: { url: string; page: string }[], skip: Set<string>, n: number): { url: string; page: string }[] {
+  const byPage = new Map<string, { url: string; page: string }[]>();
+  for (const i of list) if (!skip.has(i.url)) byPage.set(i.page, [...(byPage.get(i.page) ?? []), i]);
+  const queues = [...byPage.values()];
+  const out: { url: string; page: string }[] = [];
+  const taken = new Set<string>();
+  for (let round = 0; out.length < n && queues.some((q) => q.length > round); round++) {
+    for (const q of queues) {
+      const i = q[round];
+      if (i && !taken.has(i.url)) {
+        taken.add(i.url);
+        out.push(i);
+        if (out.length >= n) break;
+      }
+    }
+  }
+  return out;
 }
 
 /** One HEAD per image. Servers that ignore HEAD or omit Content-Length leave `bytes` null. */

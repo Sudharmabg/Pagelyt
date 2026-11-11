@@ -2,6 +2,7 @@ import * as cheerio from "cheerio";
 import { safeFetch } from "./fetcher";
 import type { Finding, CrawlSummary, CrawlPage, PageTable } from "./types";
 import { crawlDeepFindings, hreflangs, pageSchemaProblems } from "./seo-deep";
+import { imagesIn } from "./images";
 
 /* Multi-page crawl. Two stages of PER_STAGE pages each (one subrequest per page), so a scan covers
    up to MAX_PAGES pages of the same site. Pages come from the sitemap first, then internal links. */
@@ -67,8 +68,9 @@ export function crawlQueue(home: string, host: string, sitemap: string[], homeLi
 
 const words = (s: string) => (s.trim() ? s.trim().split(/\s+/).length : 0);
 
-export function inspect(url: string, status: number, html: string, host: string): { page: CrawlPage; links: string[] } {
+export function inspect(url: string, status: number, html: string, host: string): { page: CrawlPage; links: string[]; images: string[] } {
   const $ = cheerio.load(html.slice(0, 400_000));
+  const images = status < 400 ? imagesIn($, url) : []; // before <noscript> is stripped (lazy-load fallbacks live there)
   const robots = ($('meta[name="robots"]').attr("content") || "").toLowerCase();
   const ld = pageSchemaProblems($); // before scripts are stripped
   const { alts } = hreflangs($, url);
@@ -96,13 +98,15 @@ export function inspect(url: string, status: number, html: string, host: string)
       ...(ld.length ? { ld } : {}),
     },
     links: status < 400 ? internalLinks(html, url, host) : [],
+    images,
   };
 }
 
 /** Fetch one batch of pages in parallel; whatever finished by the deadline is kept. */
-export async function crawlBatch(urls: string[], host: string): Promise<{ pages: CrawlPage[]; linked: string[] }> {
+export async function crawlBatch(urls: string[], host: string): Promise<{ pages: CrawlPage[]; linked: string[]; images: { url: string; page: string }[] }> {
   const pages: CrawlPage[] = [];
   const linked = new Set<string>();
+  const images: { url: string; page: string }[] = [];
   const one = async (url: string) => {
     try {
       const r = await safeFetch(new URL(url), { follow: false });
@@ -111,9 +115,10 @@ export async function crawlBatch(urls: string[], host: string): Promise<{ pages:
         pages.push({ url, status: r.status, title: "", description: "", h1: 0, canonical: false, noindex: false, words: 0 });
         return;
       }
-      const { page, links } = isHtml && r.status < 400 ? inspect(url, r.status, r.body, host) : { page: { url, status: r.status, title: "", description: "", h1: 0, canonical: false, noindex: false, words: 0 }, links: [] };
+      const { page, links, images: imgs } = isHtml && r.status < 400 ? inspect(url, r.status, r.body, host) : { page: { url, status: r.status, title: "", description: "", h1: 0, canonical: false, noindex: false, words: 0 }, links: [], images: [] };
       pages.push(page);
       for (const l of links) linked.add(l);
+      for (const i of imgs) images.push({ url: i, page: url });
     } catch (e) {
       // Unreachable counts as broken; our own SSRF refusals and timeouts are not the site's fault.
       if (!/Blocked|timed out/i.test(e instanceof Error ? e.message : "")) {
@@ -122,7 +127,7 @@ export async function crawlBatch(urls: string[], host: string): Promise<{ pages:
     }
   };
   await Promise.race([Promise.all(urls.map(one)), new Promise((r) => setTimeout(r, DEADLINE_MS))]);
-  return { pages, linked: [...linked].slice(0, 600) };
+  return { pages, linked: [...linked].slice(0, 600), images };
 }
 
 const ex = (list: string[], n = 5) => list.slice(0, n).join(" · ") + (list.length > n ? ` · +${list.length - n} more` : "");
