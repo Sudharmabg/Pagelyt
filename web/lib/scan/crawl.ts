@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
 import { safeFetch } from "./fetcher";
-import type { Finding, CrawlSummary, CrawlPage } from "./types";
+import type { Finding, CrawlSummary, CrawlPage, PageTable } from "./types";
 import { crawlDeepFindings, hreflangs, pageSchemaProblems } from "./seo-deep";
 
 /* Multi-page crawl. Two stages of PER_STAGE pages each (one subrequest per page), so a scan covers
@@ -143,12 +143,13 @@ export function crawlFindings(pages: CrawlPage[], opts: { sitemap: string[]; lin
   const out: Finding[] = [];
   if (pages.length < 2) return out;
   const ok = pages.filter((p) => p.status >= 200 && p.status < 300);
-  const add = (module: Finding["module"], severity: Finding["severity"], id: string, title: string, why: string, fix: string, evidence?: string) =>
-    out.push({ id, module, severity, title, why, fix, evidence });
+  const add = (module: Finding["module"], severity: Finding["severity"], id: string, title: string, why: string, fix: string, evidence?: string, pages?: PageTable) =>
+    out.push({ id, module, severity, title, why, fix, evidence, ...(pages ? { pages } : {}) });
+  const only = (list: CrawlPage[]): PageTable => ({ cols: [], rows: list.map((p) => ({ url: p.url, cells: [] })) });
 
   const broken = pages.filter((p) => p.status === 0 || p.status >= 400);
   if (broken.length) {
-    add("health", broken.length > 2 ? "high" : "medium", "crawl-broken-pages", `${broken.length} page${broken.length > 1 ? "s" : ""} on your site return errors`, "These pages are linked from your site or listed in your sitemap but cannot be loaded. Visitors and search engines hit dead ends.", "Restore each page, redirect it to a working one, or remove it from your links and sitemap.", ex(broken.map((p) => `${p.status || "no response"} ${path(p.url)}`)));
+    add("health", broken.length > 2 ? "high" : "medium", "crawl-broken-pages", `${broken.length} page${broken.length > 1 ? "s" : ""} on your site return errors`, "These pages are linked from your site or listed in your sitemap but cannot be loaded. Visitors and search engines hit dead ends.", "Restore each page, redirect it to a working one, or remove it from your links and sitemap.", ex(broken.map((p) => `${p.status || "no response"} ${path(p.url)}`)), { cols: ["Status"], rows: broken.map((p) => ({ url: p.url, cells: [p.status ? String(p.status) : "No response"] })) });
   }
 
   const dupBy = (key: (p: CrawlPage) => string) => {
@@ -162,34 +163,34 @@ export function crawlFindings(pages: CrawlPage[], opts: { sitemap: string[]; lin
   const dupT = dupBy((p) => p.title);
   if (dupT.length) {
     const n = dupT.reduce((a, g) => a + g.length, 0);
-    add("seo", dupT.length > 2 ? "medium" : "low", "crawl-duplicate-titles", `${n} pages share a duplicate title`, "When pages share a title, search engines struggle to tell them apart and may pick the wrong one to show.", "Give every page a unique title that describes that page.", ex(dupT.map((g) => `“${g[0].title.slice(0, 50)}” on ${g.map((p) => path(p.url)).slice(0, 3).join(", ")}`), 3));
+    add("seo", dupT.length > 2 ? "medium" : "low", "crawl-duplicate-titles", `${n} pages share a duplicate title`, "When pages share a title, search engines struggle to tell them apart and may pick the wrong one to show.", "Give every page a unique title that describes that page.", ex(dupT.map((g) => `“${g[0].title.slice(0, 50)}” on ${g.map((p) => path(p.url)).slice(0, 3).join(", ")}`), 3), { cols: ["Shared title"], rows: dupT.flatMap((g) => g.map((p) => ({ url: p.url, cells: [p.title.slice(0, 120)] }))) });
   }
   const dupD = dupBy((p) => p.description);
   if (dupD.length) {
     const n = dupD.reduce((a, g) => a + g.length, 0);
-    add("seo", "low", "crawl-duplicate-descriptions", `${n} pages share a duplicate meta description`, "Identical descriptions give searchers no reason to choose one page over another.", "Write a unique description for each page.", ex(dupD.map((g) => g.map((p) => path(p.url)).slice(0, 3).join(", ")), 3));
+    add("seo", "low", "crawl-duplicate-descriptions", `${n} pages share a duplicate meta description`, "Identical descriptions give searchers no reason to choose one page over another.", "Write a unique description for each page.", ex(dupD.map((g) => g.map((p) => path(p.url)).slice(0, 3).join(", ")), 3), { cols: ["Shared description"], rows: dupD.flatMap((g) => g.map((p) => ({ url: p.url, cells: [p.description.length > 120 ? `${p.description.slice(0, 117)}…` : p.description] }))) });
   }
 
   const noTitle = ok.filter((p) => !p.title);
-  if (noTitle.length) add("seo", "medium", "crawl-missing-titles", `${noTitle.length} page${noTitle.length > 1 ? "s" : ""} have no title`, "The title is the headline in search results and the strongest on-page signal.", "Add a descriptive <title> to each page.", ex(noTitle.map((p) => path(p.url))));
+  if (noTitle.length) add("seo", "medium", "crawl-missing-titles", `${noTitle.length} page${noTitle.length > 1 ? "s" : ""} have no title`, "The title is the headline in search results and the strongest on-page signal.", "Add a descriptive <title> to each page.", ex(noTitle.map((p) => path(p.url))), only(noTitle));
   const noDesc = ok.filter((p) => !p.description && !p.noindex);
-  if (noDesc.length) add("seo", "low", "crawl-missing-descriptions", `${noDesc.length} page${noDesc.length > 1 ? "s" : ""} have no meta description`, "Without one, search engines make up a snippet, often a poor one.", "Add a 120–160 character description to each page.", ex(noDesc.map((p) => path(p.url))));
+  if (noDesc.length) add("seo", "low", "crawl-missing-descriptions", `${noDesc.length} page${noDesc.length > 1 ? "s" : ""} have no meta description`, "Without one, search engines make up a snippet, often a poor one.", "Add a 120–160 character description to each page.", ex(noDesc.map((p) => path(p.url))), only(noDesc));
   const noCanon = ok.filter((p) => !p.canonical && !p.noindex);
-  if (noCanon.length > 1) add("seo", "low", "crawl-missing-canonicals", `${noCanon.length} pages have no canonical tag`, "A canonical tag tells search engines which URL is the main version, which prevents duplicate-content splits.", "Add <link rel=\"canonical\"> to each page.", ex(noCanon.map((p) => path(p.url))));
+  if (noCanon.length > 1) add("seo", "low", "crawl-missing-canonicals", `${noCanon.length} pages have no canonical tag`, "A canonical tag tells search engines which URL is the main version, which prevents duplicate-content splits.", "Add <link rel=\"canonical\"> to each page.", ex(noCanon.map((p) => path(p.url))), only(noCanon));
   const noH1 = ok.filter((p) => p.h1 === 0 && !p.noindex);
-  if (noH1.length) add("seo", "low", "crawl-missing-h1", `${noH1.length} page${noH1.length > 1 ? "s" : ""} have no H1 heading`, "The H1 states what the page is about for visitors, search engines and AI assistants.", "Add one clear H1 per page.", ex(noH1.map((p) => path(p.url))));
+  if (noH1.length) add("seo", "low", "crawl-missing-h1", `${noH1.length} page${noH1.length > 1 ? "s" : ""} have no H1 heading`, "The H1 states what the page is about for visitors, search engines and AI assistants.", "Add one clear H1 per page.", ex(noH1.map((p) => path(p.url))), only(noH1));
   const thin = ok.filter((p) => p.words < THIN_WORDS && !p.noindex);
-  if (thin.length) add("seo", "low", "crawl-thin-content", `${thin.length} page${thin.length > 1 ? "s" : ""} have very little text`, `Pages under about ${THIN_WORDS} words rarely rank and give AI assistants little to quote.`, "Expand these pages with useful detail, or merge or remove them.", ex(thin.map((p) => `${path(p.url)} (${p.words} words)`)));
+  if (thin.length) add("seo", "low", "crawl-thin-content", `${thin.length} page${thin.length > 1 ? "s" : ""} have very little text`, `Pages under about ${THIN_WORDS} words rarely rank and give AI assistants little to quote.`, "Expand these pages with useful detail, or merge or remove them.", ex(thin.map((p) => `${path(p.url)} (${p.words} words)`)), { cols: ["Words"], rows: thin.map((p) => ({ url: p.url, cells: [String(p.words)] })) });
 
   const inMap = new Set(opts.sitemap.map((u) => u.replace(/\/$/, "")));
   const noindexMap = pages.filter((p) => p.noindex && inMap.has(p.url.replace(/\/$/, "")));
-  if (noindexMap.length) add("seo", "medium", "crawl-noindex-in-sitemap", `${noindexMap.length} page${noindexMap.length > 1 ? "s" : ""} in your sitemap are set to noindex`, "The sitemap asks search engines to index pages that are also telling them not to. That is a mixed signal.", "Remove these pages from the sitemap, or remove the noindex.", ex(noindexMap.map((p) => path(p.url))));
+  if (noindexMap.length) add("seo", "medium", "crawl-noindex-in-sitemap", `${noindexMap.length} page${noindexMap.length > 1 ? "s" : ""} in your sitemap are set to noindex`, "The sitemap asks search engines to index pages that are also telling them not to. That is a mixed signal.", "Remove these pages from the sitemap, or remove the noindex.", ex(noindexMap.map((p) => path(p.url))), only(noindexMap));
 
   // Orphans can only be judged when the whole sitemap was crawled.
   if (opts.sitemap.length > 0 && opts.sitemap.length <= MAX_PAGES) {
     const linked = new Set([...opts.linked, opts.home].map((u) => u.replace(/\/$/, "")));
     const orphans = opts.sitemap.filter((u) => !linked.has(u.replace(/\/$/, "")));
-    if (orphans.length) add("seo", "low", "crawl-orphan-pages", `${orphans.length} sitemap page${orphans.length > 1 ? "s are" : " is"} not linked from anywhere`, "Pages with no internal links are hard for visitors and search engines to find, and receive no link authority.", "Link to these pages from related pages or your navigation.", ex(orphans.map(path)));
+    if (orphans.length) add("seo", "low", "crawl-orphan-pages", `${orphans.length} sitemap page${orphans.length > 1 ? "s are" : " is"} not linked from anywhere`, "Pages with no internal links are hard for visitors and search engines to find, and receive no link authority.", "Link to these pages from related pages or your navigation.", ex(orphans.map(path)), { cols: [], rows: orphans.map((u) => ({ url: u, cells: [] })) });
   }
   out.push(...crawlDeepFindings(pages));
   return out;

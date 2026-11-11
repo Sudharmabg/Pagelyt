@@ -188,6 +188,13 @@ export async function latestScanForUser(userId: string): Promise<ScanRow | null>
   return rows[0] ?? null;
 }
 
+/** The signed-in person's newest finished report of one website, if any (shown while a rescan runs). */
+export async function latestScanForHost(userId: string, host: string): Promise<string | null> {
+  if (!live() || !/^[0-9a-f-]{36}$/i.test(userId)) return null;
+  const rows = await rest<{ id: string }[]>(`scans?user_id=eq.${encodeURIComponent(userId)}&host=eq.${encodeURIComponent(host)}&status=eq.done&result=not.is.null&order=created_at.desc&limit=1&select=id`);
+  return rows[0]?.id ?? null;
+}
+
 /* ---------- rate limit ---------- */
 /** True if the caller is within `limit` hits per `windowSec`. Records the hit.
     If the limiter itself is down it lets the request through, unless `failClosed` is set (used for sign-in and

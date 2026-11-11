@@ -8,7 +8,18 @@ export type Finding = {
   why: string;
   fix: string;
   evidence?: string;
+  /** Every affected page, for findings that list pages (the evidence above keeps only the first few). Reports saved
+      before this existed don't have it. `cols` names the columns after "Page"; each row's `cells` match them. */
+  pages?: PageTable;
 };
+
+export type PageTable = { cols: string[]; rows: { url: string; cells: string[] }[] };
+
+/** The evidence written out in full: every page when the finding has its table (for copying and CSV export). */
+export function evidenceText(f: Finding): string {
+  if (!f.pages?.rows.length) return f.evidence ?? "";
+  return f.pages.rows.map((r) => [r.url, ...r.cells].filter(Boolean).join(" — ")).join("\n");
+}
 
 export type ModuleKey = "health" | "performance" | "seo" | "geo" | "security" | "accessibility" | "domain" | "privacy";
 

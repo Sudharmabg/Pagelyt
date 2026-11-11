@@ -1,5 +1,5 @@
 import type { CheerioAPI } from "cheerio";
-import type { CrawlPage, Finding, ModuleKey, Severity } from "./types";
+import type { CrawlPage, Finding, ModuleKey, PageTable, Severity } from "./types";
 
 /* Deeper technical SEO: structured-data field validation, hreflang and pagination.
    Page-level checks run on the homepage (runChecks) and per crawled page (inspect), and the
@@ -178,32 +178,39 @@ const path = (u: string) => {
 
 export function crawlDeepFindings(pages: CrawlPage[]): Finding[] {
   const out: Finding[] = [];
-  const add = (severity: Severity, id: string, title: string, why: string, fix: string, evidence?: string) => out.push({ id, module: "seo", severity, title, why, fix, evidence });
+  const add = (severity: Severity, id: string, title: string, why: string, fix: string, evidence?: string, pages?: PageTable) => out.push({ id, module: "seo", severity, title, why, fix, evidence, ...(pages ? { pages } : {}) });
   const ok = pages.filter((p) => p.status >= 200 && p.status < 300);
   const byUrl = new Map(pages.map((p) => [norm(p.url), p]));
 
   // hreflang return links: if A lists B, B must list A. Only judged where both pages were crawled.
   const missing: string[] = [];
   const broken: string[] = [];
+  const missingRows = new Map<string, { url: string; cells: string[] }>();
+  const brokenRows = new Map<string, { url: string; cells: string[] }>();
   for (const a of ok) {
     for (const alt of a.alts ?? []) {
       if (norm(alt.href) === norm(a.url)) continue;
       const b = byUrl.get(norm(alt.href));
       if (!b) continue;
-      if (b.status === 0 || b.status >= 400) broken.push(`${path(a.url)} → ${path(b.url)} (${b.status || "no response"})`);
-      else if (b.alts && !b.alts.some((x) => norm(x.href) === norm(a.url))) missing.push(`${path(b.url)} does not link back to ${path(a.url)}`);
+      if (b.status === 0 || b.status >= 400) {
+        broken.push(`${path(a.url)} → ${path(b.url)} (${b.status || "no response"})`);
+        brokenRows.set(`${a.url} ${b.url}`, { url: a.url, cells: [path(b.url), b.status ? String(b.status) : "No response"] });
+      } else if (b.alts && !b.alts.some((x) => norm(x.href) === norm(a.url))) {
+        missing.push(`${path(b.url)} does not link back to ${path(a.url)}`);
+        missingRows.set(`${b.url} ${a.url}`, { url: b.url, cells: [path(a.url)] });
+      }
     }
   }
-  if (missing.length) add("medium", "hreflang-no-return", `${missing.length} hreflang link${missing.length > 1 ? "s have" : " has"} no return link`, "hreflang only works when every language version links to every other one. Without the return link Google ignores the pair.", "Make each page in a language set list all the others, including itself.", ex([...new Set(missing)]));
-  if (broken.length) add("medium", "hreflang-broken", `${broken.length} hreflang link${broken.length > 1 ? "s point" : " points"} to broken pages`, "Search engines drop hreflang annotations that lead to errors.", "Point hreflang links only at pages that load (status 200).", ex([...new Set(broken)]));
+  if (missing.length) add("medium", "hreflang-no-return", `${missing.length} hreflang link${missing.length > 1 ? "s have" : " has"} no return link`, "hreflang only works when every language version links to every other one. Without the return link Google ignores the pair.", "Make each page in a language set list all the others, including itself.", ex([...new Set(missing)]), { cols: ["Should link back to"], rows: [...missingRows.values()] });
+  if (broken.length) add("medium", "hreflang-broken", `${broken.length} hreflang link${broken.length > 1 ? "s point" : " points"} to broken pages`, "Search engines drop hreflang annotations that lead to errors.", "Point hreflang links only at pages that load (status 200).", ex([...new Set(broken)]), { cols: ["Links to", "Status"], rows: [...brokenRows.values()] });
 
   // Paginated pages that canonicalise to page 1 hide pages 2+ from search.
   const toFirst = ok.filter((p) => (pageNum(p.url) ?? 0) > 1 && p.canonicalUrl && norm(p.canonicalUrl) !== norm(p.url) && !PAGED.test(p.canonicalUrl));
-  if (toFirst.length) add("low", "pagination-canonical", `${toFirst.length} paginated page${toFirst.length > 1 ? "s" : ""} point their canonical to page 1`, "A canonical to the first page tells search engines that pages 2, 3 and on are duplicates, so products or posts listed only there may never be indexed.", "Give each paginated page a self-referencing canonical (page 2 canonicalises to page 2).", ex(toFirst.map((p) => `${path(p.url)} → ${path(p.canonicalUrl!)}`)));
+  if (toFirst.length) add("low", "pagination-canonical", `${toFirst.length} paginated page${toFirst.length > 1 ? "s" : ""} point their canonical to page 1`, "A canonical to the first page tells search engines that pages 2, 3 and on are duplicates, so products or posts listed only there may never be indexed.", "Give each paginated page a self-referencing canonical (page 2 canonicalises to page 2).", ex(toFirst.map((p) => `${path(p.url)} → ${path(p.canonicalUrl!)}`)), { cols: ["Canonical"], rows: toFirst.map((p) => ({ url: p.url, cells: [path(p.canonicalUrl!)] })) });
 
   // Structured data problems across crawled pages (the homepage is reported on its own).
   const withLd = ok.slice(1).filter((p) => p.ld && p.ld.length);
-  if (withLd.length) add(withLd.length > 3 ? "medium" : "low", "crawl-schema-incomplete", `${withLd.length} page${withLd.length > 1 ? "s have" : " has"} structured data missing required fields`, "Search engines only show rich results (prices, stars, event dates, FAQs) when the required fields are present.", "Fill in the missing fields listed below, then test a page in Google's Rich Results Test.", ex(withLd.map((p) => `${path(p.url)}: ${p.ld![0]}`), 4));
+  if (withLd.length) add(withLd.length > 3 ? "medium" : "low", "crawl-schema-incomplete", `${withLd.length} page${withLd.length > 1 ? "s have" : " has"} structured data missing required fields`, "Search engines only show rich results (prices, stars, event dates, FAQs) when the required fields are present.", "Fill in the missing fields listed below, then test a page in Google's Rich Results Test.", ex(withLd.map((p) => `${path(p.url)}: ${p.ld![0]}`), 4), { cols: ["Missing fields"], rows: withLd.map((p) => ({ url: p.url, cells: [p.ld!.join("; ")] })) });
   return out;
 }
 

@@ -35,7 +35,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 |---|---|---|
 | `index.ts` | `advanceScan`, `checkUrl`, `ScanError`, `Progress` | Stage orchestrator |
 | `labels.ts` | `STAGE_LABELS`, `TOTAL_STAGES`, `AREA_DONE_AT` | Stage names, and after how many stages each area's score is final (client-safe) |
-| `types.ts` | `ScanResult`, `Finding`, `Severity`, `ModuleKey`, `MODULE_NAMES`, `Vitals`, `CrawlSummary`, `DomainInfo`, `ChangeInfo` | Shared scan types |
+| `types.ts` | `ScanResult`, `Finding` (optional `pages`: every affected page, as a `PageTable`), `evidenceText` (full evidence for copy/CSV), `Severity`, `ModuleKey`, `MODULE_NAMES`, `Vitals`, `CrawlSummary`, `DomainInfo`, `ChangeInfo` | Shared scan types |
 | `fetcher.ts` | `safeFetch`, `normaliseUrl`, `isPrivateIp` | Edge-safe fetch with SSRF guards |
 | `checks.ts` | `runChecks`, `Ctx` | Main static page checks (robots, meta, SEO and more) |
 | `checks-extra.ts` | `extraChecks` | ARIA and keyboard, content and privacy checks |
@@ -143,7 +143,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 - `auth-link.tsx`: account control in the header.
 
 **Dashboard (`dashboard/`):**
-- `[id]/page.tsx`: server page. It shows `PendingDashboard` while the scan runs or the email code is missing, and `Dashboard` once the scan is done. `?new=1` means a signed-in visitor's fresh scan, saved to their account when it finishes.
+- `[id]/page.tsx`: server page. It shows `PendingDashboard` while the scan runs or the email code is missing, and `Dashboard` once the scan is done. `?new=1` means a signed-in visitor's fresh scan of a site they have no report for, saved to their account when it finishes. `?scan=<newId>` on an existing report means a rescan is running behind it (see `rescan.tsx`).
 - `pending.tsx` (`PendingDashboard`): the live scan in the dashboard layout. Area cards and sidebar go from "Checking…" to ✓ with their score, the overall ring builds from the finished areas, and a step list shows progress. It drives `stepScan`. While locked, the email code is asked for in a modal (`CodeModal`) over the live scan that cannot be closed.
 - `dashboard.tsx` (`Dashboard`): the main report.
   - The open section is `?view=` in the URL, via `history.pushState` and `useSearchParams`. Values: `overview`, `all`, the area keys, the insights (`speed`, `pages`, `images`, `tech`, `changes`) and the Grow sections (`monitor`, `ai`, `compare`, `share`, `tools`).
@@ -159,7 +159,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
   - `share-report.tsx`: the share modal, with a brand preview and an optional email to the client.
   - `save-site.tsx`: save the site with a schedule and alerts. `inline` shows it as a form instead of a drop-down.
   - `compare-button.tsx`: scan competitors.
-  - `rescan.tsx`: starts a fresh scan and opens its live dashboard with `?new=1`, so the result is saved to the account and the site.
+  - `rescan.tsx`: `RescanButton` runs a fresh scan in the background while the current report stays up (button reads "Scanning…"), saves it to the account, then opens the new report. Also runs a scan the home page started (`?scan=<id>`; `/api/scan` returns `prevId`, from `latestScanForHost` in `lib/scan/store.ts`).
 - `agency-modal.tsx`: the "are you an agency?" question, plus `useAccount` (plan and paid status).
 
 **Reports:**
@@ -168,7 +168,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 - `r/demo`: public sample.
 - `print/[id]`: print layout used for the PDF ("Prepared for").
 - `compare/[id]`: comparison page.
-- `findings.tsx`: plain-language findings list.
+- `findings.tsx`: plain-language findings list. A finding with `pages` shows them in a table under Technical details (first 10, then "Show all" in a 400px scroll box); older reports show the short evidence text.
 
 **Account:**
 - `account/`: plan and account details.

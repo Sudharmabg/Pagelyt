@@ -4,7 +4,7 @@ import { authConfigured } from "@/lib/gotrue";
 import { claimDomain, ownerOf } from "@/lib/owners";
 import { ScanError, TOTAL_STAGES, checkUrl } from "@/lib/scan";
 import { isPaid } from "@/lib/scan/agency";
-import { createScan, getSite, live, rateLimit, recentScanId, saveLead, validateLead } from "@/lib/scan/store";
+import { createScan, getSite, latestScanForHost, live, rateLimit, recentScanId, saveLead, validateLead } from "@/lib/scan/store";
 import { checkTicket } from "@/lib/ticket";
 
 const PER_HOUR = 10;
@@ -93,7 +93,9 @@ export async function POST(req: Request) {
     const cached = siteId || (user && body.fresh === true) ? null : await recentScanId(url.href, CACHE_SECONDS, ownerId);
     const id = cached ?? (await createScan({ url: url.href, host, userId: ownerId, siteId }));
     if (v) await saveLead(id, host, v.lead).catch(() => {}); // a lead-storage failure must not block the report
-    return Response.json({ id, host, total: TOTAL_STAGES, done: !!cached });
+    // A signed-in person who has scanned this site before keeps their last report on screen while the new one runs.
+    const prevId = user && !cached ? await latestScanForHost(user.id, host).catch(() => null) : null;
+    return Response.json({ id, host, total: TOTAL_STAGES, done: !!cached, prevId });
   } catch {
     return Response.json({ error: "Reports are temporarily unavailable. Please try again shortly." }, { status: 503 });
   }

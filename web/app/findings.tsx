@@ -5,7 +5,58 @@ import { useState } from "react";
 import { GUIDES } from "@/lib/scan/guides";
 import { findingKey } from "@/lib/scan/score";
 import { EFFORT_LABEL, effortOf } from "@/lib/scan/effort";
-import { MODULE_NAMES, type Finding, type Severity } from "@/lib/scan/types";
+import { evidenceText, MODULE_NAMES, type Finding, type PageTable, type Severity } from "@/lib/scan/types";
+
+const FIRST_ROWS = 10;
+
+const pathOf = (u: string) => {
+  try {
+    const x = new URL(u);
+    return x.pathname + x.search || "/";
+  } catch {
+    return u;
+  }
+};
+const safeHref = (u: string) => (/^https?:\/\//i.test(u) ? u : undefined);
+
+/* Every page a finding affects: the first 10, then all of them in a scrolling box. */
+function PagesTable({ t, title }: { t: PageTable; title: string }) {
+  const [all, setAll] = useState(false);
+  const rows = all ? t.rows : t.rows.slice(0, FIRST_ROWS);
+  const n = t.rows.length;
+  return (
+    <div className="fpt">
+      <div className={`fpt-wrap${all ? " all" : ""}`}>
+        <table>
+          <caption className="sr-only">Pages affected: {title}</caption>
+          <thead>
+            <tr>
+              <th scope="col" className="fpt-n">#</th>
+              <th scope="col">Page</th>
+              {t.cols.map((c) => <th scope="col" key={c}>{c}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={`${r.url}-${i}`}>
+                <td className="fpt-n">{i + 1}</td>
+                <td className="fpt-page">
+                  {safeHref(r.url) ? <a href={r.url} target="_blank" rel="noopener noreferrer nofollow">{pathOf(r.url)}</a> : pathOf(r.url)}
+                </td>
+                {r.cells.map((c, j) => <td key={j}>{c}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {n > FIRST_ROWS && (
+        <button type="button" className="fnd-link fpt-more" aria-expanded={all} onClick={() => setAll((v) => !v)}>
+          {all ? "Show fewer" : `Show all ${n} pages`}
+        </button>
+      )}
+    </div>
+  );
+}
 
 const LABEL: Record<Severity, string> = { high: "Important", medium: "Worth fixing", low: "Minor" };
 
@@ -38,7 +89,7 @@ function Item({
 
   const copyFix = async () => {
     try {
-      await navigator.clipboard.writeText(`${f.title}\nWhy it matters: ${f.why}\nHow to fix: ${f.fix}${f.evidence ? `\nEvidence: ${f.evidence}` : ""}`);
+      await navigator.clipboard.writeText(`${f.title}\nWhy it matters: ${f.why}\nHow to fix: ${f.fix}${evidenceText(f) ? `\nEvidence:${f.pages?.rows.length ? "\n" : " "}${evidenceText(f)}` : ""}`);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
@@ -70,7 +121,14 @@ function Item({
           {tech && (
             <div className="fb">
               <p><strong>How to fix.</strong> {f.fix}</p>
-              {f.evidence && <p className="ev"><strong>Evidence.</strong> <code>{f.evidence}</code></p>}
+              {f.pages?.rows.length ? (
+                <div className="fev">
+                  <p><strong>Pages affected ({f.pages.rows.length}).</strong></p>
+                  <PagesTable t={f.pages} title={f.title} />
+                </div>
+              ) : (
+                f.evidence && <p className="ev"><strong>Evidence.</strong> <code>{f.evidence}</code></p>
+              )}
               {GUIDES[f.id] && (
                 <Link className="fnd-link" href={`/fix/${f.id}`} target="_blank">
                   Step-by-step guide

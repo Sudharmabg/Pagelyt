@@ -7073,3 +7073,50 @@ html:not(.js) .pv-fix li { opacity: 1; transform: none; }
 /* Let the modal's grid shrink below an input's natural width (the spaced-out code box is wide), so nothing spills at phone widths. */
 .lead-modal .lm-body, .lead-modal form { grid-template-columns: minmax(0, 1fr); }
 .lead-modal input { min-width: 0; width: 100%; box-sizing: border-box; }
+
+/* Findings explorer: a full-width search with an icon, clear button and "/" hint; the filters scroll sideways in one row. */
+.explorer .fnd-tools { display: grid; grid-template-columns: minmax(0, 1fr); gap: .7rem; align-items: stretch; }
+.fnd-find { position: relative; display: flex; align-items: center; min-width: 0; }
+.fnd-find .fnd-ico { position: absolute; left: .95rem; color: #8a8174; pointer-events: none; }
+.fnd-find .fnd-search { flex: 1; width: 100%; min-width: 0; box-sizing: border-box; height: 44px; padding: 0 2.7rem 0 2.7rem; font-size: .95rem; border-radius: 12px; border: 1.5px solid #ddd5ca; background: #fff; transition: border-color .15s, box-shadow .15s; }
+.fnd-find .fnd-search::placeholder { color: #9a9184; }
+.fnd-find .fnd-search:hover { border-color: #c9bfb1; }
+.fnd-find .fnd-search:focus { outline: none; border-color: #7c5cd6; box-shadow: 0 0 0 3px rgba(124, 92, 214, .18); }
+.fnd-find .fnd-search::-webkit-search-cancel-button { display: none; }
+.fnd-find .fnd-clear { all: unset; position: absolute; right: .5rem; width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 1.25rem; line-height: 1; color: #6b6357; cursor: pointer; }
+.fnd-find .fnd-clear:hover { background: #f1ece5; color: #14202b; }
+.fnd-find .fnd-clear:focus-visible { outline: 2px solid #7c5cd6; outline-offset: 1px; }
+.explorer .fnd-chips { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; padding: 2px 2px 4px; margin: -2px -2px -4px;
+  -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+.explorer .fnd-chips::-webkit-scrollbar { display: none; }
+.explorer .fnd-chips button { flex: none; white-space: nowrap; scroll-snap-align: start; }
+.explorer .fnd-chips button:last-child { margin-right: 24px; }
+.fnd-sep { flex: none; width: 1px; align-self: stretch; margin: .2rem .15rem; background: #ddd5ca; }
+.dash.dark .fnd-find .fnd-search { background: var(--dk-card); border-color: var(--dk-line); color: var(--dk-ink); }
+.dash.dark .fnd-find .fnd-clear { color: var(--dk-ink); }
+.dash.dark .fnd-find .fnd-clear:hover { background: var(--dk-line); }
+.dash.dark .fnd-sep { background: var(--dk-line); }
+@media (max-width: 640px) { .fnd-find .fnd-search { font-size: 16px; } }
+
+
+/* Findings: the table of every affected page (first 10, then all in a scrolling box). */
+.fnd .fev { margin: .4rem 0 .2rem; }
+.fnd .fev > p { margin: 0 0 .45rem; }
+.fpt-wrap { border: 1px solid #e6dfd5; border-radius: 10px; overflow: auto; background: #fff; }
+.fpt-wrap.all { max-height: 400px; overscroll-behavior: contain; }
+.fpt table { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.fpt th { position: sticky; top: 0; z-index: 1; background: #f7f4ef; text-align: left; font-weight: 600; font-size: .78rem; text-transform: uppercase; letter-spacing: .03em; color: #6b6357; padding: .5rem .75rem; border-bottom: 1px solid #e6dfd5; white-space: nowrap; }
+.fpt td { padding: .45rem .75rem; border-bottom: 1px solid #f0ebe3; vertical-align: top; }
+.fpt tbody tr:last-child td { border-bottom: 0; }
+.fpt tbody tr:nth-child(even) td { background: #fbfaf7; }
+.fpt .fpt-n { width: 1%; color: #9a9184; font-variant-numeric: tabular-nums; text-align: right; }
+.fpt td:not(.fpt-page):not(.fpt-n) { font-variant-numeric: tabular-nums; }
+.fpt .fpt-page { word-break: break-all; min-width: 12ch; }
+.fpt .fpt-page a { color: inherit; text-decoration: underline; text-decoration-color: #cfc6b8; text-underline-offset: 2px; }
+.fpt .fpt-page a:hover { text-decoration-color: currentColor; }
+.fpt-more { margin-top: .5rem; }
+.dash.dark .fpt-wrap { background: var(--dk-card); border-color: var(--dk-line); }
+.dash.dark .fpt th { background: var(--dk-bg); color: var(--dk-ink); border-color: var(--dk-line); }
+.dash.dark .fpt td { border-color: var(--dk-line); }
+.dash.dark .fpt tbody tr:nth-child(even) td { background: transparent; }
+@media print { .fpt-wrap.all, .fpt-wrap { max-height: none; overflow: visible; } }

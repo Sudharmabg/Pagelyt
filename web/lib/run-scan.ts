@@ -7,12 +7,12 @@ import type { ModuleKey } from "./scan/types";
 export type StepInfo = { stage: number; total: number; done: boolean; label: string; areas: { key: ModuleKey; score: number }[] };
 
 /** Starts a scan without running it. The dashboard at /dashboard/<id> runs the stages and shows them live. */
-export async function beginScan(url: string, token: string, opts: { siteId?: string; purpose?: "compare"; fresh?: boolean } = {}): Promise<{ id: string; done: boolean } | { error: string; code?: string }> {
+export async function beginScan(url: string, token: string, opts: { siteId?: string; purpose?: "compare"; fresh?: boolean } = {}): Promise<{ id: string; done: boolean; prevId: string | null } | { error: string; code?: string }> {
   try {
     const auth = { authorization: `Bearer ${token}`, "content-type": "application/json" };
-    const start = (await (await fetch("/api/scan", { method: "POST", headers: auth, body: JSON.stringify({ url, siteId: opts.siteId, purpose: opts.purpose, fresh: opts.fresh }) })).json()) as { id?: string; done?: boolean; error?: string; code?: string };
+    const start = (await (await fetch("/api/scan", { method: "POST", headers: auth, body: JSON.stringify({ url, siteId: opts.siteId, purpose: opts.purpose, fresh: opts.fresh }) })).json()) as { id?: string; done?: boolean; prevId?: string | null; error?: string; code?: string };
     if (!start.id) return { error: start.error || "Scan failed.", code: start.code };
-    return { id: start.id, done: !!start.done };
+    return { id: start.id, done: !!start.done, prevId: start.prevId ?? null };
   } catch {
     return { error: "Could not reach the server. Please try again." };
   }

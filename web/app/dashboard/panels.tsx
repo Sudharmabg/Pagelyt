@@ -1,10 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Findings } from "../findings";
 import { findingKey, PENALTY, WEIGHTS } from "@/lib/scan/score";
 import { EFFORT_LABEL, quickWins } from "@/lib/scan/effort";
-import { MODULE_NAMES, type Finding, type PageWeight, type Severity, type Vitals, type VitalsRun } from "@/lib/scan/types";
+import { evidenceText, MODULE_NAMES, type Finding, type PageWeight, type Severity, type Vitals, type VitalsRun } from "@/lib/scan/types";
 import type { StoredScan } from "@/lib/scan/store";
 
 /* ------------------------------------------------------------------ */
@@ -23,6 +23,7 @@ export function FindingsExplorer({ findings, fixed, onToggleFixed, gains }: { fi
   const [sev, setSev] = useState<Severity | "all">("all");
   const [q, setQ] = useState("");
   const [hideFixed, setHideFixed] = useState(false);
+  const box = useRef<HTMLInputElement>(null);
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -40,13 +41,39 @@ export function FindingsExplorer({ findings, fixed, onToggleFixed, gains }: { fi
   return (
     <div className="explorer">
       <div className="fnd-tools">
-        <input className="fnd-search" type="search" placeholder="Search findings, e.g. “sitemap” or “email”" aria-label="Search findings" value={q} onChange={(e) => setQ(e.target.value)} />
-        <div className="fnd-chips" role="group" aria-label="Filter by priority">
+        <div className="fnd-find">
+          <svg className="fnd-ico" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-3.5-3.5" />
+          </svg>
+          <input
+            ref={box}
+            className="fnd-search"
+            type="search"
+            placeholder="Search findings, e.g. “sitemap” or “email”"
+            aria-label="Search findings"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape" && q) {
+                e.stopPropagation();
+                setQ("");
+              }
+            }}
+          />
+          {q && (
+            <button type="button" className="fnd-clear" aria-label="Clear search" onClick={() => { setQ(""); box.current?.focus(); }}>
+              ×
+            </button>
+          )}
+        </div>
+        <div className="fnd-chips" role="group" aria-label="Filter findings">
           {SEV.map((s) => (
             <button key={s.key} type="button" aria-pressed={sev === s.key} disabled={count(s.key) === 0} onClick={() => setSev(s.key)}>
               {s.label} <span>{count(s.key)}</span>
             </button>
           ))}
+          <i className="fnd-sep" aria-hidden="true" />
           <button type="button" aria-pressed={hideFixed} onClick={() => setHideFixed((v) => !v)}>
             Hide fixed
           </button>
@@ -109,7 +136,7 @@ export function ExportMenu({ scan, findings, fixed, pdfLabel, onPdf }: { scan: S
         flash("Copy blocked by the browser");
       }
     } else if (kind === "csv") {
-      const rows = [["Priority", "Area", "Issue", "Why it matters", "How to fix", "Evidence", "Fixed"], ...findings.map((f) => [f.severity, MODULE_NAMES[f.module], f.title, f.why, f.fix, f.evidence ?? "", fixed.has(findingKey(f)) ? "yes" : "no"])];
+      const rows = [["Priority", "Area", "Issue", "Why it matters", "How to fix", "Evidence", "Fixed"], ...findings.map((f) => [f.severity, MODULE_NAMES[f.module], f.title, f.why, f.fix, evidenceText(f), fixed.has(findingKey(f)) ? "yes" : "no"])];
       download(`${base}.csv`, "text/csv", rows.map((r) => r.map(csvCell).join(",")).join("\n"));
     } else {
       download(`${base}.json`, "application/json", JSON.stringify(scan, null, 2));

@@ -125,7 +125,9 @@ export default function Home() {
       // The dashboard runs the scan and shows each area as it finishes. A signed-in visitor's scan is theirs:
       // the dashboard saves it to their account when it's done (?new=1); a cached, finished scan is saved here.
       if (token && start.done) await fetch("/api/account/claim", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ scanId: start.id }) }).catch(() => {});
-      router.push(`/dashboard/${start.id}${token && !start.done ? "?new=1" : ""}`);
+      // A site they've scanned before: their last report stays up while the new scan runs behind it (?scan=).
+      if (token && !start.done && start.prevId) router.push(`/dashboard/${start.prevId}?scan=${start.id}`);
+      else router.push(`/dashboard/${start.id}${token && !start.done ? "?new=1" : ""}`);
       return null;
     } catch {
       return { error: "Could not reach the server. Please try again." };

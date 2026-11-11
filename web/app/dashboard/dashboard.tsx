@@ -629,7 +629,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           <button type="button" className="dash-btn kbd-btn" onClick={() => setPalette(true)} aria-label="Search and jump (Ctrl K)">
             Search <kbd>Ctrl K</kbd>
           </button>
-          {access === "owner" && <RescanButton url={scan.url} />}
+          {access === "owner" && <RescanButton url={scan.url} id={scan.id} running={params.get("scan")} />}
           <details className="xmenu">
             <summary className="dash-btn">{copied ? "Link copied" : "Share"} <span className="caret" aria-hidden="true">▾</span></summary>
             <div className="xmenu-pop" role="menu">
