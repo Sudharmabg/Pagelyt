@@ -144,7 +144,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 
 **Dashboard (`dashboard/`):**
 - `[id]/page.tsx`: server page. It shows `PendingDashboard` while the scan runs or the email code is missing, and `Dashboard` once the scan is done. `?new=1` means a signed-in visitor's fresh scan, saved to their account when it finishes.
-- `pending.tsx` (`PendingDashboard`): the live scan in the dashboard layout. Area cards and sidebar go from "Checking…" to ✓ with their score, the overall ring builds from the finished areas, and a step list shows progress. It drives `stepScan`. The email-code card sits on top while locked.
+- `pending.tsx` (`PendingDashboard`): the live scan in the dashboard layout. Area cards and sidebar go from "Checking…" to ✓ with their score, the overall ring builds from the finished areas, and a step list shows progress. It drives `stepScan`. While locked, the email code is asked for in a modal (`CodeModal`) over the live scan that cannot be closed.
 - `dashboard.tsx` (`Dashboard`): the main report.
   - The open section is `?view=` in the URL, via `history.pushState` and `useSearchParams`. Values: `overview`, `all`, the area keys, the insights (`speed`, `pages`, `images`, `tech`, `changes`) and the Grow sections (`monitor`, `ai`, `compare`, `share`, `tools`).
   - `INSIGHTS` and `GROW` define the sections. The sidebar is grouped as Findings, Areas, Insights and Grow.

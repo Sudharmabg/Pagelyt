@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { STAGE_LABELS } from "@/lib/scan/labels";
 import { overallScore } from "@/lib/scan/score";
 import { MODULE_NAMES, type ModuleKey } from "@/lib/scan/types";
@@ -15,6 +15,28 @@ import { Ring, tone } from "../ui";
 import { AreaIcon } from "./icons";
 
 type Area = { key: ModuleKey; score: number };
+
+/* The one-time email code, as a modal over the live scan. It can't be closed: the findings stay locked until the
+   code is in, and the scan keeps running behind it. */
+function CodeModal({ email, onVerified }: { email: string; onVerified: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (d && !d.open) d.showModal();
+  }, []);
+  return (
+    <dialog ref={ref} className="lead-modal" aria-labelledby="lock-h" onCancel={(e) => e.preventDefault()}>
+      <div className="lm-body lm-code">
+        <h2 id="lock-h">Verify your email</h2>
+        <p className="lm-sub">
+          We&rsquo;ve sent a 6-digit code to {email ? <strong>{email}</strong> : "the email you signed up with"}. Enter it to see the findings; your scan keeps running
+          meanwhile. You only need to do this once.
+        </p>
+        <CodeForm email={email} onVerified={onVerified} />
+      </div>
+    </dialog>
+  );
+}
 const KEYS = Object.keys(MODULE_NAMES) as ModuleKey[];
 
 /* The dashboard while a scan runs, in the dashboard's own layout: every area starts as "Checking…" and gets its
@@ -101,16 +123,7 @@ export function PendingDashboard({ id, host, status, locked, error, stage: stage
         </nav>
 
         <main className="dash-main">
-          {locked && (
-            <section className="dash-lock-card live-lock" aria-labelledby="lock-h">
-              <h1 id="lock-h">Verify your email to see the findings</h1>
-              <p>
-                We sent a 6-digit code to {email ? <strong>{email}</strong> : "the email you signed up with"}. Enter it below; the scan keeps running meanwhile. You only need
-                to do this once.
-              </p>
-              <CodeForm email={email} onVerified={verified} />
-            </section>
-          )}
+          {locked && <CodeModal email={email} onVerified={verified} />}
 
           <section className="dash-hero" aria-label="Scan progress">
             {overall === null ? <div className="live-ring" aria-hidden="true" /> : <Ring v={overall} size={132} stroke={13} text={String(overall)} />}

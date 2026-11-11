@@ -96,7 +96,7 @@ export function CodeForm({ email: known, sendFirst = false, onVerified }: { emai
       </label>
       {err && <p className="lm-err" role="alert">{err}</p>}
       {note && <p className="lm-fine" role="status">{note}</p>}
-      <button type="submit" className="btn" disabled={busy}>{busy ? "Checking…" : "Verify email"}</button>
+      <button type="submit" className="btn" disabled={busy}>{busy ? "Checking…" : "Verify Email"}</button>
       <p className="lm-fine">
         Didn&rsquo;t get it? Check spam, or{" "}
         <button type="button" className="lm-link" disabled={wait > 0} onClick={() => void resend()}>

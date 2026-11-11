@@ -5782,9 +5782,6 @@ button.fnd-link:disabled { opacity: .5; cursor: default; }
 .live-card.wait { color: #8a94a0; background: #fbf9f6; border-style: dashed; }
 .live-card.in { animation: live-pop .5s ease-out both; }
 .live-card.in .dc-n { color: #1a7f4e; font-weight: 700; opacity: 1; }
-.live-lock { background: #fff; border: 1px solid #e6dfd4; border-radius: 18px; padding: 1.5rem 1.75rem; display: grid; gap: .75rem; }
-.live-lock h1 { margin: 0; font-size: 1.4rem; }
-.live-lock p { margin: 0; }
 @keyframes live-pop { from { opacity: 0; transform: scale(.94); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .live-spin, .live-ring, .live-steps li.now .lm-mark { animation: none; } .live-card.in, .dash.live .dash-nav button.live-done b { animation: none; } }
 
@@ -7065,3 +7062,14 @@ html:not(.js) .pv-fix li { opacity: 1; transform: none; }
   .fgain-card, .fg-ic, .fcard, .fcard-pv-in { transition: none; }
   .fall-pill { animation: none; }
 }
+
+/* Auth modal actions: one full-width call to action, Cancel as a quiet centred link under it. */
+.lm-stack { display: grid; gap: .65rem; justify-items: center; margin-top: .25rem; }
+.lm-stack .btn, .lead-modal .lm-code form .btn { width: 100%; }
+.lead-modal .lm-code form { display: grid; gap: .9rem; }
+.lead-modal .lm-code .lm-fine { text-align: center; }
+.lm-cancel.lm-link { color: #55616d; font-weight: 500; font-size: .9rem; text-decoration: none; padding: .25rem .5rem; border-radius: 6px; }
+.lm-cancel.lm-link:hover { color: #14202b; text-decoration: underline; }
+/* Let the modal's grid shrink below an input's natural width (the spaced-out code box is wide), so nothing spills at phone widths. */
+.lead-modal .lm-body, .lead-modal form { grid-template-columns: minmax(0, 1fr); }
+.lead-modal input { min-width: 0; width: 100%; box-sizing: border-box; }

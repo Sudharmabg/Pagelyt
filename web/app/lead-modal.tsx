@@ -320,7 +320,14 @@ export function LeadModal({
   );
   const noteBox = note && <p className="lm-note" role="status">{note}</p>;
   const human = siteKey && <div ref={tsRef} className="lm-ts" />;
-  const cancel = <button type="button" className="btn ghost" onClick={onClose}>Cancel</button>;
+  const cancel = <button type="button" className="lm-link lm-cancel" onClick={onClose}>Cancel</button>;
+  /** One full-width call to action with Cancel as a quiet link under it. */
+  const actions = (primary: React.ReactNode) => (
+    <div className="lm-stack">
+      {primary}
+      {cancel}
+    </div>
+  );
 
   let content: React.ReactNode;
   if (notOwner) {
@@ -331,10 +338,7 @@ export function LeadModal({
           Each website can be scanned by one account. Log in with the account that registered <strong>{notOwner}</strong>, or prove you own the site and we&rsquo;ll move it to
           your account.
         </p>
-        <div className="lm-act">
-          {cancel}
-          <button type="button" className="btn" onClick={goClaim}>Prove I own it</button>
-        </div>
+        {actions(<button type="button" className="btn" onClick={goClaim}>Prove I Own It</button>)}
       </div>
     );
   } else if (busy) {
@@ -371,10 +375,7 @@ export function LeadModal({
         {errBox}
         {human}
         <p className="lm-fine">We use your details to deliver the report and follow up about Pagelyt. No spam.</p>
-        <div className="lm-act">
-          {cancel}
-          <button type="submit" className="btn">Get my report</button>
-        </div>
+        {actions(<button type="submit" className="btn">Get My Report</button>)}
       </form>
     );
   } else if (mode === null) {
@@ -384,10 +385,7 @@ export function LeadModal({
         {err ? (
           <>
             {errBox}
-            <div className="lm-act">
-              {cancel}
-              <button type="button" className="btn" onClick={() => { setErr(""); void lookUp(); }}>Try again</button>
-            </div>
+            {actions(<button type="button" className="btn" onClick={() => { setErr(""); void lookUp(); }}>Try Again</button>)}
           </>
         ) : (
           <p className="lm-sub" role="status">One moment while we look up this website.</p>
@@ -403,7 +401,7 @@ export function LeadModal({
           need to do this once.
         </p>
         <CodeForm email={email} sendFirst={resendCode} onVerified={verified} />
-        <div className="lm-act">{cancel}</div>
+        <div className="lm-stack">{cancel}</div>
       </div>
     );
   } else {
@@ -452,12 +450,11 @@ export function LeadModal({
         ) : (
           <p className="lm-fine">At least 8 characters. We&rsquo;ll email you a 6-digit code to confirm your address. No spam.</p>
         )}
-        <div className="lm-act">
-          {cancel}
+        {actions(
           <button type="submit" className="btn">
-            {tool ? (isLogin ? "Log in and run" : "Create account and run") : isLogin ? "Log in and see report" : mode === "claim" ? "Create account" : "Create account and see report"}
-          </button>
-        </div>
+            {tool ? (isLogin ? "Log In & Run" : "Create Account & Run") : isLogin ? "Log In & See Report" : mode === "claim" ? "Create Account" : "Create Account & See Report"}
+          </button>,
+        )}
         {isLogin && known && (
           <p className="lm-switch">
             Own {domain} but don&rsquo;t have the account?{" "}

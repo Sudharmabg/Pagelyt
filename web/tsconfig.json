@@ -37,7 +37,9 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts",
     ".next-share/types/**/*.ts",
-    ".next-share/dev/types/**/*.ts"
+    ".next-share/dev/types/**/*.ts",
+    ".next-auth/types/**/*.ts",
+    ".next-auth/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"
