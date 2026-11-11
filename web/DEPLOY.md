@@ -51,7 +51,7 @@ address; `www.pagelyt.dev` redirects to it.
    `concat("https://pagelyt.dev", http.request.uri.path)`, status 301, preserve query string.
 3. Build variable `NEXT_PUBLIC_SITE_URL=https://pagelyt.dev`, then redeploy (it is baked in at build time; canonical
    links, the sitemap, share links and PDF rendering all use it).
-4. *pagelyt.dev > Email > Email Routing*: forward `hello@pagelyt.dev` (the contact address on the site) to your inbox.
+4. *pagelyt.dev > Email > Email Routing*: add a routing rule forwarding `customer_care@pagelyt.dev` (the contact address on the site) to your inbox.
 5. Resend: add `pagelyt.dev` and its SPF/DKIM records (Email Routing's MX records can stay). Once *Verified*, set
    `EMAILS_ON=1` and follow **Password accounts** steps 3 to 5 with `pagelyt.dev` as the domain
    (SMTP sender `no-reply@pagelyt.dev`).
