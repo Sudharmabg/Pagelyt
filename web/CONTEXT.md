@@ -48,7 +48,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `visual.ts` | `visualDiff`, `textDiff`, `compareSnapshots`, `isBigChange`, `defacementChecks` | Visual change and defacement monitoring |
 | `score.ts` | `scoreModules`, `overallScore`, `finishedAreas`, `WEIGHTS`, `PENALTY`, `findingKey` | Scoring, including the area scores so far in a running scan (client-safe) |
 | `effort.ts` | `effortOf`, `quickWins` | Effort to fix each finding, and "quick wins" |
-| `guides.ts` | `GUIDES` | Fix guides keyed by finding id (used by `/fix/[id]`) |
+| `guides.ts` | `GUIDES`, `GUIDE_AREAS`, `GUIDE_ORDER` | Fix guides keyed by finding id (why, steps, verify, dev snippet, tool link); area order and display order for `/fix` |
 | `history.ts` | `siteHistory`, `previousSnap`, `toSnap` | Score history per saved site |
 | `alerts.ts` | `alertAfterScan` | Emails the owner when the score drops, a new high-severity issue appears, or the site changes |
 | `store.ts` | `live`, `rest`, `createScan`, `getScanRow`, `updateScan`, `saveLead`, `claimScansByEmail`, `saveSite`, `dueSites`, `scheduleSiteScan`, `setScanFixed`, `rateLimit` | Scans, leads and sites storage (Supabase REST) |
@@ -134,7 +134,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 
 **Core flow:**
 - `page.tsx` / `home.tsx`: the homepage; `home.tsx` runs the scan and then opens the dashboard.
-- `lead-modal.tsx` (`LeadModal`): the scan modal. The URL decides between login and signup. Also defines `ScanStart` and `ScanProblem`. After submitting, it only says "Opening your dashboard…"; the scan runs on the dashboard.
+- `lead-modal.tsx` (`LeadModal`): the scan modal. The URL decides between login and signup. Also defines `ScanStart` and `ScanProblem`. After submitting, it only says "Opening your dashboard…"; the scan runs on the dashboard. With the `tool` prop it is the tool sign-in modal: login if a session was saved before, otherwise signup, with no website lookup, and it hands back to the tool instead of opening the dashboard.
 - `code-form.tsx`: the 6-digit code form.
 - `login/`: password sign-in.
 - `check-email/`: entering the code later.
@@ -181,17 +181,27 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 **Marketing and content:**
 - `content.ts`: copy for nav, plans, FAQs, modules and sessions.
 - `features-data.ts`: features and homepage copy.
+- `features/feature-card.tsx`: `MOCKS` (each feature's dashboard mock), `FeatureGains` (the "What you get" numbered colour cards), `FeatureCard` (a related feature with a mini preview of its mock that pans on hover) and `AllFeaturesBanner` (the "See all features" banner). Used by /features and /features/[slug].
+- `reveal.tsx`: `RevealList`, an `<ol>` that gets `.armed` then `.in` when it scrolls into view; each list's CSS sets the animation.
 - `blog-data.ts` + `blog-posts-more.ts`: blog posts.
 - `blog/`: blog pages, with `rich.tsx` and `toc.tsx`.
 - `tools-list.ts`: list of free tools for the Features page, built from `tools/catalog.ts`.
 - `site-config.ts`: name, URL and contact.
 - Pages: `about`, `pricing`, `faq`, `features`, `fix`, `how-it-works`, `use-cases`, `consultation`, `contact`, `privacy`, `terms`, `tools`.
+- `/fix` is the fix guides directory (data in `lib/scan/guides.ts`, ItemList JSON-LD). `/fix?area=<module>` preselects an area chip.
+  - `fix/guide-browser.tsx`: `GuideBrowser`, search box, area chips (`.ga-*` tone classes) and guide cards per area (filtering only hides cards).
+  - `fix/[id]/page.tsx`: one guide: breadcrumb with area tag, "Why it matters", numbered steps, developer snippet, "Check it worked", tool button, related guides in the same area, previous/next. HowTo JSON-LD.
+  - `fix/copy-code.tsx`: `CopyCode`, the developer snippet with a copy button.
+- `chip-rail.tsx`: `ChipRail`, the horizontally scrolling filter chip row on /tools and /fix: arrow buttons and edge fades on the side with more, wheel scrolls sideways, mouse drag, keeps the pressed chip in view.
 - `/tools` is the directory of free tools, grouped by category. `/tools?scan=<id>` redirects to that report's `?view=tools`.
-- `/tools/[slug]` is one page per tool (title, description, "Why it matters", FAQ with FAQPage JSON-LD, related tools). The pages are public; using a tool needs sign-in.
+- `/tools/[slug]` is one page per tool: hero, the tool itself, "What you'll get" with an example result, a "How it works" timeline, "Why it matters" with icons, FAQ with FAQPage JSON-LD, related tools as `ToolCard`s, and `AllToolsBanner`. The pages are public; using a tool needs sign-in.
   - `tools/catalog.ts`: `TOOL_LIST`, `TOOLS_BY_SLUG`, `CATEGORIES`, `ToolSlug`. Every tool's slug, category, copy and FAQ, and `paid` for paid-only tools. Add a tool here first.
-  - `tools/tool-browser.tsx`: `ToolBrowser`, the /tools directory's search box, category chips and tool cards (filtering only hides cards).
+  - `tools/tool-browser.tsx`: `ToolBrowser`, the /tools directory: a big search box, sticky category chips, then a coloured header band and `ToolCard`s per category (filtering only hides cards).
   - `tools/icons.tsx`: `ToolIcon` (line icon per tool) and `TONE` (category colour class, `.tc-*`).
-  - `tools/tool-view.tsx`: `ToolView` picks the tool by slug. Signed out it shows a disabled preview with a sign-in prompt; signed in it pre-fills from the latest report.
+  - `tools/tool-view.tsx`: `ToolView` picks the tool by slug and always shows it live. Signed out, submitting the form or clicking a `data-gate` button (Copy, Download, Load) opens `LeadModal` with `tool`, then replays that action after sign-in. Signed in, it pre-fills from the latest report.
+  - `tools/tool-card.tsx`: `ToolCard` (one tool with its example result; used on the home page, /tools and "More free tools") and `AllToolsBanner` (the "Browse all tools" banner on tool pages).
+  - `tools/samples.tsx`: `SAMPLES` and `ToolSample`, an illustrative example result for each tool (rows, a code file or a search snippet). Used by the home featured tools and each tool page.
+  - `tools/tool-steps.tsx`: `ToolSteps`, the "How it works" timeline; a line draws across and the steps pop in when it scrolls into view.
   - `tools/tools.tsx`: the five generators (`Llms`, `Robots`, `Schema`, `Serp`, `Headers`, plus `Field`, `Output`) and `Tools`, the tabbed version used inside the dashboard (`embedded`).
   - `tools/checkers.tsx`: `AiBotChecker`, `RobotsTester`, `DomainAgeChecker`, `HreflangChecker`, `ReviewLink`, plus the shared `callTool`, `ErrorNote`, `Chip`.
   - `tools/checkers-bulk.tsx`: `BulkSchemaChecker` (paste URLs or load from sitemap), `SitemapGenerator` (browser-driven crawl with progress and Stop), `RenderedChecker` (paid). The bulk ones send batches to `/api/tools` so each request stays inside the Worker subrequest limit.
@@ -200,7 +210,9 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 - `site-chrome.tsx`: nav and footer.
 - `page-shell.tsx`: hero and CTA band.
 - `ui.tsx`: rings, sparklines and mock graphics.
-- `home-parts.tsx`, `home-extras.tsx`, `steps.tsx`: homepage sections.
+- `home-parts.tsx`, `home-extras.tsx`, `steps.tsx`: homepage sections. `home-extras.tsx` `TrustRow` is the dark band of four promises with glowing icons just above the footer.
+- `home-convert.tsx`: homepage conversion sections: `HeroTitle` (rotating keyword, full list as H1 text), `StatsBar` (product facts, count-up), `ProcessDraw` (timeline: a straight line draws across and three step cards with mini product previews pop in as it reaches them), `Compare` (us vs them table with the Pagelyt column as a raised purple card, ribbon and "Try it free" (`onGo`); one swipeable card per option on phones), `ToolGrid` (every tool as a card with an example result that replays on hover; category chips filter the grid), `Stories` (three illustrative outcome cards (no names or quotes) with before/after score bars that grow in; data in `home-data.ts` `STORIES`), `StickyCta` (phones).
+- `home-data.ts`: the copy for those sections (`ROTATOR`, `STATS`, `PROCESS`, `COMPARE`, `REVIEWS`, `FREE_TOOLS`). Pricing and FAQ live only on `/pricing` and `/faq`, not the home page. The reviews are samples: never mark them up as Review schema.
 - `art.tsx`, `arcs.tsx`, `arrow.tsx`: decorative art.
 - `main-cta.tsx`: `MainCta`, the site's main button. "Analyse My Website" for visitors, "Go to dashboard" (/dashboard) when signed in.
 - `welcome-back.tsx`: `WelcomeBack`, the signed-in bar above the home headline with the latest report and an Open dashboard button.

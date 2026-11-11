@@ -6,9 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Arcs, Funnel } from "./art";
-import { PLANS } from "./content";
-import { Glance, NumberedRows, RibbonFrame } from "./home-parts";
-import { AreaStrip, ToolsAndGuides, TrustRow } from "./home-extras";
+import { TrustRow } from "./home-extras";
+import { Compare, HeroTitle, ProcessDraw, StatsBar, StickyCta, Stories, ToolGrid } from "./home-convert";
 import { SiteFooter, SiteNav } from "./site-chrome";
 import { Sources } from "./sources";
 import { WelcomeBack } from "./welcome-back";
@@ -29,7 +28,7 @@ const BASE: ModScore[] = [
 
 const AUDIENCE = {
   biz: {
-    sub: "A free AI-powered website audit for SEO, page speed, security, accessibility and GEO (AI search). One clear score, with fixes ranked by impact.",
+    sub: "One clear score across eight areas, with every fix explained in plain English and ranked by impact. Nothing to install.",
     cta: "Analyse My Website",
     adv: [
       "Free to start, nothing to install",
@@ -149,7 +148,7 @@ export default function Home() {
         onChange={(e) => setUrl(e.target.value)}
       />
       <button className="btn" type="submit">
-        Analyse Website <Arrow />
+        Get free audit <Arrow />
       </button>
     </form>
   );
@@ -170,9 +169,7 @@ export default function Home() {
         <Arcs />
         <div className="container hero-stack">
           <WelcomeBack />
-          <h1 id="h1" data-r>
-            Audit your website. Fix what holds it back.
-          </h1>
+          <HeroTitle />
           <p className="sub" data-r style={{ ["--d" as string]: 1 }}>
             {copy.sub}
           </p>
@@ -190,11 +187,9 @@ export default function Home() {
             </p>
           </div>
 
-          <ul className="adv" aria-label="Why use Pagelyt" data-r style={{ ["--d" as string]: 3 }}>
-            {copy.adv.map((t) => (
-              <li key={t}>{t}</li>
-            ))}
-          </ul>
+          <div data-r style={{ ["--d" as string]: 3 }}>
+            <StatsBar />
+          </div>
 
 
           <div className="hero-prev2" data-r style={{ ["--d" as string]: 4 }}>
@@ -224,7 +219,7 @@ export default function Home() {
               readiness, security and accessibility, with fixes ranked by impact.
             </p>
           </div>
-          <NumberedRows />
+          <ProcessDraw />
         </div>
       </section>
 
@@ -235,81 +230,54 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 4. SKY SECTION: how it analyses, try it now, at a glance */}
+      {/* 4. SKY SECTION: how it analyses */}
       <section className="sec ice sky-sec" id="how" aria-labelledby="src-h">
         <Sources />
 
-        <div className="container try" id="try">
-          <RibbonFrame>
-            <h2 className="title" id="try-h">
-              Analyse your website now.
-            </h2>
-            <p className="lead">Paste a URL and see your report. Free to start, nothing to install.</p>
-            {renderForm("final-url")}
-            <p className="note">Prefer to talk it through? </p>
-            <div className="btn-row" style={{ justifyContent: "center", marginTop: 6 }}>
-              <Link className="btn ghost" href="/consultation">
-                Book a consultation
-              </Link>
-              <Link className="btn ghost" href="/how-it-works">
-                See how it works
-              </Link>
-            </div>
-          </RibbonFrame>
-        </div>
+      </section>
 
-        <div className="container" style={{ marginTop: "clamp(72px, 8vw, 120px)" }}>
+      {/* 5. FREE TOOLS */}
+      <section className="sec" id="tools" aria-labelledby="tools-h">
+        <div className="container">
           <div className="head-center" data-r>
-            <h2 className="title" id="glance-h">
-              Pagelyt at a glance.
+            <h2 className="title" id="tools-h">
+              Free SEO and AI search tools.
             </h2>
+            <p className="lead">See what AI assistants and search engines see, then fix it in minutes. Every tool is free with a Pagelyt account.</p>
           </div>
-          <Glance />
+          <ToolGrid />
         </div>
       </section>
 
-      <AreaStrip />
-      <ToolsAndGuides />
-
-      {/* 5. PRICING */}
-      <section className="sec" id="pricing" aria-labelledby="price-h">
+      {/* 6. US VS THEM */}
+      <section className="sec ice" id="compare" aria-labelledby="cmp-h">
         <div className="container">
-          <h2 className="title" id="price-h" data-r>
-            Simple, transparent pricing.
-          </h2>
-          <div className="plans" data-r>
-            {PLANS.map((p) => (
-              <div className={`plan${p.badge ? " pop" : ""}`} key={p.name}>
-                {p.badge && <span className="badge">Most popular</span>}
-                <p className="nm">{p.name[0] + p.name.slice(1).toLowerCase()}</p>
-                <p className="pc">
-                  {p.price}
-                  <small>{p.per}</small>
-                </p>
-                <p className="for">{p.for}</p>
-                <p className="hd">{p.head}</p>
-                <ul>
-                  {p.items.map((it) => (
-                    <li key={it}>{it}</li>
-                  ))}
-                </ul>
-                <button className={`btn${p.badge ? "" : " ghost"}`} onClick={goAnalyse}>
-                  {p.cta}
-                </button>
-              </div>
-            ))}
+          <div className="head-center" data-r>
+            <h2 className="title" id="cmp-h">
+              Why owners choose Pagelyt.
+            </h2>
+            <p className="lead">The depth of an agency audit, the speed of a tool, and none of the jargon.</p>
           </div>
-          <div className="price-cta">
-            <p>Free website analysis included. Paid plans are billed annually per website.</p>
-            <Link className="btn ghost" href="/pricing">
-              Compare all plans <Arrow />
-            </Link>
+          <Compare onGo={goAnalyse} />
+        </div>
+      </section>
+
+      {/* 7. TYPICAL OUTCOMES (illustrative cases, no customer names or quotes) */}
+      <section className="sec" id="reviews" aria-labelledby="rv-h">
+        <div className="container">
+          <div className="head-center" data-r>
+            <h2 className="title" id="rv-h">
+              What a clear report changes.
+            </h2>
+            <p className="lead">Three typical problems Pagelyt finds, and what fixing them can do for your scores.</p>
           </div>
+          <Stories />
         </div>
       </section>
 
       <TrustRow />
       <SiteFooter />
+      <StickyCta onGo={goAnalyse} />
     </main>
   );
 }

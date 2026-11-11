@@ -87,6 +87,7 @@ export function LeadModal({
   url,
   host,
   running = false,
+  tool,
   onClose,
   onSubmit,
 }: {
@@ -95,6 +96,9 @@ export function LeadModal({
   host: string;
   /** True when the parent is already scanning (signed-in visitors skip the form). */
   running?: boolean;
+  /** Set on a free tool's page: the modal only signs the visitor in (log in or sign up, with the email code if new),
+      then `onSubmit` runs the tool. No website lookup, no website taken by the new account, no dashboard. */
+  tool?: string;
   onClose: () => void;
   onSubmit: (start: ScanStart) => Promise<ScanProblem | null>;
 }) {
@@ -112,7 +116,8 @@ export function LeadModal({
   const [domain, setDomain] = useState(host);
   const [email, setEmail] = useState("");
   const [notOwner, setNotOwner] = useState(""); // signed in, but the website belongs to another account
-  const [afterCode, setAfterCode] = useState<"scan" | "claim">("scan"); // what happens once the email code is in
+  const [afterCode, setAfterCode] = useState<"scan" | "claim" | "tool">("scan"); // what happens once the email code is in
+  const [resendCode, setResendCode] = useState(false); // the code screen must send a fresh code (a login, not a sign-up)
   const tsRef = useRef<HTMLDivElement>(null);
   const tsId = useRef<string | undefined>(undefined);
   const token = useRef<string | undefined>(undefined);
@@ -124,7 +129,8 @@ export function LeadModal({
     setWasOpen(open);
     if (open) {
       setLegacy(!sb);
-      setMode(null);
+      // A tool needs no website lookup: a returning visitor (email saved on this device) starts at log in.
+      setMode(tool && sb ? (readSaved() ? "login" : "signup") : null);
       setKnown(false);
       setDomain(host);
       setEmail(sb ? readSaved() : "");
@@ -132,6 +138,8 @@ export function LeadModal({
       setNote("");
       setNotOwner("");
       setOpening(false);
+      setBusy(false);
+      setResendCode(false);
     }
   }
 
@@ -231,7 +239,8 @@ export function LeadModal({
       if (r.json.code === "unverified") {
         // The account never entered its email code: send a fresh one and ask for it here.
         setBusy(false);
-        setAfterCode("scan");
+        setAfterCode(tool ? "tool" : "scan");
+        setResendCode(true);
         return switchTo("code");
       }
       return fail(msg(r.json, "We couldn't log you in just now. Please try again."));
@@ -250,7 +259,7 @@ export function LeadModal({
     if (!pw.ok) return setErr(pw.error);
     setEmail(v.lead.email);
     setBusy(true);
-    const r = await post("/api/auth/signup", { ...v.lead, password: pw.value, url: claim ? undefined : url, claim, turnstile: await humanToken(), website: field(f, "website") });
+    const r = await post("/api/auth/signup", { ...v.lead, password: pw.value, url: claim || tool ? undefined : url, claim, turnstile: await humanToken(), website: field(f, "website") });
     if (r.status === 409 && (r.json.code === "exists" || r.json.code === "known")) {
       setBusy(false);
       freshHumanCheck();
@@ -264,9 +273,10 @@ export function LeadModal({
       if (claim) return goClaim();
       return scanAs(session, v.lead);
     }
-    if (claim) {
+    if (claim || tool) {
+      // The account must enter its email code here first; then it claims its site, or the tool runs.
       setBusy(false);
-      setAfterCode("claim");
+      setAfterCode(claim ? "claim" : "tool");
       return switchTo("code");
     }
     // The email still has to be confirmed: open the locked dashboard now; the scan runs there meanwhile.
@@ -330,7 +340,12 @@ export function LeadModal({
   } else if (busy) {
     // The scan itself runs on the dashboard, which shows each area as it finishes; this only covers the moment
     // before it opens.
-    content = (
+    content = tool ? (
+      <div className="lm-body">
+        <h2 id="lead-h">Signing you in…</h2>
+        <p className="lm-sub" role="status">The {tool} runs as soon as you&rsquo;re in.</p>
+      </div>
+    ) : (
       <div className="lm-body">
         <h2 id="lead-h">Opening your dashboard…</h2>
         <p className="lm-sub" role="status">
@@ -384,17 +399,23 @@ export function LeadModal({
       <div className="lm-body lm-code">
         <h2 id="lead-h">Verify your email</h2>
         <p className="lm-sub">
-          We&rsquo;ve sent a 6-digit code to <strong>{email}</strong>. Enter it to {afterCode === "claim" ? "finish creating your account" : `see the report for ${host}`}. You only
+          We&rsquo;ve sent a 6-digit code to <strong>{email}</strong>. Enter it to {afterCode === "claim" ? "finish creating your account" : afterCode === "tool" ? `run the ${tool}` : `see the report for ${host}`}. You only
           need to do this once.
         </p>
-        <CodeForm email={email} sendFirst={afterCode === "scan"} onVerified={verified} />
+        <CodeForm email={email} sendFirst={resendCode} onVerified={verified} />
         <div className="lm-act">{cancel}</div>
       </div>
     );
   } else {
     const isLogin = mode === "login";
     const title = isLogin ? "Welcome back" : mode === "claim" ? `Create an account to claim ${domain}` : "Create your free account";
-    const sub = isLogin ? (
+    const sub = tool ? (
+      isLogin ? (
+        <>Log in to run the <strong>{tool}</strong>.</>
+      ) : (
+        <>It&rsquo;s free, and every Pagelyt tool works with the same account. The <strong>{tool}</strong> runs as soon as you&rsquo;re in.</>
+      )
+    ) : isLogin ? (
       known ? (
         <><strong>{domain}</strong> is registered with Pagelyt. Log in with its account to see the report.</>
       ) : (
@@ -433,7 +454,9 @@ export function LeadModal({
         )}
         <div className="lm-act">
           {cancel}
-          <button type="submit" className="btn">{isLogin ? "Log in and see report" : mode === "claim" ? "Create account" : "Create account and see report"}</button>
+          <button type="submit" className="btn">
+            {tool ? (isLogin ? "Log in and run" : "Create account and run") : isLogin ? "Log in and see report" : mode === "claim" ? "Create account" : "Create account and see report"}
+          </button>
         </div>
         {isLogin && known && (
           <p className="lm-switch">

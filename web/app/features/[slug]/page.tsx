@@ -1,4 +1,3 @@
-import { Arrow } from "../../arrow";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -7,27 +6,9 @@ import { JsonLd, crumbLd, faqLd } from "../../json-ld";
 import { CtaBand, PageHero } from "../../page-shell";
 import { MainCta } from "../../main-cta";
 import { SiteFooter, SiteNav } from "../../site-chrome";
-import {
-  AiMock,
-  AnalyticsMock,
-  CompareMock,
-  HealthMock,
-  PerfMock,
-  SecA11yMock,
-  SeoGeoMock,
-  TimelineMock,
-} from "../../ui";
+import { AllFeaturesBanner, FeatureCard, FeatureGains, MOCKS } from "../feature-card";
 
-const MOCKS: Record<string, () => React.JSX.Element> = {
-  "website-health": HealthMock,
-  performance: PerfMock,
-  "seo-geo": SeoGeoMock,
-  "security-accessibility": SecA11yMock,
-  "competitor-intelligence": CompareMock,
-  "ai-recommendations": AiMock,
-  "monitoring-reports": TimelineMock,
-  "analytics-integrations": AnalyticsMock,
-};
+const WORDS: Record<number, string> = { 2: "Two", 3: "Three", 4: "Four", 5: "Five" };
 
 export function generateStaticParams() {
   return FEATURES.map((f) => ({ slug: f.slug }));
@@ -94,19 +75,18 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
           </div>
         </section>
 
-        <section className="sec ice" aria-labelledby="gain-h">
-          <div className="container">
-            <h2 className="title" id="gain-h">
-              What you get
-            </h2>
-            <div className="feat-grid">
-              {f.gains.map(([t, d]) => (
-                <div className="card" key={t}>
-                  <h3>{t}</h3>
-                  <p>{d}</p>
-                </div>
-              ))}
+        <section className="sec ice fgain-sec" aria-labelledby="gain-h">
+          <div className="container fgain">
+            <div className="fgain-intro">
+              <h2 className="title" id="gain-h">
+                What you get
+              </h2>
+              <p className="lead">
+                {WORDS[f.gains.length] ?? f.gains.length} ways {f.name} helps you run a better website, from your first scan.
+              </p>
+              <MainCta arrow />
             </div>
+            <FeatureGains f={f} />
           </div>
         </section>
 
@@ -126,16 +106,15 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
                 </details>
               ))}
             </div>
-            <h3 style={{ marginTop: 56, fontSize: 26 }}>Related features</h3>
-            <div className="related">
-              {related.map((r) => (
-                <Link className="ftile" href={`/features/${r.slug}`} key={r.slug}>
-                  <h3>{r.name}</h3>
-                  <p>{r.short}</p>
-                  <span className="go">Learn more <Arrow /></span>
-                </Link>
+            <h2 className="frel-h">Related features</h2>
+            <ul className="frel">
+              {related.map((r, i) => (
+                <li key={r.slug} style={{ ["--i" as string]: i }}>
+                  <FeatureCard f={r} />
+                </li>
               ))}
-            </div>
+            </ul>
+            <AllFeaturesBanner current={f.slug} />
           </div>
         </section>
 

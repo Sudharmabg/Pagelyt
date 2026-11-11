@@ -5,6 +5,13 @@ import { CtaBand, PageHero } from "../page-shell";
 import { SiteFooter, SiteNav } from "../site-chrome";
 import { CATEGORIES, TOOL_LIST } from "./catalog";
 import { ToolBrowser } from "./tool-browser";
+import { ToolSteps } from "./tool-steps";
+
+const STEPS: [string, string][] = [
+  ["Sign in free", "One account opens every tool. No card, nothing to install."],
+  ["Start from your report", "Scanned your site already? Tools fill in your site’s details for you."],
+  ["Copy the fix", "Each tool explains what it found and gives you the file or code to paste in."],
+];
 
 export const metadata: Metadata = {
   title: "Free SEO and AI Visibility Tools: robots.txt, llms.txt, hreflang, Schema and More",
@@ -24,9 +31,10 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
       <main>
         <PageHero h1="Free tools for a healthier website." lead="Quick checkers and generators for search engines, AI assistants and security. Free with a Pagelyt account.">
           <ul className="tstats" aria-label="At a glance">
-            <li><b>{TOOL_LIST.filter((t) => !t.paid).length}</b> free tools</li>
-            <li><b>{CATEGORIES.length}</b> categories</li>
-            <li><b>0</b> installs</li>
+            <li><b>{TOOL_LIST.filter((t) => !t.paid).length}</b><span>free tools</span></li>
+            <li><b>{CATEGORIES.length}</b><span>categories</span></li>
+            <li><b>0</b><span>installs</span></li>
+            <li><b>1</b><span>account for all</span></li>
           </ul>
         </PageHero>
         <section className="sec tdir-sec" aria-label="Free tools">
@@ -36,12 +44,10 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
         </section>
         <section className="sec ice tsteps-sec" aria-labelledby="tsteps-h">
           <div className="container">
-            <h2 className="title" id="tsteps-h">How the free tools work</h2>
-            <ol className="tsteps">
-              <li><b>Sign in free</b><span>One account opens every tool. No card, nothing to install.</span></li>
-              <li><b>Start from your report</b><span>Scanned your site already? Tools fill in your site&rsquo;s details for you.</span></li>
-              <li><b>Copy the fix</b><span>Each tool explains what it found and gives you the file or code to paste in.</span></li>
-            </ol>
+            <div className="tline-wrap tc-ai">
+              <h2 className="tline-h" id="tsteps-h">How the free tools work</h2>
+              <ToolSteps steps={STEPS} />
+            </div>
           </div>
         </section>
         <CtaBand title="Want to know what to fix first?" text="Run a free scan and get a prioritised list for your whole site." />

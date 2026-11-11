@@ -7,27 +7,7 @@ import { CtaBand, PageHero } from "../page-shell";
 import { SiteFooter, SiteNav } from "../site-chrome";
 import { FREE_TOOLS } from "../tools-list";
 import { MainCta } from "../main-cta";
-import {
-  AiMock,
-  AnalyticsMock,
-  CompareMock,
-  HealthMock,
-  PerfMock,
-  SecA11yMock,
-  SeoGeoMock,
-  TimelineMock,
-} from "../ui";
-
-const MOCKS: Record<string, () => React.ReactElement> = {
-  "website-health": HealthMock,
-  performance: PerfMock,
-  "seo-geo": SeoGeoMock,
-  "security-accessibility": SecA11yMock,
-  "competitor-intelligence": CompareMock,
-  "ai-recommendations": AiMock,
-  "monitoring-reports": TimelineMock,
-  "analytics-integrations": AnalyticsMock,
-};
+import { MOCKS } from "./feature-card";
 
 const REPLACES: [string, string][] = [
   ["Speed tester", "Performance and Core Web Vitals scores"],

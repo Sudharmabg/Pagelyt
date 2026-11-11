@@ -57,8 +57,8 @@ export function Output({ text, filename }: { text: string; filename: string }) {
       <div className="tout-bar">
         <span>{filename}</span>
         <span className="tout-act">
-          <button type="button" onClick={copy}>{done || "Copy"}</button>
-          <button type="button" onClick={save}>Download</button>
+          <button type="button" data-gate onClick={copy}>{done || "Copy"}</button>
+          <button type="button" data-gate onClick={save}>Download</button>
         </span>
       </div>
       <pre tabIndex={0} aria-label={`Generated ${filename}`}>{text}</pre>

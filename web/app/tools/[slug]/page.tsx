@@ -7,6 +7,9 @@ import { SiteFooter, SiteNav } from "../../site-chrome";
 import { TOOL_LIST, TOOLS_BY_SLUG, type ToolSlug } from "../catalog";
 import { TONE, ToolIcon } from "../icons";
 import { ToolView } from "../tool-view";
+import { ToolSample } from "../samples";
+import { ToolSteps } from "../tool-steps";
+import { AllToolsBanner, ToolCard } from "../tool-card";
 import { Arrow } from "../../arrow";
 
 const STEPS: Record<"checker" | "generator", [string, string][]> = {
@@ -21,6 +24,25 @@ const STEPS: Record<"checker" | "generator", [string, string][]> = {
     ["Copy or download", "Paste it into your site, or send it to your developer."],
   ],
 };
+
+/* "What you'll get", next to the example result. */
+const GET: Record<"checker" | "generator", { title: string; points: string[] }> = {
+  checker: {
+    title: "A clear answer in seconds.",
+    points: ["A pass, warning or fail for every check", "The evidence behind each result", "What to change, in plain English"],
+  },
+  generator: {
+    title: "A ready-to-use file, no code needed.",
+    points: ["A live preview as you fill it in", "Copy or download in one click", "Hand it to your developer, or paste it in yourself"],
+  },
+};
+
+/* One small line icon per "Why it matters" point (24px grid, currentColor). */
+const WHY_ICONS = [
+  <svg key="a" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z" /></svg>,
+  <svg key="b" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 17l6-6 4 4 8-8M15 7h6v6" /></svg>,
+  <svg key="c" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l8 3v6c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V6z" /><path d="M9 12l2 2 4-4" /></svg>,
+];
 
 export function generateStaticParams() {
   return TOOL_LIST.map((t) => ({ slug: t.slug }));
@@ -68,21 +90,45 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                 <small>{t.kind === "checker" ? "We fetch the site from our server" : "Runs in your browser"}</small>
               </div>
               <div className="tshell-body">
-                <ToolView slug={t.slug} />
+                <ToolView slug={t.slug} name={t.name} />
               </div>
             </div>
-            <ol className="tsteps compact" aria-label="How it works">
-              {STEPS[t.kind].map(([h, p]) => (
-                <li key={h}><b>{h}</b><span>{p}</span></li>
-              ))}
-            </ol>
+
+            <div className={`tget ${tone}`}>
+              <div className="tget-copy">
+                <span className="tget-eyebrow">What you&rsquo;ll get</span>
+                <h2>{GET[t.kind].title}</h2>
+                <ul>
+                  {GET[t.kind].points.map((p) => (
+                    <li key={p}>{p}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="tget-sample">
+                <span className="tget-tag">Example result</span>
+                <ToolSample slug={t.slug} />
+              </div>
+            </div>
+
+            <div className={`tline-wrap ${tone}`}>
+              <h2 className="tline-h">How it works</h2>
+              <ToolSteps steps={STEPS[t.kind]} />
+            </div>
           </div>
         </section>
-        <section className="sec tabout" aria-labelledby="tool-about-h">
+
+        <section className={`sec tabout ${tone}`} aria-labelledby="tool-about-h">
           <div className="container tabout-grid">
             <div>
               <h2 id="tool-about-h">Why it matters</h2>
-              {t.about.map((p) => <p key={p.slice(0, 24)}>{p}</p>)}
+              <ul className="twhy">
+                {t.about.map((p, i) => (
+                  <li key={p.slice(0, 24)}>
+                    <span className="twhy-ic" aria-hidden="true">{WHY_ICONS[i % WHY_ICONS.length]}</span>
+                    <p>{p}</p>
+                  </li>
+                ))}
+              </ul>
             </div>
             <div>
               <h2>Questions</h2>
@@ -98,20 +144,14 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
           </div>
           <div className="container">
             <h2 className="trel-h">More free tools</h2>
-            <ul className="tgrid2">
-              {related.map((r) => (
-                <li key={r.slug}>
-                  <Link href={`/tools/${r.slug}`} className={`tcard ${TONE[r.category]}`}>
-                    <span className="tcard-ic"><ToolIcon slug={r.slug} /></span>
-                    <span className="tcard-kind">{r.kind === "checker" ? "Checker" : "Generator"}{r.paid && " · Paid"}</span>
-                    <b>{r.name}</b>
-                    <span className="tcard-txt">{r.blurb}</span>
-                    <span className="tcard-go">Open tool <Arrow /></span>
-                  </Link>
+            <ul className="tf-feat trel-feat">
+              {related.map((r, i) => (
+                <li key={r.slug} style={{ ["--i" as string]: i }}>
+                  <ToolCard t={r} />
                 </li>
               ))}
             </ul>
-            <p className="tall"><Link href="/tools">See all {TOOL_LIST.length} tools <Arrow /></Link></p>
+            <AllToolsBanner />
           </div>
         </section>
         <CtaBand title="Want the full picture?" text="This tool checks one thing. A free Pagelyt scan checks speed, SEO, AI readiness, security and more, and tells you what to fix first." />

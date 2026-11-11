@@ -1,3 +1,5 @@
+import { TOOL_LIST } from "./tools/catalog";
+
 export const NAV = ["Product", "Features", "How It Works", "Pricing", "Resources", "About"];
 
 export const TRUST = [
@@ -422,6 +424,18 @@ export const FAQS: [string, string][] = [
   [
     "How does website analysis work?",
     "Simply enter your website URL. Pagelyt performs automated checks on publicly accessible website information and generates an intelligence report.",
+  ],
+  [
+    "What does the analysis check?",
+    "Website health, performance and Core Web Vitals, technical SEO, GEO (AI search) readiness, security, accessibility, domain and email setup, and privacy. Each finding shows the evidence and how to fix it.",
+  ],
+  [
+    "How is Pagelyt different from other SEO tools?",
+    "Most SEO tools give you raw data for one area. Pagelyt checks speed, SEO, AI search, security and accessibility in one scan, then explains each issue in plain English and ranks the fixes by impact.",
+  ],
+  [
+    "Are the free SEO tools really free?",
+    `Yes. ${TOOL_LIST.filter((t) => !t.paid).length} tools, including the llms.txt generator, AI bot checker and schema markup generator, are free with a Pagelyt account. Tools that render pages in a real browser need a paid plan.`,
   ],
   [
     "Is the initial website analysis free?",

@@ -111,7 +111,7 @@ export function BulkSchemaChecker({ ctx }: { ctx: Ctx }) {
         </Field>
         <div className="tload">
           <Field label="Or load them from a sitemap">{(id) => <input id={id} type="text" inputMode="url" placeholder="https://example.com" value={site} onChange={(e) => setSite(e.target.value)} />}</Field>
-          <button className="btn outline" type="button" onClick={load} disabled={!!busy}>{busy === "load" ? "Reading sitemap…" : "Load from sitemap"}</button>
+          <button className="btn outline" type="button" data-gate onClick={load} disabled={!!busy}>{busy === "load" ? "Reading sitemap…" : "Load from sitemap"}</button>
         </div>
         <button className="btn" type="submit" disabled={!!busy}>
           {busy === "run" ? `Checking ${rows?.length ?? 0} of ${total}…` : "Check structured data"}

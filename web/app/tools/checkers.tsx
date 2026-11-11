@@ -152,7 +152,7 @@ export function RobotsTester({ ctx }: { ctx: Ctx }) {
           {(id) => (
             <div className="tinline">
               <input id={id} type="text" inputMode="url" placeholder="https://example.com" value={site} onChange={(e) => setSite(e.target.value)} />
-              <button className="btn" type="button" onClick={load} disabled={busy || !site.trim()}>{busy ? "Loading…" : "Load"}</button>
+              <button className="btn" type="button" data-gate onClick={load} disabled={busy || !site.trim()}>{busy ? "Loading…" : "Load"}</button>
             </div>
           )}
         </Field>
