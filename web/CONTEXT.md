@@ -187,7 +187,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 - `blog/`: blog pages, with `rich.tsx` and `toc.tsx`.
 - `tools-list.ts`: list of free tools for the Features page, built from `tools/catalog.ts`.
 - `site-config.ts`: name, URL and contact.
-- Pages: `about`, `pricing`, `faq`, `features`, `fix`, `how-it-works`, `use-cases`, `consultation`, `contact`, `privacy`, `terms`, `tools`.
+- Pages: `about`, `pricing`, `faq`, `features`, `fix`, `how-it-works`, `use-cases`, `consultation`, `contact`, `privacy`, `terms`, `tools`, `bot` (what PagelytBot fetches; linked from the scanner user agent).
 - `/fix` is the fix guides directory (data in `lib/scan/guides.ts`, ItemList JSON-LD). `/fix?area=<module>` preselects an area chip.
   - `fix/guide-browser.tsx`: `GuideBrowser`, search box, area chips (`.ga-*` tone classes) and guide cards per area (filtering only hides cards).
   - `fix/[id]/page.tsx`: one guide: breadcrumb with area tag, "Why it matters", numbered steps, developer snippet, "Check it worked", tool button, related guides in the same area, previous/next. HowTo JSON-LD.

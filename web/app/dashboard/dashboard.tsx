@@ -772,7 +772,7 @@ function PrintCover({ scan, overall, modules, preparedFor }: { scan: StoredScan;
           <li key={m.key}><span>{m.name}</span><b>{m.score}</b></li>
         ))}
       </ul>
-      <p className="pc-foot">{scan.findings.length} findings · Automated checks, not a compliance certificate · pagelyt.com</p>
+      <p className="pc-foot">{scan.findings.length} findings · Automated checks, not a compliance certificate · pagelyt.dev</p>
     </section>
   );
 }

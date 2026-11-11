@@ -42,7 +42,7 @@ async function domainExpiry(domain: string): Promise<string | null> {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 4500);
   try {
-    const r = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, { signal: ctl.signal, headers: { "user-agent": "PagelytBot/0.1 (+https://pagelyt.com/bot)" } });
+    const r = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, { signal: ctl.signal, headers: { "user-agent": "PagelytBot/0.1 (+https://pagelyt.dev/bot)" } });
     if (!r.ok) return null;
     const j = (await r.json()) as { events?: { eventAction: string; eventDate: string }[] };
     return j.events?.find((e) => e.eventAction === "expiration")?.eventDate ?? null;

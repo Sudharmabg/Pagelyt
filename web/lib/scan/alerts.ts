@@ -37,7 +37,7 @@ export async function alertAfterScan(row: ScanRow, result: ScanResult): Promise<
 
   const to = await ownerEmail(site.user_id);
   if (!to) return;
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://pagelyt.com";
+  const origin = process.env.NEXT_PUBLIC_SITE_URL || "https://pagelyt.dev";
   const lines = [
     drop > 0 ? `Your score for ${result.host} went from ${prev.overall} to ${now.overall} (${-drop}).` : `Your score for ${result.host} is ${now.overall}.`,
     ...(newHigh.length ? ["", `New high-priority issue${newHigh.length > 1 ? "s" : ""}:`, ...newHigh.slice(0, 5).map((f) => `• ${f.title}`)] : []),
@@ -57,5 +57,5 @@ export async function alertAfterScan(row: ScanRow, result: ScanResult): Promise<
     "You get these emails because scheduled scans and alerts are on for this site. Change this under Account on Pagelyt.",
   ];
   const subject = newHigh.length ? `${result.host}: new high-priority issue found` : drop >= DROP_POINTS ? `${result.host}: score dropped ${drop} points` : `${result.host}: your homepage changed`;
-  await sendEmail({ from: process.env.ALERT_FROM ?? "Pagelyt <alerts@pagelyt.com>", to, subject, text: lines.join("\n") });
+  await sendEmail({ from: process.env.ALERT_FROM ?? "Pagelyt <alerts@pagelyt.dev>", to, subject, text: lines.join("\n") });
 }

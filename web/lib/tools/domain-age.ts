@@ -34,7 +34,7 @@ export async function domainAge(domain: string): Promise<DomainAge> {
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 8000);
   try {
-    const r = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, { signal: ctl.signal, headers: { accept: "application/rdap+json, application/json", "user-agent": "PagelytBot/0.1 (+https://pagelyt.com/bot)" } });
+    const r = await fetch(`https://rdap.org/domain/${encodeURIComponent(domain)}`, { signal: ctl.signal, headers: { accept: "application/rdap+json, application/json", "user-agent": "PagelytBot/0.1 (+https://pagelyt.dev/bot)" } });
     if (r.status === 404) return { ...empty, error: "Not registered, or the registry doesn't publish its records." };
     if (!r.ok) return { ...empty, error: `The registry didn't answer (${r.status}). Try again later.` };
     const j = (await r.json()) as Rdap;

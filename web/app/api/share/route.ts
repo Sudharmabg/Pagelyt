@@ -57,7 +57,7 @@ export async function POST(req: Request) {
 
 function reportEmail(o: { to: string; link: string; note: string; brand: Brand | null; host: string; score: number; sender: string | null; replyTo?: string }) {
   const name = headerName(o.brand?.name || o.sender || "") || "Pagelyt";
-  const from = `${name}${name === "Pagelyt" ? "" : " via Pagelyt"} <${process.env.REPORTS_FROM || "reports@pagelyt.com"}>`;
+  const from = `${name}${name === "Pagelyt" ? "" : " via Pagelyt"} <${process.env.REPORTS_FROM || "reports@pagelyt.dev"}>`;
   const color = o.brand && /^#[0-9a-fA-F]{6}$/.test(o.brand.color) ? o.brand.color : "#14202b";
   const subject = `Website report for ${o.host}`;
   const text = [

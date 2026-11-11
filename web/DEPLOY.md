@@ -33,13 +33,29 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
    npx wrangler secret put RESEND_API_KEY         # optional: alert and client report emails
    ```
    Emails stay off until you also set the variable `EMAILS_ON=1` (do that once the Resend domain is
-   verified). One switch covers score alerts (`ALERT_FROM`, default `Pagelyt <alerts@pagelyt.com>`) and
-   "Share branded report" emails to clients (`REPORTS_FROM`, default `reports@pagelyt.com`; the sender shows
+   verified). One switch covers score alerts (`ALERT_FROM`, default `Pagelyt <alerts@pagelyt.dev>`) and
+   "Share branded report" emails to clients (`REPORTS_FROM`, default `reports@pagelyt.dev`; the sender shows
    as "<Brand> via Pagelyt" and replies go to the brand's contact email, else the account email). Client
    emails: one address per send, 20 a day per account, 3 a day to the same address.
 6. **Build-time public variables** (Workers Builds > Settings > Variables, or `.env.local` locally):
    `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
    (the other `NEXT_PUBLIC_*` values are in `wrangler.jsonc`).
+
+## Domain (`pagelyt.dev`)
+
+The domain is registered with Cloudflare, so its DNS is already in the same account. `pagelyt.dev` is the main
+address; `www.pagelyt.dev` redirects to it.
+
+1. *Workers & Pages > pagelyt > Settings > Domains & Routes*: add custom domains `pagelyt.dev` and `www.pagelyt.dev`.
+2. *pagelyt.dev > Rules > Redirect Rules*: hostname equals `www.pagelyt.dev` → dynamic redirect to
+   `concat("https://pagelyt.dev", http.request.uri.path)`, status 301, preserve query string.
+3. Build variable `NEXT_PUBLIC_SITE_URL=https://pagelyt.dev`, then redeploy (it is baked in at build time; canonical
+   links, the sitemap, share links and PDF rendering all use it).
+4. *pagelyt.dev > Email > Email Routing*: forward `hello@pagelyt.dev` (the contact address on the site) to your inbox.
+5. Resend: add `pagelyt.dev` and its SPF/DKIM records (Email Routing's MX records can stay). Once *Verified*, set
+   `EMAILS_ON=1` and follow **Password accounts** steps 3 to 5 with `pagelyt.dev` as the domain
+   (SMTP sender `no-reply@pagelyt.dev`).
+6. Turnstile: add `pagelyt.dev` to the widget's hostnames.
 
 ## Admin panel (`/admin`)
 

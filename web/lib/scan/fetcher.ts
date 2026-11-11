@@ -117,7 +117,7 @@ async function once(url: URL, ua: string, o: Opts): Promise<Omit<FetchResult, "c
 
 /** `follow: false` returns the first response, redirects included, and spends only one subrequest. */
 export async function safeFetch(start: URL, opts: Opts = {}): Promise<FetchResult> {
-  const ua = opts.ua || "PagelytBot/0.1 (+https://pagelyt.com/bot)";
+  const ua = opts.ua || "PagelytBot/0.1 (+https://pagelyt.dev/bot)";
   if (blockedHost(start.hostname)) throw new Error("Blocked: address is not publicly routable");
   const chain: FetchResult["chain"] = [];
   let url = start;

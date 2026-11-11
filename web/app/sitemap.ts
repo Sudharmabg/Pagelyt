@@ -19,6 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "/faq",
     "/about",
     "/contact",
+    "/bot",
     "/privacy",
     "/terms",
     ...Object.keys(GUIDES).map((id) => `/fix/${id}`),
