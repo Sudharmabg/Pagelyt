@@ -149,10 +149,11 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
   - The open section is `?view=` in the URL, via `history.pushState` and `useSearchParams`. Values: `overview`, `all`, the area keys, the insights (`speed`, `pages`, `images`, `tech`, `changes`) and the Grow sections (`monitor`, `ai`, `compare`, `share`, `tools`).
   - `INSIGHTS` and `GROW` define the sections. The sidebar is grouped as Findings, Areas, Insights and Grow.
   - Every section except the overview has a sticky "← Back to overview" button (`.back-btn`) and Previous / Next links (`.dash-pn`).
-  - Header: Search, Rescan, Share ▾, Export ▾, More ▾.
-  - The Overview has a "Do more with this report" strip (`.do-more`). `pitchFor` writes each card's headline from this report (open findings, AI readiness score, findings a free tool fixes, whether the site is saved) and ranks them; the most relevant is shown large (`.dm-top`). The radar ("Shape of your site") and the progress panel were removed from the Overview; `ComparePanel` now only appears under Changes & history.
+  - Header: Search, Rescan, Share, Export, More. Share, Export and More each open an `ActionModal` (`action-modal.tsx`) of option tiles; Share also shows the report link with a Copy button.
+  - The Overview has a "From this scan" card per insight section (headline number from `sectionStats`) and a "Do more with this report" list of action rows (`.do-more`). `pitchFor` writes each row's headline, short line and button verb from this report and ranks them. Insight and area headers show `sectionStats` as a stat row, with Why it matters folded (`WhyItMatters`). Colours come from the `--d-*` tokens on `.dash` (redefined for `.dash.dark`), in the "Dashboard refresh" block at the end of globals.css.
   - `useSiteId` finds the saved site, for the AI visibility link.
-- `panels.tsx`: `FindingsExplorer`, `ExportMenu` (PDF, checklist, CSV and JSON), `VitalsPanel`, `CrawlPanel`, `ImagesPanel`, `QuickWins`, `ChangePanel`, `ComparePanel`, `DomainPanel`, `TechPanel`, `HowScores`, `useHistory`.
+- `panels.tsx`: `FindingsExplorer`, `ExportTiles` (PDF, checklist, CSV and JSON tiles for the Export modal), `VitalsPanel` (plain-English summary, loading timeline, metric cards with a scale and a "what this means" panel), `useInView`, `CrawlPanel`, `ImagesPanel`, `QuickWins`, `ChangePanel`, `ComparePanel`, `DomainPanel`, `TechPanel`, `HowScores`, `useHistory`.
+- `action-modal.tsx`: `ActionModal` (a `<dialog>` with title and tile grid; a bottom sheet on phones) and `Tile`.
 - `extras.tsx`: `CommandPalette`, `useShortcuts`, `ShortcutHelp`.
 - `icons.tsx`: `AreaIcon` and `IconKey`, covering the areas plus the section icons.
 - Used inside the sections:

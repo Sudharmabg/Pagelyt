@@ -11,6 +11,7 @@ import { AreaIcon, type IconKey } from "./icons";
 import { SaveSite } from "./save-site";
 import { ShareReport } from "./share-report";
 import { RescanButton } from "./rescan";
+import { ActionModal, Tile } from "./action-modal";
 import { AGENCY_UPSELL, AgencyModal, useAccount } from "./agency-modal";
 import { CompareButton } from "./compare-button";
 import { downloadPdf } from "@/lib/download-pdf";
@@ -18,7 +19,7 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 import { firstName, useSignedInUser } from "@/lib/use-signed-in";
 import { AuthLink } from "../auth-link";
 import { CommandPalette, ShortcutHelp, useShortcuts, type Cmd } from "./extras";
-import { ComparePanel, DomainPanel, ExportMenu, FindingsExplorer, CrawlPanel, ChangePanel, HowScores, ImagesPanel, QuickWins, TechPanel, VitalsPanel, useHistory, type Snap } from "./panels";
+import { ComparePanel, DomainPanel, ExportTiles, FindingsExplorer, CrawlPanel, ChangePanel, HowScores, ImagesPanel, QuickWins, TechPanel, VitalsPanel, useHistory, type Snap } from "./panels";
 import type { StoredScan } from "@/lib/scan/store";
 import { TOOL_FIXES, toolContext, type ToolId } from "@/lib/scan/tools-context";
 import { Tools } from "../tools/tools";
@@ -210,41 +211,81 @@ const GROW: Section[] = [
 const SECTIONS = new Map<string, Section>([...INSIGHTS, ...GROW].map((s) => [s.id, s]));
 const PAID_ONLY = new Set<Extra>(["ai", "compare", "share"]);
 const OWNER_ONLY = new Set<Extra>(["monitor", "ai", "compare", "share"]);
-const closeMenu = (el: HTMLElement) => el.closest("details")?.removeAttribute("open");
 
 const TOOL_NAMES: Record<ToolId, string> = { llms: "llms.txt", robots: "robots.txt", schema: "structured data", serp: "search snippets", headers: "security headers" };
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
-/* "Do more" cards written for this report: a headline from its own numbers, and how relevant it is right now
-   (the most relevant card is shown large). */
-type Pitch = { hook: string; text: string; weight: number };
+/* "Do more" rows written for this report: a headline from its own numbers, a short line, a verb for the button,
+   and how relevant it is right now (most relevant first). */
+type Pitch = { hook: string; text: string; cta: string; weight: number };
 function pitchFor(id: Extra, r: { open: Finding[]; high: number; overall: number; modules: { key: ModuleKey; score: number }[]; saved: boolean; prev: boolean }): Pitch {
   const score = (k: ModuleKey) => r.modules.find((m) => m.key === k)?.score ?? 100;
   switch (id) {
     case "monitor":
-      if (r.saved) return { hook: "This site is saved", text: "Choose how often it rescans, and get an email if it goes down or a score drops.", weight: 1 };
-      if (r.high) return { hook: `${plural(r.high, "important issue")} to fix`, text: "Save the site and it rescans on a schedule, so you can see each fix land and catch anything that breaks again.", weight: 4 };
-      return { hook: r.prev ? "Stop rescanning by hand" : "Know the moment something breaks", text: "Save the site for scheduled rescans, uptime checks and email alerts.", weight: 3 };
+      if (r.saved) return { hook: "This site is saved", text: "Pick a rescan schedule and alerts.", cta: "Set alerts", weight: 1 };
+      if (r.high) return { hook: `${plural(r.high, "important issue")} to fix`, text: "Rescan weekly to confirm each fix lands.", cta: "Save & monitor", weight: 4 };
+      return { hook: r.prev ? "Stop rescanning by hand" : "Know the moment something breaks", text: "Scheduled rescans, uptime checks, email alerts.", cta: "Save & monitor", weight: 3 };
     case "ai": {
       const g = score("geo");
-      if (g < 80) return { hook: `AI readiness is ${g}/100`, text: "See whether ChatGPT, Claude and Perplexity mention this site when people ask about its field, and who they name instead.", weight: (80 - g) / 10 + 1 };
-      return { hook: `AI readiness is ${g}/100`, text: "The site is easy for AI to read. Check whether ChatGPT, Claude and Perplexity actually mention and cite it.", weight: 1.5 };
+      return { hook: `AI readiness is ${g}/100`, text: g < 80 ? "Find out if ChatGPT mentions you." : "See whether AI assistants cite you.", cta: "Check AI answers", weight: g < 80 ? (80 - g) / 10 + 1 : 1.5 };
     }
     case "compare":
-      return { hook: `Your site scores ${r.overall}. How do rivals do?`, text: "Scan up to three competitors and see, area by area, where they are ahead and where you are.", weight: 2 };
+      return { hook: `You score ${r.overall}. How do rivals do?`, text: "Line up three competitors, area by area.", cta: "Compare now", weight: 2 };
     case "share":
-      return { hook: r.open.length ? `${plural(r.open.length, "open finding")} to hand over` : "A clean report to show off", text: "Send this report under your own logo and colours, by link or straight to your client's inbox.", weight: 1 };
+      return { hook: r.open.length ? `${plural(r.open.length, "open finding")} to hand over` : "A clean report to show off", text: "Your logo, by link or straight to their inbox.", cta: "Send report", weight: 1 };
     case "tools": {
       const ids = new Set(r.open.map((f) => f.id));
       const tools = (Object.keys(TOOL_FIXES) as ToolId[]).filter((t) => TOOL_FIXES[t].some((x) => ids.has(x)));
       const n = r.open.filter((f) => tools.some((t) => TOOL_FIXES[t].includes(f.id))).length;
-      if (n) return { hook: `${plural(n, "finding")} ${n === 1 ? "has" : "have"} a free fix`, text: `Ready-made ${andList(tools.map((t) => TOOL_NAMES[t]))}, pre-filled for this site. Copy, paste, rescan.`, weight: 2 + n };
-      return { hook: "Free generators", text: "llms.txt, robots.txt, structured data, search snippets and security headers, pre-filled for this site.", weight: 0.5 };
+      if (n) return { hook: `${plural(n, "finding")} ${n === 1 ? "has" : "have"} a free fix`, text: `Ready-made ${andList(tools.map((t) => TOOL_NAMES[t]))}.`, cta: "Generate fixes", weight: 2 + n };
+      return { hook: "Free generators", text: "llms.txt, robots.txt, schema and more.", cta: "Open tools", weight: 0.5 };
     }
     default:
-      return { hook: "", text: "", weight: 0 };
+      return { hook: "", text: "", cta: "Open", weight: 0 };
   }
+}
+
+/* The key numbers of each insight section, for its Overview card and the stat row in its header. */
+type Stat = { value: string; label: string; tone?: "good" | "ok" | "bad" };
+const mb = (n: number) => (n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)} MB` : `${Math.round(n / 1000)} KB`);
+const scoreTone = (n: number): Stat["tone"] => (n >= 80 ? "good" : n >= 50 ? "ok" : "bad");
+function sectionStats(id: Extra, scan: StoredScan, prev: Snap | null, scans: number): Stat[] {
+  const out: Stat[] = [];
+  if (id === "speed") {
+    const v = scan.vitals;
+    if (v?.mobile?.score != null) out.push({ value: String(v.mobile.score), label: "phone speed score", tone: scoreTone(v.mobile.score) });
+    if (v?.mobile?.lcp != null) out.push({ value: `${(v.mobile.lcp / 1000).toFixed(1)} s`, label: "until the main content shows on a phone", tone: v.mobile.lcp <= 2500 ? "good" : v.mobile.lcp <= 4000 ? "ok" : "bad" });
+    if (v?.desktop?.score != null) out.push({ value: String(v.desktop.score), label: "desktop speed score", tone: scoreTone(v.desktop.score) });
+  } else if (id === "pages") {
+    const c = scan.crawl;
+    if (c) {
+      out.push({ value: String(c.pages), label: c.pages === 1 ? "page crawled" : "pages crawled" });
+      out.push({ value: String(c.broken), label: c.broken === 1 ? "broken page" : "broken pages", tone: c.broken ? "bad" : "good" });
+      if (c.sitemapUrls) out.push({ value: String(c.sitemapUrls), label: "addresses in the sitemap" });
+    }
+  } else if (id === "images") {
+    const im = scan.images;
+    if (im) {
+      const big = im.probed.filter((p) => (p.bytes ?? 0) > 300_000).length;
+      out.push({ value: String(im.count), label: im.pages && im.pages > 1 ? `images across ${im.pages} pages` : "images found" });
+      out.push({ value: String(big), label: big === 1 ? "image over 300 KB" : "images over 300 KB", tone: big ? "bad" : "good" });
+    }
+    if (scan.vitals?.weight?.images != null) out.push({ value: mb(scan.vitals.weight.images), label: "of images on the homepage", tone: scan.vitals.weight.images > 1_500_000 ? "bad" : scan.vitals.weight.images > 700_000 ? "ok" : "good" });
+  } else if (id === "tech") {
+    const exp = scan.domain?.expires ? Math.round((Date.parse(scan.domain.expires) - Date.parse(scan.scannedAt)) / 86_400_000) : null;
+    if (exp != null && Number.isFinite(exp)) out.push({ value: String(exp), label: exp === 1 ? "day until the domain expires" : "days until the domain expires", tone: exp < 30 ? "bad" : exp < 90 ? "ok" : "good" });
+    if (scan.links) out.push({ value: String(scan.links.broken), label: `broken of ${scan.links.checked} links checked`, tone: scan.links.broken ? "bad" : "good" });
+    if (scan.tech?.length) out.push({ value: String(scan.tech.length), label: "technologies spotted" });
+  } else if (id === "changes") {
+    if (prev) {
+      const d = scan.overall - prev.overall;
+      out.push({ value: d > 0 ? `+${d}` : String(d), label: "points since the last scan", tone: d > 0 ? "good" : d < 0 ? "bad" : undefined });
+    } else out.push({ value: "1st", label: "scan of this site" });
+    if (scan.change?.visual != null) out.push({ value: `${scan.change.visual}%`, label: "of the homepage looks different", tone: scan.change.visual > 40 ? "ok" : undefined });
+    if (scans > 1) out.push({ value: String(scans), label: "scans on record" });
+  }
+  return out;
 }
 
 export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan: StoredScan; history?: Snap[]; savedFixed?: string[] | null; shots?: { now: string | null; prev: string | null }; canEmail?: boolean }) {
@@ -282,16 +323,15 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     return () => window.clearTimeout(t);
   }, []);
 
-  // A click anywhere else closes an open header menu.
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      document.querySelectorAll<HTMLDetailsElement>(".dash-top details.xmenu[open]").forEach((d) => {
-        if (!d.contains(e.target as Node)) d.removeAttribute("open");
-      });
-    };
-    document.addEventListener("mousedown", onDown);
-    return () => document.removeEventListener("mousedown", onDown);
-  }, []);
+  // Share, Export and More open as modals; the browser's share sheet is offered where it exists (phones).
+  const [modal, setModal] = useState<null | "share" | "export" | "more">(null);
+  const [canShare, setCanShare] = useState(false);
+  const [reportUrl, setReportUrl] = useState(""); // read when the modal opens (there is no window on the server)
+  const openShare = () => {
+    setCanShare("share" in navigator);
+    setReportUrl(`${window.location.origin}${window.location.pathname}`);
+    setModal("share");
+  };
 
   const keyed = useMemo(() => scan.findings.map((f) => ({ f, k: findingKey(f) })), [scan.findings]);
   const fixedCount = keyed.filter((x) => fixed.has(x.k)).length;
@@ -397,10 +437,11 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     if (kind === "mail") window.location.href = `mailto:?subject=${msg}&body=${href}`;
     else window.open(`https://wa.me/?text=${msg}%20${href}`, "_blank", "noopener,noreferrer");
   };
-  const go = (v: View) => (e: React.MouseEvent<HTMLElement>) => {
-    closeMenu(e.currentTarget);
+  const go = (v: View) => () => {
+    setModal(null);
     setView(v);
   };
+  const nativeShare = () => void navigator.share?.({ title: `Website report for ${scan.host}`, text: `${scan.host} scores ${scan.overall}/100`, url: reportUrl }).catch(() => {});
 
   const navBtn = (v: View, icon: IconKey, label: string, badge?: React.ReactNode) => (
     <button key={v} type="button" aria-current={view === v} onClick={() => setView(v)}>
@@ -409,6 +450,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     </button>
   );
 
+  const statsOf = (id: Extra) => sectionStats(id, scan, prev, points.length);
   const hero = (s: Section, extra?: React.ReactNode) => (
     <section className="dash-hero sec-hero" aria-label={s.label}>
       <span className="sec-ico"><AreaIcon k={s.icon} size={28} /></span>
@@ -416,7 +458,17 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
         <p className="dash-eyebrow">{groupOf(s.id)}{needsPlan(s.id) && <span className="plan-badge">Paid plans</span>}</p>
         <h1>{s.label}</h1>
         <p>{s.text}</p>
-        <p className="sec-why"><b>Why it matters:</b> {WHY[s.id]}</p>
+        {statsOf(s.id).length > 0 && (
+          <ul className="sec-stats" aria-label="Key numbers">
+            {statsOf(s.id).map((st, i) => (
+              <li key={st.label} className={st.tone ? `st-${st.tone}` : undefined} style={{ ["--i" as string]: i }}>
+                <b>{st.value}</b>
+                <span>{st.label}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        <WhyItMatters text={WHY[s.id]} />
         {extra}
       </div>
     </section>
@@ -514,29 +566,45 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           <h2 id="do-more-h">Do more with this report</h2>
           <ul>
             {pitches.map(({ g, p }, i) => (
-              <li key={g.id} className={i === 0 ? "dm-top" : undefined}>
+              <li key={g.id} style={{ ["--i" as string]: i }}>
                 <button type="button" onClick={() => setView(g.id)}>
-                  <span className="dm-ico"><AreaIcon k={g.icon} size={i === 0 ? 26 : 20} /></span>
-                  <span className="dm-label">{g.label}{needsPlan(g.id) && <span className="plan-badge">Paid plans</span>}</span>
-                  <b className="dm-hook">{p.hook}</b>
-                  <span className="dm-text">{p.text}</span>
-                  <span className="dm-go" aria-hidden="true">{i === 0 ? `Open ${g.label} →` : "Open →"}</span>
+                  <span className={`dm-ico dm-${g.id}`}><AreaIcon k={g.icon} size={20} /></span>
+                  <span className="dm-txt">
+                    <b className="dm-hook">{p.hook}{needsPlan(g.id) && <span className="plan-badge">Paid plans</span>}</b>
+                    <span className="dm-text">{p.text}</span>
+                  </span>
+                  <span className="dm-cta">{p.cta} <span aria-hidden="true">→</span></span>
                 </button>
               </li>
             ))}
           </ul>
         </section>
 
-        <ul className="insight-links" aria-label="More from this scan">
-          {INSIGHTS.map((s) => (
-            <li key={s.id}>
-              <button type="button" onClick={() => setView(s.id)}>
-                <AreaIcon k={s.icon} size={18} />
-                {s.label} <span aria-hidden="true">→</span>
-              </button>
-            </li>
-          ))}
-        </ul>
+        <section className="insights" aria-labelledby="ins-h">
+          <h2 id="ins-h">From this scan</h2>
+          <ul>
+            {INSIGHTS.map((s, i) => {
+              const [main, sub] = statsOf(s.id);
+              return (
+                <li key={s.id} style={{ ["--i" as string]: i }}>
+                  <button type="button" className={main?.tone ? `ins-${main.tone}` : undefined} onClick={() => setView(s.id)}>
+                    <span className="ins-top">
+                      <span className="ins-ico"><AreaIcon k={s.icon} size={18} /></span>
+                      <span className="ins-name">{s.label}</span>
+                      <span className="ins-go" aria-hidden="true">→</span>
+                    </span>
+                    {main ? (
+                      <span className="ins-stat"><b>{main.value}</b> {main.label}</span>
+                    ) : (
+                      <span className="ins-stat ins-none">Not measured in this scan</span>
+                    )}
+                    {sub && <span className={`ins-sub${sub.tone ? ` st-${sub.tone}` : ""}`}>{sub.value} {sub.label}</span>}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
         <HowScores />
       </>
     );
@@ -550,7 +618,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
             <p className="dash-eyebrow">{MODULE_NAMES[area]}</p>
             <h1>{mod.score >= 80 ? "Looking good" : mod.score >= 50 ? "Needs work" : "Needs attention"}</h1>
             <p>{BLURB[area]}</p>
-            <p className="sec-why"><b>Why it matters:</b> {WHY[area]}</p>
+            <WhyItMatters text={WHY[area]} />
             <p className="dash-sub">
               {inModule.length === 0
                 ? "No issues found in this area."
@@ -635,6 +703,45 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     <div className={`dash${intro ? " intro" : ""}`}>
       <CommandPalette open={palette} onClose={() => setPalette(false)} cmds={cmds} />
       <ShortcutHelp open={help} onClose={() => setHelp(false)} />
+      <ActionModal
+        open={modal === "share"}
+        onClose={() => setModal(null)}
+        icon="share"
+        title="Share this report"
+        sub={`Anyone with the link sees the ${scan.host} report${canEdit ? " (view only: they can't tick findings or rescan)" : ""}.`}
+        top={
+          <div className="am-link">
+            <input readOnly value={reportUrl} aria-label="Report link" onFocus={(e) => e.currentTarget.select()} />
+            <button type="button" className={`dash-btn primary${copied ? " ok" : ""}`} onClick={() => void copy()}>{copied ? "Copied ✓" : "Copy link"}</button>
+          </div>
+        }
+      >
+        {canShare && <Tile icon="device" title="Share from this device" text="Messages, Slack, AirDrop or any app on your phone or computer." onClick={nativeShare} />}
+        <Tile icon="mail" title="Email" text="Opens your email app with the link and score filled in." onClick={() => shareOut("mail")} />
+        <Tile icon="chat" title="WhatsApp" text="Send the link and score in a WhatsApp chat." onClick={() => shareOut("wa")} />
+        {owner && <Tile icon="share" title="Branded report for a client" text="Your logo and colours, by link or straight to their inbox." onClick={go("share")} badge={needsPlan("share") ? "Paid plans" : undefined} tone="accent" />}
+      </ActionModal>
+      <ActionModal open={modal === "export"} onClose={() => setModal(null)} icon="download" title="Export this report" sub="Take the findings with you, or hand them to whoever does the fixing.">
+        <ExportTiles
+          scan={scan}
+          findings={scan.findings}
+          fixed={fixed}
+          pdfBusy={pdfBusy}
+          pdfLabel={pdfBusy ? "Preparing PDF…" : access === "owner" && acct?.paid ? "Download PDF" : "Save as PDF"}
+          pdfText={access === "owner" && acct?.paid ? "A branded PDF of the whole report, made on our servers." : "Opens your browser's print window; choose Save as PDF."}
+          onPdf={() => {
+            setModal(null);
+            void pdf();
+          }}
+        />
+      </ActionModal>
+      <ActionModal open={modal === "more"} onClose={() => setModal(null)} icon="dots" title="More you can do" sub="Tools that build on this report, and shortcuts for moving around it.">
+        {pitches.map(({ g, p }) => (
+          <Tile key={g.id} icon={g.icon} title={g.label} text={p.hook} onClick={go(g.id)} badge={needsPlan(g.id) ? "Paid plans" : undefined} />
+        ))}
+        <Tile icon="search" title="Search the report" text="Jump to any area, finding or action (Ctrl K)." onClick={() => { setModal(null); setPalette(true); }} />
+        <Tile icon="keyboard" title="Keyboard shortcuts" text="Move through findings and tick them off without the mouse." onClick={() => { setModal(null); setHelp(true); }} />
+      </ActionModal>
       <PrintCover scan={scan} overall={potential} modules={modules} preparedFor={ownerName} />
       {party && <Confetti />}
       {access === "owner" && acct && acct.accountType === null && <AgencyModal onAnswered={setAcct} />}
@@ -666,27 +773,9 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
             Search <kbd>Ctrl K</kbd>
           </button>
           {access === "owner" && <RescanButton url={scan.url} id={scan.id} running={params.get("scan")} />}
-          <details className="xmenu">
-            <summary className="dash-btn">{copied ? "Link copied" : "Share"} <span className="caret" aria-hidden="true">▾</span></summary>
-            <div className="xmenu-pop" role="menu">
-              <button type="button" role="menuitem" onClick={(e) => { closeMenu(e.currentTarget); void copy(); }}>Copy link</button>
-              {owner && <button type="button" role="menuitem" onClick={go("share")}>Branded report for a client…</button>}
-              <hr />
-              <button type="button" role="menuitem" onClick={(e) => { closeMenu(e.currentTarget); shareOut("mail"); }}>Share by email</button>
-              <button type="button" role="menuitem" onClick={(e) => { closeMenu(e.currentTarget); shareOut("wa"); }}>Share on WhatsApp</button>
-            </div>
-          </details>
-          <ExportMenu scan={scan} findings={scan.findings} fixed={fixed} pdfLabel={pdfBusy ? "Preparing PDF…" : access === "owner" && acct?.paid ? "Download PDF" : "Print / save as PDF"} onPdf={() => void pdf()} />
-          <details className="xmenu">
-            <summary className="dash-btn">More <span className="caret" aria-hidden="true">▾</span></summary>
-            <div className="xmenu-pop" role="menu">
-              {grow.map((g) => (
-                <button key={g.id} type="button" role="menuitem" onClick={go(g.id)}>{g.label}</button>
-              ))}
-              <hr />
-              <button type="button" role="menuitem" onClick={(e) => { closeMenu(e.currentTarget); setHelp(true); }}>Keyboard shortcuts</button>
-            </div>
-          </details>
+          <button type="button" className="dash-btn ico-btn" onClick={openShare}><AreaIcon k="share" size={16} />Share</button>
+          <button type="button" className="dash-btn ico-btn" onClick={() => setModal("export")}><AreaIcon k="download" size={16} />{pdfBusy ? "Preparing PDF…" : "Export"}</button>
+          <button type="button" className="dash-btn ico-btn" onClick={() => setModal("more")}><AreaIcon k="dots" size={16} />More</button>
           <Link href="/" className="dash-btn primary">
             Scan another site
           </Link>
@@ -765,6 +854,16 @@ function useSiteId(host: string, enabled: boolean) {
     };
   }, [host, enabled]);
   return id;
+}
+
+/* "Why it matters", folded to one line until opened. */
+function WhyItMatters({ text }: { text: string }) {
+  return (
+    <details className="sec-why">
+      <summary>Why it matters</summary>
+      <p>{text}</p>
+    </details>
+  );
 }
 
 /* Tiny stacked bar: how many important / worth-fixing / minor items are still open in an area. */

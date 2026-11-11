@@ -6,6 +6,7 @@ import { findingKey, PENALTY, WEIGHTS } from "@/lib/scan/score";
 import { EFFORT_LABEL, quickWins } from "@/lib/scan/effort";
 import { evidenceText, MODULE_NAMES, type Finding, type PageWeight, type Severity, type Vitals, type VitalsRun } from "@/lib/scan/types";
 import type { StoredScan } from "@/lib/scan/store";
+import { Tile } from "./action-modal";
 
 /* ------------------------------------------------------------------ */
 /* Explorer: search + severity filter over every finding               */
@@ -111,13 +112,14 @@ function download(name: string, mime: string, body: string) {
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-/* "Export ▾": PDF, the fix checklist and raw data. Sharing lives in the dashboard's own "Share ▾" menu. */
-export function ExportMenu({ scan, findings, fixed, pdfLabel, onPdf }: { scan: StoredScan; findings: Finding[]; fixed: Set<string>; pdfLabel: string; onPdf: () => void }) {
-  const [note, setNote] = useState("");
-  const flash = (m: string) => {
-    setNote(m);
-    window.setTimeout(() => setNote(""), 2000);
+/* The Export modal's tiles: PDF, the fix checklist and raw data. Sharing has its own modal in the dashboard. */
+export function ExportTiles({ scan, findings, fixed, pdfLabel, pdfText, onPdf, pdfBusy }: { scan: StoredScan; findings: Finding[]; fixed: Set<string>; pdfLabel: string; pdfText: string; onPdf: () => void; pdfBusy?: boolean }) {
+  const [done, setDone] = useState<"" | "copy" | "csv" | "json" | "copy-fail">("");
+  const flash = (k: typeof done) => {
+    setDone(k);
+    window.setTimeout(() => setDone(""), 2200);
   };
+  const open = findings.filter((f) => !fixed.has(findingKey(f))).length;
   const checklist = () =>
     [
       `# Website fixes for ${scan.host}`,
@@ -131,39 +133,27 @@ export function ExportMenu({ scan, findings, fixed, pdfLabel, onPdf }: { scan: S
     if (kind === "copy") {
       try {
         await navigator.clipboard.writeText(checklist());
-        flash("Checklist copied");
+        flash("copy");
       } catch {
-        flash("Copy blocked by the browser");
+        flash("copy-fail");
       }
     } else if (kind === "csv") {
       const rows = [["Priority", "Area", "Issue", "Why it matters", "How to fix", "Evidence", "Fixed"], ...findings.map((f) => [f.severity, MODULE_NAMES[f.module], f.title, f.why, f.fix, evidenceText(f), fixed.has(findingKey(f)) ? "yes" : "no"])];
       download(`${base}.csv`, "text/csv", rows.map((r) => r.map(csvCell).join(",")).join("\n"));
+      flash("csv");
     } else {
       download(`${base}.json`, "application/json", JSON.stringify(scan, null, 2));
+      flash("json");
     }
-    (document.activeElement as HTMLElement | null)?.closest("details")?.removeAttribute("open");
   };
 
   return (
-    <details className="xmenu">
-      <summary className="dash-btn">{note || "Export"} <span className="caret" aria-hidden="true">▾</span></summary>
-      <div className="xmenu-pop" role="menu">
-        <button
-          type="button"
-          role="menuitem"
-          onClick={() => {
-            (document.activeElement as HTMLElement | null)?.closest("details")?.removeAttribute("open");
-            onPdf();
-          }}
-        >
-          {pdfLabel}
-        </button>
-        <hr />
-        <button type="button" role="menuitem" onClick={() => run("copy")}>Copy fix checklist</button>
-        <button type="button" role="menuitem" onClick={() => run("csv")}>Download CSV</button>
-        <button type="button" role="menuitem" onClick={() => run("json")}>Download JSON</button>
-      </div>
-    </details>
+    <>
+      <Tile icon="pdf" title={pdfLabel} text={pdfText} onClick={onPdf} busy={pdfBusy} tone="accent" />
+      <Tile icon="check" title="Copy fix checklist" text={`${open} open fix${open === 1 ? "" : "es"} as a to-do list, ready to paste into Notion, Trello or an email.`} onClick={() => void run("copy")} done={done === "copy" ? "Copied to your clipboard" : done === "copy-fail" ? "Your browser blocked copying" : undefined} />
+      <Tile icon="table" title="Download CSV" text="Every finding with priority, fix and evidence, for Excel or Google Sheets." onClick={() => void run("csv")} done={done === "csv" ? "Downloaded" : undefined} />
+      <Tile icon="code" title="Download JSON" text="The full raw report, for developers and your own tools." onClick={() => void run("json")} done={done === "json" ? "Downloaded" : undefined} />
+    </>
   );
 }
 
@@ -321,30 +311,155 @@ function Spark({ values }: { values: number[] }) {
 type Grade = "good" | "ok" | "poor";
 const grade = (v: number | null, good: number, poor: number): Grade | null => (v == null ? null : v <= good ? "good" : v <= poor ? "ok" : "poor");
 const sec = (ms: number | null) => (ms == null ? "–" : `${(ms / 1000).toFixed(1)} s`);
+const GRADE_TEXT: Record<Grade, string> = { good: "Good", ok: "Needs work", poor: "Poor" };
 
-function Metric({ label, hint, value, g }: { label: string; hint: string; value: string; g: Grade | null }) {
+/** True once the element has scrolled into view (and stays true), for bars and scales that fill in on arrival. */
+export function useInView<T extends Element>(): [React.RefCallback<T>, boolean] {
+  const [seen, setSeen] = useState(false);
+  const ref = useCallback((el: T | null) => {
+    if (!el) return;
+    if (typeof IntersectionObserver === "undefined") return setSeen(true);
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) {
+          setSeen(true);
+          io.disconnect();
+        }
+      },
+      { threshold: 0.2 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+  return [ref, seen];
+}
+
+type MetricKey = "lcp" | "fcp" | "cls" | "tbt" | "inp";
+/* Each metric in everyday words: what it measures, the thresholds Google uses, and the usual fix. */
+const METRIC: Record<MetricKey, { name: string; abbr: string; what: string; fix: string; good: number; poor: number; max: number; fmt: (v: number) => string }> = {
+  fcp: { name: "First thing appears", abbr: "FCP", what: "When the first text or image shows up. Until then, visitors look at a blank screen and some give up.", fix: "Move or defer the CSS and scripts in the page's head that hold up drawing, and serve the page from a CDN with caching.", good: 1800, poor: 3000, max: 4500, fmt: (v) => sec(v) },
+  lcp: { name: "Main content appears", abbr: "LCP", what: "When the biggest thing on screen (usually the hero image or main headline) has loaded. This is the moment visitors feel the page is ready.", fix: "Compress and resize the hero image, preload it, and make the server answer faster.", good: 2500, poor: 4000, max: 6000, fmt: (v) => sec(v) },
+  cls: { name: "Layout jumps", abbr: "CLS", what: "How much things move around while the page loads. A button that jumps just as someone taps makes them hit the wrong thing.", fix: "Give every image and embed a width and height, and reserve space for banners, ads and cookie bars.", good: 0.1, poor: 0.25, max: 0.4, fmt: (v) => v.toFixed(2) },
+  tbt: { name: "Frozen time", abbr: "TBT", what: "How long the page ignores taps and scrolling while JavaScript runs during loading.", fix: "Remove scripts you don't use, load chat widgets and trackers after the page, and split large JavaScript bundles.", good: 200, poor: 600, max: 1000, fmt: (v) => `${Math.round(v)} ms` },
+  inp: { name: "Reaction to taps", abbr: "INP", what: "How long real visitors wait between tapping or clicking and seeing the page respond.", fix: "Break long JavaScript tasks into smaller pieces and do less work when buttons are clicked.", good: 200, poor: 500, max: 800, fmt: (v) => `${Math.round(v)} ms` },
+};
+
+/** Good / needs work / poor bands with a marker where this value sits. */
+function Scale({ k, v, on }: { k: MetricKey; v: number; on: boolean }) {
+  const m = METRIC[k];
+  const pct = (x: number) => Math.min(100, (x / m.max) * 100);
   return (
-    <div className={`vm vm-${g ?? "na"}`} title={hint}>
-      <span className="vm-l">{label}</span>
-      <b>{value}</b>
-      <span className="vm-g">{g === "good" ? "Good" : g === "ok" ? "Needs work" : g === "poor" ? "Poor" : ""}</span>
+    <span className="vs" aria-hidden="true">
+      <span className="vs-band good" style={{ width: `${pct(m.good)}%` }} />
+      <span className="vs-band ok" style={{ width: `${pct(m.poor) - pct(m.good)}%` }} />
+      <span className="vs-band poor" />
+      <i className="vs-mark" style={{ left: on ? `${Math.min(pct(v), 98.5)}%` : "0%" }} />
+    </span>
+  );
+}
+
+function Metric({ k, v, field, on }: { k: MetricKey; v: number | null; field?: boolean; on: boolean }) {
+  const m = METRIC[k];
+  const [open, setOpen] = useState(false);
+  const g = grade(v, m.good, m.poor);
+  return (
+    <div className={`vm vm-${g ?? "na"}${open ? " open" : ""}`}>
+      <button type="button" className="vm-btn" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <span className="vm-l">
+          {m.name} <abbr>{m.abbr}</abbr>
+        </span>
+        <b>{v == null ? "–" : m.fmt(v)}</b>
+        <span className="vm-g">{g ? GRADE_TEXT[g] : "Not measured"}</span>
+        {v != null && <Scale k={k} v={v} on={on} />}
+        <span className="vm-more">
+          {open ? "Hide" : "What this means"} <span aria-hidden="true">{open ? "▴" : "▾"}</span>
+        </span>
+      </button>
+      {open && (
+        <div className="vm-info">
+          <p>
+            {m.what}
+            {field ? " Measured on real Chrome visits: 75% of visits were at least this fast." : ""}
+          </p>
+          <p className="vm-target">
+            Good is under <b>{m.fmt(m.good)}</b>; over <b>{m.fmt(m.poor)}</b> is poor.
+          </p>
+          {g && g !== "good" && (
+            <p className="vm-fix">
+              <b>How to improve:</b> {m.fix}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function RunMetrics({ r }: { r: VitalsRun }) {
+/** A 0 → N seconds strip showing when the first content and the main content appear. */
+function Timeline({ r, on }: { r: VitalsRun; on: boolean }) {
+  if (r.fcp == null && r.lcp == null) return null;
+  const end = Math.max(3000, Math.ceil(Math.max(r.fcp ?? 0, r.lcp ?? 0) / 1000) * 1000 + 1000);
+  const at = (ms: number) => `${(ms / end) * 100}%`;
+  const ticks = Array.from({ length: end / 1000 + 1 }, (_, i) => i);
+  const lcpG = grade(r.lcp, 2500, 4000);
   return (
-    <div className="vm-grid">
-      <Metric label="Largest paint (LCP)" hint="When the main content appears. Good is under 2.5 s." value={sec(r.lcp)} g={grade(r.lcp, 2500, 4000)} />
-      <Metric label="First paint (FCP)" hint="When anything first appears. Good is under 1.8 s." value={sec(r.fcp)} g={grade(r.fcp, 1800, 3000)} />
-      <Metric label="Layout shift (CLS)" hint="How much the page jumps while loading. Good is under 0.1." value={r.cls == null ? "–" : r.cls.toFixed(2)} g={grade(r.cls, 0.1, 0.25)} />
-      <Metric label="Blocking time (TBT)" hint="How long the page is unresponsive while loading. Good is under 200 ms." value={r.tbt == null ? "–" : `${Math.round(r.tbt)} ms`} g={grade(r.tbt, 200, 600)} />
+    <div className="vtl" role="img" aria-label={`Loading timeline: first content at ${sec(r.fcp)}, main content at ${sec(r.lcp)}, target 2.5 s.`}>
+      <div className="vtl-track">
+        <span className={`vtl-fill ${lcpG ?? ""}`} style={{ width: on && r.lcp != null ? at(r.lcp) : "0%" }} />
+        <span className="vtl-goal" style={{ left: at(2500) }}>
+          <em>Target 2.5 s</em>
+        </span>
+        {r.fcp != null && (
+          <span className="vtl-pin fcp" style={{ left: at(r.fcp) }}>
+            <em>
+              First thing <b>{sec(r.fcp)}</b>
+            </em>
+          </span>
+        )}
+        {r.lcp != null && (
+          <span className={`vtl-pin lcp ${lcpG ?? ""}`} style={{ left: at(r.lcp) }}>
+            <em>
+              Main content <b>{sec(r.lcp)}</b>
+            </em>
+          </span>
+        )}
+      </div>
+      <div className="vtl-ticks" aria-hidden="true">
+        {ticks.map((t) => (
+          <span key={t} style={{ left: at(t * 1000) }}>
+            {t}s
+          </span>
+        ))}
+      </div>
     </div>
   );
+}
+
+/** The run in plain English: a headline, what a visitor experiences, and the single most useful thing to fix. */
+function summarise(r: VitalsRun, other: VitalsRun | null, dev: "mobile" | "desktop"): { head: string; tone: Grade; lines: string[]; fix: string | null } {
+  const where = dev === "mobile" ? "a mid-range phone" : "a desktop computer";
+  const device = dev === "mobile" ? "phones" : "desktop";
+  const lcpG = grade(r.lcp, 2500, 4000);
+  const worst = (["lcp", "tbt", "cls", "fcp"] as const)
+    .map((k) => ({ k, v: r[k] }))
+    .filter((x): x is { k: "lcp" | "tbt" | "cls" | "fcp"; v: number } => x.v != null && x.v > METRIC[x.k].good)
+    .sort((a, b) => a.v / METRIC[a.k].poor - b.v / METRIC[b.k].poor)
+    .pop();
+  const score = r.score ?? 0;
+  const tone: Grade = score >= 90 && lcpG === "good" ? "good" : score < 50 || lcpG === "poor" ? "poor" : "ok";
+  const head = tone === "good" ? `Fast on ${device}` : tone === "ok" ? `A little slow on ${device}` : `Slow on ${device}`;
+  const lines: string[] = [];
+  if (r.fcp != null && r.lcp != null)
+    lines.push(`On ${where}, something first appears after ${sec(r.fcp)} and the main content after ${sec(r.lcp)}. Google's target for the main content is 2.5 s${r.lcp > 2500 ? `, so visitors wait ${((r.lcp - 2500) / 1000).toFixed(1)} s longer than they should.` : ", and this page beats it."}`);
+  if (r.tbt != null) lines.push(r.tbt > 200 ? `While it loads, the page freezes for ${Math.round(r.tbt)} ms as scripts run, so early taps and scrolls are ignored.` : "It reacts to taps and scrolling almost straight away.");
+  if (r.cls != null) lines.push(r.cls > 0.1 ? "Content jumps around as it loads, which can make people tap the wrong thing." : "Content stays put while it loads.");
+  if (other?.lcp != null && r.lcp != null) lines.push(`On ${dev === "mobile" ? "a desktop" : "a phone"}, the main content appears after ${sec(other.lcp)}.`);
+  return { head, tone, lines, fix: worst ? `${METRIC[worst.k].name} (${METRIC[worst.k].abbr}) is the weakest number. ${METRIC[worst.k].fix}` : null };
 }
 
 export function VitalsPanel({ vitals }: { vitals: Vitals | null | undefined }) {
   const [dev, setDev] = useState<"mobile" | "desktop">("mobile");
+  const [ref, on] = useInView<HTMLElement>();
   if (!vitals) {
     return (
       <section className="panel" aria-label="Core Web Vitals">
@@ -353,37 +468,83 @@ export function VitalsPanel({ vitals }: { vitals: Vitals | null | undefined }) {
       </section>
     );
   }
-  const run = vitals[dev] ?? vitals.mobile ?? vitals.desktop;
+  const shown = vitals[dev] ? dev : vitals.mobile ? "mobile" : "desktop";
+  const run = vitals[shown];
+  const other = vitals[shown === "mobile" ? "desktop" : "mobile"];
   const f = vitals.field;
+  const sum = run ? summarise(run, other, shown) : null;
   return (
-    <section className="panel" aria-label="Core Web Vitals">
-      <div className="panel-head">
-        <h2>Core Web Vitals</h2>
-        <div className="seg" role="group" aria-label="Device">
-          {(["mobile", "desktop"] as const).map((d) => (
-            <button key={d} type="button" aria-pressed={dev === d} disabled={!vitals[d]} onClick={() => setDev(d)}>
-              {d === "mobile" ? "Mobile" : "Desktop"}
-            </button>
-          ))}
+    <>
+      <section className="panel vt-panel" aria-label="Speed summary" ref={ref}>
+        <div className="panel-head">
+          <h2>What visitors experience</h2>
+          <div className="seg" role="group" aria-label="Device">
+            {(["mobile", "desktop"] as const).map((d) => (
+              <button key={d} type="button" aria-pressed={shown === d} disabled={!vitals[d]} onClick={() => setDev(d)}>
+                {d === "mobile" ? "Phone" : "Desktop"}
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
-      {run && (
-        <>
-          <p className="vm-score">Lighthouse performance <b>{run.score ?? "–"}</b>/100 <span>· lab test, simulated device</span></p>
-          <RunMetrics r={run} />
-        </>
-      )}
-      <h3 className="panel-sub">Real visitors (Chrome field data)</h3>
-      {f ? (
-        <div className="vm-grid">
-          <Metric label="Largest paint (LCP)" hint="75th percentile of real visits." value={sec(f.lcp)} g={grade(f.lcp, 2500, 4000)} />
-          <Metric label="Responsiveness (INP)" hint="How quickly the page reacts to taps and clicks. Good is under 200 ms." value={f.inp == null ? "–" : `${f.inp} ms`} g={grade(f.inp, 200, 500)} />
-          <Metric label="Layout shift (CLS)" hint="75th percentile of real visits." value={f.cls == null ? "–" : f.cls.toFixed(2)} g={grade(f.cls, 0.1, 0.25)} />
+        {run && sum && (
+          <>
+            <div className={`vt-sum vt-${sum.tone}`}>
+              <div className="vt-score">
+                <b>{run.score ?? "–"}</b>
+                <span>/100</span>
+              </div>
+              <div className="vt-words">
+                <h3>{sum.head}</h3>
+                {sum.lines.map((l) => (
+                  <p key={l}>{l}</p>
+                ))}
+              </div>
+            </div>
+            <Timeline r={run} on={on} />
+            {sum.fix && (
+              <p className="vt-fix">
+                <b>Start here:</b> {sum.fix}
+              </p>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className="panel" aria-label="Lab measurements">
+        <div className="panel-head">
+          <h2>The four numbers behind it</h2>
+          <span className="panel-tag">Lab test · {shown === "mobile" ? "simulated phone" : "desktop"}</span>
         </div>
-      ) : (
-        <p className="panel-note">Google has no field data for this address, usually because it has too little traffic. Lab numbers above are estimates, not what visitors experience.</p>
-      )}
-    </section>
+        <p className="panel-note">Tap any number to see what it means and how to improve it.</p>
+        {run && (
+          <div className="vm-grid">
+            <Metric k="lcp" v={run.lcp} on={on} />
+            <Metric k="fcp" v={run.fcp} on={on} />
+            <Metric k="tbt" v={run.tbt} on={on} />
+            <Metric k="cls" v={run.cls} on={on} />
+          </div>
+        )}
+      </section>
+
+      <section className="panel" aria-label="Real visitors">
+        <div className="panel-head">
+          <h2>Real visitors</h2>
+          <span className="panel-tag">Chrome field data · last 28 days</span>
+        </div>
+        {f ? (
+          <>
+            <p className="panel-note">What people using Chrome actually experienced on this address. Google uses these numbers, not the lab test, when it ranks pages.</p>
+            <div className="vm-grid">
+              <Metric k="lcp" v={f.lcp} field on={on} />
+              <Metric k="inp" v={f.inp} field on={on} />
+              <Metric k="cls" v={f.cls} field on={on} />
+            </div>
+          </>
+        ) : (
+          <p className="panel-note">Google doesn&rsquo;t have enough real-visitor data for this address yet, usually because it gets too little Chrome traffic. Until it does, the lab test above is the best guide.</p>
+        )}
+      </section>
+    </>
   );
 }
 

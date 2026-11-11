@@ -96,6 +96,54 @@ const X = {
     </>
   ),
   tools: <path d="M14.5 5.5a4 4 0 0 0-5 5L4 16v4h4l5.5-5.5a4 4 0 0 0 5-5L16 12l-4-4z" />,
+  // Header actions and the Share / Export / More modals.
+  link: <path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />,
+  mail: (
+    <>
+      <rect x="3.5" y="5.5" width="17" height="13" rx="2" />
+      <path d="m4 7 8 6 8-6" />
+    </>
+  ),
+  chat: <path d="M4 19.5 5.3 16A8 8 0 1 1 8 18.7z" />,
+  pdf: (
+    <>
+      <path d="M7 3h7l4 4v14H7z" />
+      <path d="M14 3v4h4M9.5 16.5v-4h1.3a1.2 1.2 0 0 1 0 2.4H9.5" />
+    </>
+  ),
+  check: (
+    <>
+      <path d="M9 6h11M9 12h11M9 18h11" />
+      <path d="m3.5 6 1.2 1.2L7 5M3.5 12l1.2 1.2L7 11M3.5 18l1.2 1.2L7 17" />
+    </>
+  ),
+  table: (
+    <>
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+      <path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10" />
+    </>
+  ),
+  code: <path d="M9 5c-2 0-2 1-2 3s-1 3-2.5 4C6 13 7 14 7 16s0 3 2 3M15 5c2 0 2 1 2 3s1 3 2.5 4C18 13 17 14 17 16s0 3-2 3" />,
+  keyboard: (
+    <>
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M7.5 14h9" />
+    </>
+  ),
+  download: <path d="M12 4v11m0 0-4.5-4.5M12 15l4.5-4.5M5 20h14" />,
+  dots: <path d="M5 12h.01M12 12h.01M19 12h.01" />,
+  search: (
+    <>
+      <circle cx="11" cy="11" r="6" />
+      <path d="m20 20-4.2-4.2" />
+    </>
+  ),
+  device: (
+    <>
+      <rect x="7" y="3" width="10" height="18" rx="2.5" />
+      <path d="M11 18h2" />
+    </>
+  ),
 } satisfies Record<string, React.ReactNode>;
 
 export type IconKey = ModuleKey | keyof typeof X;
