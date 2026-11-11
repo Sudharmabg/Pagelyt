@@ -5,50 +5,6 @@ import { AreaIcon } from "./icons";
 import type { Finding, ModuleKey } from "@/lib/scan/types";
 
 /* ------------------------------------------------------------------ */
-/* Radar: the shape of the site across all areas                        */
-/* ------------------------------------------------------------------ */
-
-const SHORT: Record<ModuleKey, string> = { health: "Health", performance: "Speed", seo: "SEO", geo: "AI", security: "Security", accessibility: "Access", domain: "Domain", privacy: "Privacy" };
-
-export function RadarPanel({ modules }: { modules: { key: ModuleKey; name: string; score: number }[] }) {
-  const n = modules.length;
-  const size = 300, c = size / 2, R = 96;
-  const pt = (i: number, v: number) => {
-    const a = (Math.PI * 2 * i) / n - Math.PI / 2;
-    return [c + Math.cos(a) * R * (v / 100), c + Math.sin(a) * R * (v / 100)] as const;
-  };
-  const poly = modules.map((m, i) => pt(i, m.score).join(",")).join(" ");
-  return (
-    <section className="panel" aria-label="Shape of your site">
-      <h2>Shape of your site</h2>
-      <svg className="radar" viewBox={`0 0 ${size} ${size}`} role="img" aria-label={`Radar chart. ${modules.map((m) => `${m.name} ${m.score}`).join(", ")}`}>
-        {[25, 50, 75, 100].map((r) => (
-          <polygon key={r} className="rd-ring" points={modules.map((_, i) => pt(i, r).join(",")).join(" ")} />
-        ))}
-        {modules.map((_, i) => {
-          const [x, y] = pt(i, 100);
-          return <line key={i} className="rd-axis" x1={c} y1={c} x2={x} y2={y} />;
-        })}
-        <polygon className="rd-area" points={poly} />
-        {modules.map((m, i) => {
-          const [x, y] = pt(i, m.score);
-          const [lx, ly] = pt(i, 122);
-          return (
-            <g key={m.key}>
-              <circle className="rd-dot" cx={x} cy={y} r="4" />
-              <text className="rd-label" x={lx} y={ly} textAnchor={lx < c - 4 ? "end" : lx > c + 4 ? "start" : "middle"} dominantBaseline="middle">
-                {SHORT[m.key]}
-              </text>
-            </g>
-          );
-        })}
-      </svg>
-      <p className="panel-note">A rounder, bigger shape means a more balanced site. Dents show where to focus.</p>
-    </section>
-  );
-}
-
-/* ------------------------------------------------------------------ */
 /* Command palette + keyboard shortcuts                                 */
 /* ------------------------------------------------------------------ */
 

@@ -21,7 +21,8 @@ export type ToolContext = {
   blocked: string[];
 };
 
-const MAP: Record<ToolId, string[]> = {
+/** The finding ids each tool can fix. */
+export const TOOL_FIXES: Record<ToolId, string[]> = {
   llms: ["no-llms"],
   robots: ["no-robots", "ai-blocked", "no-sitemap"],
   schema: ["no-structured-data", "bad-json-ld"],
@@ -42,7 +43,7 @@ export function toolContext(scanId: string, r: ScanResult): ToolContext {
   // No crawl (only the homepage was checked): the homepage fingerprint still has its title.
   const title = home?.title || r.snapshot?.title || "";
   const fixes = Object.fromEntries(
-    (Object.keys(MAP) as ToolId[]).map((k) => [k, r.findings.filter((f) => MAP[k].includes(f.id)).map((f) => f.title)])
+    (Object.keys(TOOL_FIXES) as ToolId[]).map((k) => [k, r.findings.filter((f) => TOOL_FIXES[k].includes(f.id)).map((f) => f.title)])
   ) as ToolContext["fixes"];
   const ai = r.findings.find((f) => f.id === "ai-blocked");
   return {

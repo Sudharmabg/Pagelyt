@@ -56,7 +56,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `agency.ts` | `getAccount`, `setAccountType`, `isPaid`, `sitesOverview`, `createComparison`, `getComparison` | Agency account type, multi-site overview, competitor comparisons |
 | `admin.ts` | `startSiteRescan`, `runSiteAi`, `adminOverview`, `pingUptime`, `authUsers` | Operator actions (admin panel and cron) |
 | `analytics.ts` | `adminAnalytics` | Admin usage analytics |
-| `tools-context.ts` | `toolContext` | Data the free tools pre-fill from a scan |
+| `tools-context.ts` | `toolContext`, `TOOL_FIXES` | Data the free tools pre-fill from a scan |
 
 ## Free tool checks (`lib/tools/`)
 
@@ -150,10 +150,10 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
   - `INSIGHTS` and `GROW` define the sections. The sidebar is grouped as Findings, Areas, Insights and Grow.
   - Every section except the overview has a sticky "← Back to overview" button (`.back-btn`) and Previous / Next links (`.dash-pn`).
   - Header: Search, Rescan, Share ▾, Export ▾, More ▾.
-  - The Overview has a "Do more with this report" strip (`.do-more`).
+  - The Overview has a "Do more with this report" strip (`.do-more`). `pitchFor` writes each card's headline from this report (open findings, AI readiness score, findings a free tool fixes, whether the site is saved) and ranks them; the most relevant is shown large (`.dm-top`). The radar ("Shape of your site") and the progress panel were removed from the Overview; `ComparePanel` now only appears under Changes & history.
   - `useSiteId` finds the saved site, for the AI visibility link.
 - `panels.tsx`: `FindingsExplorer`, `ExportMenu` (PDF, checklist, CSV and JSON), `VitalsPanel`, `CrawlPanel`, `ImagesPanel`, `QuickWins`, `ChangePanel`, `ComparePanel`, `DomainPanel`, `TechPanel`, `HowScores`, `useHistory`.
-- `extras.tsx`: `RadarPanel`, `CommandPalette`, `useShortcuts`, `ShortcutHelp`.
+- `extras.tsx`: `CommandPalette`, `useShortcuts`, `ShortcutHelp`.
 - `icons.tsx`: `AreaIcon` and `IconKey`, covering the areas plus the section icons.
 - Used inside the sections:
   - `share-report.tsx`: the share modal, with a brand preview and an optional email to the client.

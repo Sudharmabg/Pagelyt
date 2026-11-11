@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from 
 import { Findings } from "../findings";
 import { Ring, tone } from "../ui";
 import { findingKey, overallScore, scoreModules } from "@/lib/scan/score";
-import { MODULE_NAMES, type ModuleKey } from "@/lib/scan/types";
+import { MODULE_NAMES, type Finding, type ModuleKey } from "@/lib/scan/types";
 import { AreaIcon, type IconKey } from "./icons";
 import { SaveSite } from "./save-site";
 import { ShareReport } from "./share-report";
@@ -17,10 +17,10 @@ import { downloadPdf } from "@/lib/download-pdf";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { firstName, useSignedInUser } from "@/lib/use-signed-in";
 import { AuthLink } from "../auth-link";
-import { CommandPalette, RadarPanel, ShortcutHelp, useShortcuts, type Cmd } from "./extras";
+import { CommandPalette, ShortcutHelp, useShortcuts, type Cmd } from "./extras";
 import { ComparePanel, DomainPanel, ExportMenu, FindingsExplorer, CrawlPanel, ChangePanel, HowScores, ImagesPanel, QuickWins, TechPanel, VitalsPanel, useHistory, type Snap } from "./panels";
 import type { StoredScan } from "@/lib/scan/store";
-import { toolContext } from "@/lib/scan/tools-context";
+import { TOOL_FIXES, toolContext, type ToolId } from "@/lib/scan/tools-context";
 import { Tools } from "../tools/tools";
 
 /* One plain-English line per area, shown at the top of its breakdown. */
@@ -212,6 +212,41 @@ const PAID_ONLY = new Set<Extra>(["ai", "compare", "share"]);
 const OWNER_ONLY = new Set<Extra>(["monitor", "ai", "compare", "share"]);
 const closeMenu = (el: HTMLElement) => el.closest("details")?.removeAttribute("open");
 
+const TOOL_NAMES: Record<ToolId, string> = { llms: "llms.txt", robots: "robots.txt", schema: "structured data", serp: "search snippets", headers: "security headers" };
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
+
+/* "Do more" cards written for this report: a headline from its own numbers, and how relevant it is right now
+   (the most relevant card is shown large). */
+type Pitch = { hook: string; text: string; weight: number };
+function pitchFor(id: Extra, r: { open: Finding[]; high: number; overall: number; modules: { key: ModuleKey; score: number }[]; saved: boolean; prev: boolean }): Pitch {
+  const score = (k: ModuleKey) => r.modules.find((m) => m.key === k)?.score ?? 100;
+  switch (id) {
+    case "monitor":
+      if (r.saved) return { hook: "This site is saved", text: "Choose how often it rescans, and get an email if it goes down or a score drops.", weight: 1 };
+      if (r.high) return { hook: `${plural(r.high, "important issue")} to fix`, text: "Save the site and it rescans on a schedule, so you can see each fix land and catch anything that breaks again.", weight: 4 };
+      return { hook: r.prev ? "Stop rescanning by hand" : "Know the moment something breaks", text: "Save the site for scheduled rescans, uptime checks and email alerts.", weight: 3 };
+    case "ai": {
+      const g = score("geo");
+      if (g < 80) return { hook: `AI readiness is ${g}/100`, text: "See whether ChatGPT, Claude and Perplexity mention this site when people ask about its field, and who they name instead.", weight: (80 - g) / 10 + 1 };
+      return { hook: `AI readiness is ${g}/100`, text: "The site is easy for AI to read. Check whether ChatGPT, Claude and Perplexity actually mention and cite it.", weight: 1.5 };
+    }
+    case "compare":
+      return { hook: `Your site scores ${r.overall}. How do rivals do?`, text: "Scan up to three competitors and see, area by area, where they are ahead and where you are.", weight: 2 };
+    case "share":
+      return { hook: r.open.length ? `${plural(r.open.length, "open finding")} to hand over` : "A clean report to show off", text: "Send this report under your own logo and colours, by link or straight to your client's inbox.", weight: 1 };
+    case "tools": {
+      const ids = new Set(r.open.map((f) => f.id));
+      const tools = (Object.keys(TOOL_FIXES) as ToolId[]).filter((t) => TOOL_FIXES[t].some((x) => ids.has(x)));
+      const n = r.open.filter((f) => tools.some((t) => TOOL_FIXES[t].includes(f.id))).length;
+      if (n) return { hook: `${plural(n, "finding")} ${n === 1 ? "has" : "have"} a free fix`, text: `Ready-made ${andList(tools.map((t) => TOOL_NAMES[t]))}, pre-filled for this site. Copy, paste, rescan.`, weight: 2 + n };
+      return { hook: "Free generators", text: "llms.txt, robots.txt, structured data, search snippets and security headers, pre-filled for this site.", weight: 0.5 };
+    }
+    default:
+      return { hook: "", text: "", weight: 0 };
+  }
+}
+
 export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan: StoredScan; history?: Snap[]; savedFixed?: string[] | null; shots?: { now: string | null; prev: string | null }; canEmail?: boolean }) {
   const params = useSearchParams();
   const [copied, setCopied] = useState(false);
@@ -332,6 +367,10 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const section = SECTIONS.get(view) ?? null;
   const toolCtx = view === "tools" ? toolContext(scan.id, scan) : null;
   const needsPlan = (id: Extra) => PAID_ONLY.has(id) && access === "owner" && !!acct && !acct.paid;
+  // Most relevant first; a card the visitor's plan doesn't include yet is never the featured one if another fits.
+  const pitches = grow
+    .map((g) => ({ g, p: pitchFor(g.id, { open: remaining, high, overall: potential, modules, saved: !!siteId, prev: !!prev }) }))
+    .sort((a, b) => b.p.weight - (needsPlan(b.g.id) ? 2 : 0) - (a.p.weight - (needsPlan(a.g.id) ? 2 : 0)));
 
   const [pdfBusy, setPdfBusy] = useState(false);
   // Paid owners get the server-rendered branded PDF; everyone else (and any failure) uses print-to-PDF.
@@ -474,23 +513,20 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
         <section className="do-more" aria-labelledby="do-more-h">
           <h2 id="do-more-h">Do more with this report</h2>
           <ul>
-            {grow.map((g) => (
-              <li key={g.id}>
+            {pitches.map(({ g, p }, i) => (
+              <li key={g.id} className={i === 0 ? "dm-top" : undefined}>
                 <button type="button" onClick={() => setView(g.id)}>
-                  <span className="dm-ico"><AreaIcon k={g.icon} size={22} /></span>
-                  <b>{g.label}{needsPlan(g.id) && <span className="plan-badge">Paid plans</span>}</b>
-                  <span>{g.text}</span>
-                  <span className="dm-go" aria-hidden="true">Open →</span>
+                  <span className="dm-ico"><AreaIcon k={g.icon} size={i === 0 ? 26 : 20} /></span>
+                  <span className="dm-label">{g.label}{needsPlan(g.id) && <span className="plan-badge">Paid plans</span>}</span>
+                  <b className="dm-hook">{p.hook}</b>
+                  <span className="dm-text">{p.text}</span>
+                  <span className="dm-go" aria-hidden="true">{i === 0 ? `Open ${g.label} →` : "Open →"}</span>
                 </button>
               </li>
             ))}
           </ul>
         </section>
 
-        <div className="panel-grid">
-          <RadarPanel modules={modules} />
-          <ComparePanel scan={scan} prev={prev} trend={trend} synced={synced} points={points} />
-        </div>
         <ul className="insight-links" aria-label="More from this scan">
           {INSIGHTS.map((s) => (
             <li key={s.id}>
