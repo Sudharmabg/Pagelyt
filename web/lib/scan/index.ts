@@ -9,7 +9,7 @@ import { setSiteLastScan } from "./agency";
 import { getScanRow, previousResult, saveShot, updateScan, type ScanRow } from "./store";
 import type { ChangeInfo, CrawlPage, DomainInfo, Finding, ImageAudit, ModuleKey, ScanResult, Snapshot, TechItem, Vitals } from "./types";
 import { fetchVitals, vitalsFindings } from "./vitals";
-import { imageFindings, imageList, mergeRendered, probeImages, spreadSample } from "./images";
+import { FEW_IMAGES, IMAGE_SAMPLE, imageFindings, imageList, imagesInCode, mergeRendered, ownScripts, probeImages, spreadSample } from "./images";
 import { a11yFindings, coveredStaticIds } from "./a11y";
 import { compareSnapshots, textSignature, visualSignature } from "./visual";
 import * as cheerio from "cheerio";
@@ -92,6 +92,20 @@ async function stagePage(row: ScanRow): Promise<State> {
   const host = finalUrl.hostname.replace(/^www\./, "");
   const imgs = imageList(page);
   const $ = cheerio.load(page.body.slice(0, 400_000));
+  // A page built by JavaScript has (almost) no images in its HTML: read the site's own scripts for image paths.
+  if (imgs.count < FEW_IMAGES) {
+    const codes = await Promise.all(ownScripts($, page.url).map((u) => safeFetch(u).then((r) => (r.status < 400 ? r.body : ""), () => "")));
+    const have = new Set(imgs.all);
+    for (const url of codes.flatMap((c) => imagesInCode(c, page.url))) {
+      if (have.size >= SITE_IMAGES) break;
+      if (!have.has(url)) {
+        have.add(url);
+        imgs.all.push(url);
+      }
+    }
+    imgs.count = imgs.all.length;
+    imgs.sample = imgs.all.slice(0, IMAGE_SAMPLE);
+  }
   const pageTitle = $("title").first().text().trim().replace(/\s+/g, " ");
   $("script,style,noscript,svg,template").remove();
   const snapshot: Snapshot = { title: pageTitle, sig: null, text: textSignature($("body").text()), shot: false };

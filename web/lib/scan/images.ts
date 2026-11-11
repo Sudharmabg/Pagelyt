@@ -98,6 +98,49 @@ export function imagesIn($: CheerioAPI, pageUrl: string): string[] {
   return [...seen].slice(0, PER_PAGE_IMAGES);
 }
 
+/** Below this many images in the HTML, the page is probably built by JavaScript (React, Vue…), so the site's own
+    script files are read for image paths too. */
+export const FEW_IMAGES = 10;
+const MAX_SCRIPTS = 3;
+const CODE_IMAGE = /["'`]((?:https?:\/\/|\/|\.{0,2}\/?)[^"'`\s<>(){}|\\^]{0,300}?\.(?:jpe?g|png|webp|avif|gif))(?:\?[^"'`\s]{0,100})?["'`]/gi;
+
+/** The page's own script files (same site, external `src`), up to MAX_SCRIPTS, the app bundle first. */
+export function ownScripts($: CheerioAPI, pageUrl: string): URL[] {
+  const base = new URL(pageUrl);
+  const site = (h: string) => h.replace(/^www\./, "");
+  const out: URL[] = [];
+  $("script[src]").each((_, el) => {
+    try {
+      const u = new URL($(el).attr("src")!, base);
+      if (/^https?:$/.test(u.protocol) && site(u.hostname) === site(base.hostname) && !out.some((x) => x.href === u.href)) out.push(u);
+    } catch {
+      /* bad src */
+    }
+  });
+  // Bundlers name the app entry main/index/app; vendor chunks rarely hold the site's own images.
+  return out.sort((a, b) => Number(/\b(main|index|app|bundle)\b/i.test(b.pathname)) - Number(/\b(main|index|app|bundle)\b/i.test(a.pathname))).slice(0, MAX_SCRIPTS);
+}
+
+/** Image paths written in a script file (e.g. "/img/hero.jpg", "static/media/logo.4f2a.png"). Paths without a
+    leading slash are taken from the site root, which is where bundlers serve their assets by default. */
+export function imagesInCode(code: string, pageUrl: string): string[] {
+  const root = new URL("/", pageUrl);
+  const seen = new Set<string>();
+  for (const m of code.matchAll(CODE_IMAGE)) {
+    const raw = m[1];
+    // Needs a real file name (not just ".png"), and no template placeholders.
+    if (!/[^/.]\.[a-z]+$/i.test(raw) || raw.includes("${")) continue;
+    try {
+      const u = new URL(raw.replace(/^\.{1,2}\//, "/"), root);
+      if (/^https?:$/.test(u.protocol)) seen.add(u.href);
+    } catch {
+      /* not a URL */
+    }
+    if (seen.size >= PER_PAGE_IMAGES) break;
+  }
+  return [...seen];
+}
+
 /** Adds the images Lighthouse saw load on the rendered homepage, which catches images that JavaScript inserts (the
     raw HTML doesn't have them). Our probed ones come first; Lighthouse fills in the rest with its transfer size.
     `known`: every image URL already counted from the HTML, so the total isn't counted twice. */
@@ -129,15 +172,20 @@ export function spreadSample(list: { url: string; page: string }[], skip: Set<st
   return out;
 }
 
-/** One HEAD per image. Servers that ignore HEAD or omit Content-Length leave `bytes` null. */
+/** One request per image for its first byte only: the Content-Range header gives the full size even where a HEAD
+    reply has no Content-Length. A reply that isn't an image (an app serving its HTML page for a missing file)
+    counts as not found. Servers that send neither size header leave `bytes` null. */
 export async function probeImages(urls: string[]): Promise<ImageAudit["probed"]> {
   const run = Promise.all(
     urls.map(async (url) => {
       try {
-        const r = await safeFetch(new URL(url), { method: "HEAD", accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8" });
+        const r = await safeFetch(new URL(url), { range: "bytes=0-0", accept: "image/avif,image/webp,image/apng,image/*,*/*;q=0.8" });
         if (r.status >= 400) return null;
-        const len = Number(r.headers["content-length"]);
-        return { url, type: String(r.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase(), bytes: Number.isFinite(len) && len > 0 ? len : null };
+        const type = String(r.headers["content-type"] ?? "").split(";")[0].trim().toLowerCase();
+        if (/^text\/|html/.test(type)) return null;
+        const total = /\/(\d+)\s*$/.exec(String(r.headers["content-range"] ?? ""))?.[1];
+        const len = Number(total ?? (r.status === 200 ? r.headers["content-length"] : NaN));
+        return { url, type, bytes: Number.isFinite(len) && len > 0 ? len : null };
       } catch {
         return null;
       }

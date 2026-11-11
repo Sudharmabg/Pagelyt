@@ -92,7 +92,8 @@ function headerRecord(h: Headers): FetchResult["headers"] {
   return out;
 }
 
-type Opts = { ua?: string; follow?: boolean; method?: "GET" | "HEAD"; accept?: string };
+/** `range`: sent as the Range header; the body is then never read (only the headers are wanted). */
+type Opts = { ua?: string; follow?: boolean; method?: "GET" | "HEAD"; accept?: string; range?: string };
 
 async function once(url: URL, ua: string, o: Opts): Promise<Omit<FetchResult, "chain">> {
   const ctl = new AbortController();
@@ -103,9 +104,10 @@ async function once(url: URL, ua: string, o: Opts): Promise<Omit<FetchResult, "c
       method: o.method ?? "GET",
       redirect: "manual",
       signal: ctl.signal,
-      headers: { "user-agent": ua, accept: o.accept ?? "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5" },
+      headers: { "user-agent": ua, accept: o.accept ?? "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5", ...(o.range ? { range: o.range } : {}) },
     });
-    const { text, bytes } = o.method === "HEAD" ? { text: "", bytes: 0 } : await readCapped(res);
+    if (o.range) await res.body?.cancel().catch(() => {}); // a server that ignores Range would send the whole file
+    const { text, bytes } = o.method === "HEAD" || o.range ? { text: "", bytes: 0 } : await readCapped(res);
     return { url: url.href, status: res.status, headers: headerRecord(res.headers), body: text, bytes, ms: Date.now() - t0 };
   } catch (e) {
     if (ctl.signal.aborted) throw new Error("Request timed out");
