@@ -31,7 +31,7 @@ export type ScanProblem = { error: string; code?: string; domain?: string };
    claim: someone who owns a registered website but has no account yet makes one, then proves ownership.
    code: the account must enter the 6-digit code from its email (once). */
 type Mode = null | "login" | "signup" | "claim" | "code";
-type TurnstileApi = { render: (el: HTMLElement, o: Record<string, unknown>) => string; reset: (id?: string) => void };
+type TurnstileApi = { render: (el: HTMLElement, o: Record<string, unknown>) => string; reset: (id?: string) => void; remove: (id: string) => void };
 
 async function post(path: string, body: Record<string, unknown>): Promise<{ status: number; json: Record<string, unknown> }> {
   try {
@@ -169,23 +169,38 @@ export function LeadModal({
   // Cloudflare Turnstile (human check), only once a password is about to be sent. It stays hidden unless Cloudflare
   // actually needs the visitor to interact.
   const needsHuman = open && (legacy || mode === "login" || mode === "signup" || mode === "claim");
+  const drawHuman = (api: TurnstileApi, el: HTMLElement) =>
+    api.render(el, {
+      sitekey: siteKey,
+      appearance: "interaction-only",
+      callback: (t: string) => { token.current = t; },
+      // A token lasts 5 minutes; Cloudflare fetches a new one itself, so just forget the stale one.
+      "expired-callback": () => { token.current = undefined; },
+      "error-callback": (code: string) => { token.current = undefined; console.warn(`[turnstile] browser check failed: ${code}`); },
+    });
   useEffect(() => {
     if (!needsHuman || !siteKey || !tsRef.current) return;
     token.current = undefined;
     const mount = () => {
       const w = window as unknown as { turnstile?: TurnstileApi };
       if (w.turnstile && tsRef.current && !tsRef.current.hasChildNodes()) {
-        tsId.current = w.turnstile.render(tsRef.current, { sitekey: siteKey, appearance: "interaction-only", callback: (t: string) => { token.current = t; } });
+        tsId.current = drawHuman(w.turnstile, tsRef.current);
       }
     };
-    if (document.getElementById("cf-turnstile-js")) return mount();
+    const existing = document.getElementById("cf-turnstile-js");
+    if (existing) {
+      // The script tag may still be loading (the form can switch mode before it finishes).
+      if ((window as unknown as { turnstile?: TurnstileApi }).turnstile) return mount();
+      existing.addEventListener("load", mount, { once: true });
+      return () => existing.removeEventListener("load", mount);
+    }
     const sc = document.createElement("script");
     sc.id = "cf-turnstile-js";
     sc.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
     sc.async = true;
     sc.onload = mount;
     document.head.append(sc);
-  }, [needsHuman, siteKey, mode]);
+  }, [needsHuman, siteKey, mode]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** The human-check token, waiting a few seconds for the invisible check to finish if it hasn't yet. */
   const humanToken = async () => {
@@ -196,7 +211,19 @@ export function LeadModal({
   // A human-check token works once, so ask for a fresh one after every attempt.
   const freshHumanCheck = () => {
     token.current = undefined;
-    (window as unknown as { turnstile?: TurnstileApi }).turnstile?.reset(tsId.current);
+    const w = window as unknown as { turnstile?: TurnstileApi };
+    if (!w.turnstile || !tsId.current) return;
+    try {
+      w.turnstile.reset(tsId.current);
+    } catch {
+      // The widget's box was replaced when the form re-rendered: drop the old widget and draw a fresh one.
+      try { w.turnstile.remove(tsId.current); } catch { /* already gone */ }
+      tsId.current = undefined;
+      if (tsRef.current && siteKey) {
+        tsRef.current.replaceChildren();
+        tsId.current = drawHuman(w.turnstile, tsRef.current);
+      }
+    }
   };
 
   const fail = (m: string) => {

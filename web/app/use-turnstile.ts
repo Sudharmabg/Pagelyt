@@ -18,7 +18,7 @@ export function useTurnstile(active = true) {
     const mount = () => {
       const w = window as unknown as { turnstile?: TurnstileApi };
       if (w.turnstile && box.current && !box.current.hasChildNodes()) {
-        widget.current = w.turnstile.render(box.current, { sitekey: siteKey, callback: (t: string) => { value.current = t; } });
+        widget.current = w.turnstile.render(box.current, { sitekey: siteKey, callback: (t: string) => { value.current = t; }, "expired-callback": () => { value.current = undefined; }, "error-callback": (code: string) => { value.current = undefined; console.warn(`[turnstile] browser check failed: ${code}`); } });
       }
     };
     if (document.getElementById("cf-turnstile-js")) return mount();
@@ -32,7 +32,11 @@ export function useTurnstile(active = true) {
 
   const reset = useCallback(() => {
     value.current = undefined;
-    (window as unknown as { turnstile?: TurnstileApi }).turnstile?.reset(widget.current);
+    try {
+      if (widget.current) (window as unknown as { turnstile?: TurnstileApi }).turnstile?.reset(widget.current);
+    } catch {
+      /* the widget is gone (its box re-rendered); the next mount draws a new one */
+    }
   }, []);
 
   return { box, siteKey, token: () => value.current, reset };

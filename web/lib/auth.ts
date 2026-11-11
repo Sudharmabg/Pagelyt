@@ -29,12 +29,19 @@ export async function userFromRequest(req: Request): Promise<AuthUser | null> {
 export async function verifyTurnstile(token: string | undefined, ip: string): Promise<boolean> {
   const secret = process.env.TURNSTILE_SECRET_KEY;
   if (!secret) return true;
-  if (!token) return false;
+  if (!token) {
+    console.warn("[turnstile] rejected: the request carried no token (the check did not finish in the browser)");
+    return false;
+  }
   try {
     const body = new URLSearchParams({ secret, response: token, remoteip: ip });
     const r = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", { method: "POST", body });
-    return !!((await r.json()) as { success?: boolean }).success;
-  } catch {
+    const d = (await r.json()) as { success?: boolean; "error-codes"?: string[]; hostname?: string; action?: string };
+    // Logs Cloudflare's reason (e.g. invalid-input-secret, timeout-or-duplicate) and the page hostname; never the token or secret.
+    if (!d.success) console.warn(`[turnstile] rejected by Cloudflare: ${(d["error-codes"] ?? []).join(", ") || "no reason given"}; hostname=${d.hostname ?? "?"}`);
+    return !!d.success;
+  } catch (e) {
+    console.warn(`[turnstile] siteverify request failed: ${e instanceof Error ? e.message : String(e)}`);
     return false;
   }
 }
