@@ -10,7 +10,8 @@ import { BulkSchemaChecker, RenderedChecker, SitemapGenerator } from "./checkers
 import { Headers, Llms, Robots, Schema, Serp, type Ctx } from "./tools";
 import { LeadModal, type ScanProblem } from "../lead-modal";
 
-const VIEWS: Record<ToolSlug, (p: { ctx: Ctx }) => React.ReactNode> = {
+/** Every tool's live view, by slug. Also used by the dashboard's Free tools section (`dash-tools.tsx`). */
+export const VIEWS: Record<ToolSlug, (p: { ctx: Ctx }) => React.ReactNode> = {
   "ai-bot-checker": AiBotChecker,
   "llms-txt-generator": Llms,
   "robots-txt-tester": RobotsTester,

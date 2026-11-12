@@ -1,21 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useId, useState } from "react";
 import type { ToolContext } from "@/lib/scan/tools-context";
 
 /* Five free, fully client-side generators. Nothing typed here leaves the browser. */
 
-type ToolId = "llms" | "robots" | "schema" | "serp" | "headers";
 export type Ctx = ToolContext | null;
-
-const TOOLS: { id: ToolId; name: string; blurb: string }[] = [
-  { id: "llms", name: "llms.txt", blurb: "A guide that helps AI assistants understand your site." },
-  { id: "robots", name: "robots.txt", blurb: "Decide which search and AI crawlers may visit." },
-  { id: "schema", name: "Schema markup", blurb: "Structured data for rich results and AI answers." },
-  { id: "serp", name: "Search preview", blurb: "See your title and description as Google shows them." },
-  { id: "headers", name: "Security headers", blurb: "Copy-paste config for your host." },
-];
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: (id: string) => React.ReactNode }) {
   const id = useId();
@@ -55,9 +45,16 @@ export function Output({ text, filename }: { text: string; filename: string }) {
   return (
     <div className="tout">
       <div className="tout-bar">
-        <span>{filename}</span>
+        <span className="tout-file">
+          <span className="tout-dots" aria-hidden="true"><i /><i /><i /></span>
+          {filename}
+          <small>{text.split("\n").length} lines</small>
+        </span>
         <span className="tout-act">
-          <button type="button" data-gate onClick={copy}>{done || "Copy"}</button>
+          <button type="button" data-gate onClick={copy} className={done === "Copied" ? "done" : undefined}>
+            {done === "Copied" && <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}
+            {done || "Copy"}
+          </button>
           <button type="button" data-gate onClick={save}>Download</button>
         </span>
       </div>
@@ -202,9 +199,9 @@ export function Serp({ ctx }: { ctx: Ctx }) {
     <div className="tgrid">
       <div className="tform">
         <Field label="Page title">{(id) => <input id={id} value={title} onChange={(e) => setTitle(e.target.value)} />}</Field>
-        <p className={`tmeter m-${meter(title.length, 30, tMax)}`}>{title.length} / {tMax} characters</p>
+        <Meter n={title.length} max={tMax} tone={meter(title.length, 30, tMax)} />
         <Field label="Meta description">{(id) => <textarea id={id} rows={3} value={desc} onChange={(e) => setDesc(e.target.value)} />}</Field>
-        <p className={`tmeter m-${meter(desc.length, 70, dMax)}`}>{desc.length} / {dMax} characters</p>
+        <Meter n={desc.length} max={dMax} tone={meter(desc.length, 70, dMax)} />
         <Field label="Page URL">{(id) => <input id={id} value={url} onChange={(e) => setUrl(e.target.value)} />}</Field>
       </div>
       <div className="tout">
@@ -223,6 +220,17 @@ export function Serp({ ctx }: { ctx: Ctx }) {
         <p className="tnote pad">Google decides what to show, so treat this as a guide. Text beyond the limit is usually cut off.</p>
       </div>
     </div>
+  );
+}
+
+/** Character count with a bar that fills as you type and turns amber or red outside the sweet spot. */
+function Meter({ n, max, tone }: { n: number; max: number; tone: string }) {
+  const word = { na: "Empty", short: "A bit short", long: "Too long, will be cut", good: "Good length" }[tone];
+  return (
+    <p className={`tmeter m-${tone}`}>
+      <span className="tmeter-bar" aria-hidden="true"><i style={{ width: `${Math.min(100, (n / max) * 100)}%` }} /></span>
+      <span>{n} / {max} characters · {word}</span>
+    </p>
   );
 }
 
@@ -278,58 +286,6 @@ export function Headers({ ctx }: { ctx: Ctx }) {
         </fieldset>
       </div>
       <Output text={out} filename={file} />
-    </div>
-  );
-}
-
-/* `embedded`: shown inside a report's dashboard ("Free tools" section), which has its own way back. */
-export function Tools({ ctx = null, embedded = false }: { ctx?: Ctx; embedded?: boolean }) {
-  // Open on the tool that fixes the most findings from the scan.
-  const first = ctx ? (TOOLS.map((t) => t.id).sort((a, b) => ctx.fixes[b].length - ctx.fixes[a].length)[0] ?? "llms") : "llms";
-  const [tool, setTool] = useState<ToolId>(ctx && ctx.fixes[first].length ? first : "llms");
-  const cur = TOOLS.find((t) => t.id === tool)!;
-  return (
-    <div className="tools">
-      {ctx && !embedded && (
-        <Link className="back-btn" href={`/dashboard/${ctx.scanId}`}>
-          <span aria-hidden="true">←</span> Back to your report
-        </Link>
-      )}
-      {ctx && (
-        <p className="tctx" role="status">
-          Pre-filled from your scan of <b>{ctx.host}</b>. Check everything before you publish it.
-        </p>
-      )}
-      <div className="ttabs" role="tablist" aria-label="Free tools">
-        {TOOLS.map((t) => (
-          <button key={t.id} id={`tab-${t.id}`} role="tab" type="button" aria-selected={tool === t.id} aria-controls="tool-panel" tabIndex={tool === t.id ? 0 : -1} onClick={() => setTool(t.id)}
-            onKeyDown={(e) => {
-              const i = TOOLS.findIndex((x) => x.id === tool);
-              const next = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : null;
-              if (next === null) return;
-              const n = TOOLS[(next + TOOLS.length) % TOOLS.length].id;
-              setTool(n);
-              document.getElementById(`tab-${n}`)?.focus();
-            }}>
-            {t.name}
-            {ctx && ctx.fixes[t.id].length > 0 && <span className="tbadge" title={ctx.fixes[t.id].join("; ")}>{ctx.fixes[t.id].length}</span>}
-          </button>
-        ))}
-      </div>
-      <div id="tool-panel" role="tabpanel" aria-labelledby={`tab-${tool}`} className="tpanel">
-        <p className="tblurb">{cur.blurb}</p>
-        {ctx && ctx.fixes[tool].length > 0 && <p className="tfixes">Fixes from your scan: {ctx.fixes[tool].join(" · ")}</p>}
-        {tool === "llms" && <Llms ctx={ctx} />}
-        {tool === "robots" && <Robots ctx={ctx} />}
-        {tool === "schema" && <Schema ctx={ctx} />}
-        {tool === "serp" && <Serp ctx={ctx} />}
-        {tool === "headers" && <Headers ctx={ctx} />}
-      </div>
-      {embedded && (
-        <p className="tnote">
-          More free checkers for this site: <Link href="/tools/ai-bot-checker">AI bot access</Link> · <Link href="/tools/robots-txt-tester">robots.txt tester</Link> · <Link href="/tools/hreflang-checker">hreflang</Link> · <Link href="/tools/domain-age-checker">domain age</Link> · <Link href="/tools">all tools</Link>
-        </p>
-      )}
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { findingKey, overallScore, scoreModules } from "@/lib/scan/score";
 import { MODULE_NAMES, type Finding, type ModuleKey } from "@/lib/scan/types";
 import { AreaIcon, type IconKey } from "./icons";
 import { SaveSite } from "./save-site";
-import { ShareReport } from "./share-report";
+import { BrandShare } from "./brand-share";
 import { RescanButton } from "./rescan";
 import { ActionModal, Tile } from "./action-modal";
 import { AGENCY_UPSELL, AgencyModal, useAccount } from "./agency-modal";
@@ -22,7 +22,8 @@ import { CommandPalette, ShortcutHelp, useShortcuts, type Cmd } from "./extras";
 import { ComparePanel, DomainPanel, ExportTiles, FindingsExplorer, CrawlPanel, ChangePanel, HowScores, ImagesPanel, QuickWins, TechPanel, VitalsPanel, useHistory, type Snap } from "./panels";
 import type { StoredScan } from "@/lib/scan/store";
 import { TOOL_FIXES, toolContext, type ToolId } from "@/lib/scan/tools-context";
-import { Tools } from "../tools/tools";
+import { DashTools } from "../tools/dash-tools";
+import { TOOL_LIST } from "../tools/catalog";
 
 /* One plain-English line per area, shown at the top of its breakdown. */
 const BLURB: Record<ModuleKey, string> = {
@@ -205,7 +206,7 @@ const GROW: Section[] = [
   { id: "ai", label: "AI visibility", icon: "ai", text: "See whether ChatGPT, Claude and Perplexity mention and cite this site when people ask about its field." },
   { id: "compare", label: "Compare competitors", icon: "compare", text: "Scan up to three competitors and line them up against this report, area by area." },
   { id: "share", label: "Brand & share", icon: "share", text: "Send your client a report with your logo and colours, by link or straight to their inbox." },
-  { id: "tools", label: "Free tools", icon: "tools", text: "Generators for llms.txt, robots.txt, schema, search snippets and security headers, pre-filled for this site." },
+  { id: "tools", label: "Free tools", icon: "tools", text: `All ${TOOL_LIST.length} free checkers and generators, pre-filled for this site. The ones that fix this scan's findings come first.` },
 ];
 
 const SECTIONS = new Map<string, Section>([...INSIGHTS, ...GROW].map((s) => [s.id, s]));
@@ -653,7 +654,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           {scan.change ? <ChangePanel scan={scan} shots={shots} /> : empty("This is the first scan we have of this site, so there is nothing to compare the homepage with yet. Rescan later to see what changed.")}
         </>
       );
-    else if (s.id === "tools") content = toolCtx && <Tools ctx={toolCtx} embedded />;
+    else if (s.id === "tools") content = toolCtx && <DashTools ctx={toolCtx} />;
     else if (!owner) content = signInNote;
     else if (s.id === "monitor") content = access === "local" ? empty("Saving sites needs accounts, which aren't switched on here.") : <SaveSite scanId={scan.id} inline />;
     else if (s.id === "ai")
@@ -680,17 +681,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           {access === "owner" ? <CompareButton scanId={scan.id} host={scan.host} paid={!!acct?.paid} /> : empty("Comparisons need accounts, which aren't switched on here.")}
         </div>
       );
-    else if (s.id === "share")
-      content = (
-        <div className="panel sec-cta">
-          <p>Your client sees your logo, colours and contact details, and nothing of Pagelyt. Set up your brand once, then share any report in a click.</p>
-          <div className="sec-row">
-            {access === "owner" && <ShareReport scanId={scan.id} host={scan.host} score={scan.overall} canEmail={!!canEmail} />}
-            <Link className="dash-btn" href="/account/brand">Brand settings</Link>
-            <Link className="dash-btn" href="/r/demo">See a sample</Link>
-          </div>
-        </div>
-      );
+    else if (s.id === "share") content = <BrandShare scanId={scan.id} host={scan.host} score={scan.overall} canEmail={!!canEmail} owner={access === "owner"} />;
     body = (
       <>
         {hero(s)}

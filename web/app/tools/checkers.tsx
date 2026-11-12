@@ -45,6 +45,34 @@ export function Chip({ tone, children }: { tone: "ok" | "bad" | "warn" | "na"; c
   return <span className={`tchip ${tone}`}>{children}</span>;
 }
 
+/** The headline of a result: a coloured banner with an icon, an optional big number and one plain sentence. */
+export function Verdict({ tone, big, title, children }: { tone: "ok" | "warn" | "bad"; big?: React.ReactNode; title: React.ReactNode; children?: React.ReactNode }) {
+  return (
+    <div className={`tverdict tv ${tone}`}>
+      <span className="tv-ic" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+          {tone === "ok" ? <path d="M5 12.5l4.5 4.5L19 7.5" /> : tone === "warn" ? <path d="M12 6v7M12 17.5v.5" /> : <path d="M7 7l10 10M17 7L7 17" />}
+        </svg>
+      </span>
+      {big != null && <span className="tv-big">{big}</span>}
+      <span className="tv-txt">
+        <b>{title}</b>
+        {children && <span>{children}</span>}
+      </span>
+    </div>
+  );
+}
+
+/** Shown while a check runs and there is no earlier result yet: what we're doing, with a shimmering result skeleton. */
+export function Working({ label }: { label: string }) {
+  return (
+    <div className="twork" role="status" aria-live="polite">
+      <span className="twork-head"><span className="twork-spin" aria-hidden="true" />{label}</span>
+      <span className="twork-rows" aria-hidden="true"><i /><i /><i /><i /></span>
+    </div>
+  );
+}
+
 const day = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "–");
 
 /* ---------------- AI bot access ---------------- */
@@ -69,14 +97,15 @@ export function AiBotChecker({ ctx }: { ctx: Ctx }) {
     <div className="tcheck">
       <form className="tform trow" onSubmit={run}>
         <Field label="Page to check">{(id) => <input id={id} type="text" inputMode="url" placeholder="https://example.com" value={url} onChange={(e) => setUrl(e.target.value)} required />}</Field>
-        <button className="btn" type="submit" disabled={busy}>{busy ? "Checking 14 bots…" : "Check AI access"}</button>
+        <button className="btn" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Checking 14 bots…" : "Check AI access"}</button>
       </form>
       <ErrorNote p={err} />
+      {busy && !rep && <Working label="Asking each AI crawler for your page…" />}
       {rep && (
         <section className="tres" aria-label="AI bot access results" aria-live="polite">
-          <p className="tres-sum">
-            <b>{canRead} of {rep.bots.length}</b> AI bots can read <span className="tres-url">{rep.url}</span>
-          </p>
+          <Verdict tone={canRead === rep.bots.length ? "ok" : canRead === 0 ? "bad" : "warn"} big={<>{canRead}<small>/{rep.bots.length}</small></>} title={canRead === rep.bots.length ? "Every AI bot can read this page" : canRead === 0 ? "No AI bot can read this page" : `${rep.bots.length - canRead} AI bot${rep.bots.length - canRead > 1 ? "s are" : " is"} kept out`}>
+            <span className="tres-url">{rep.url}</span>
+          </Verdict>
           <ul className="tfacts">
             <li><Chip tone={rep.robots === "found" ? "ok" : "na"}>{rep.robots === "found" ? "Found" : rep.robots === "missing" ? "None" : "Unreachable"}</Chip> robots.txt</li>
             <li><Chip tone={rep.llms ? "ok" : "na"}>{rep.llms ? "Found" : "None"}</Chip> llms.txt {!rep.llms && <Link href="/tools/llms-txt-generator">Create one</Link>}</li>
@@ -90,7 +119,7 @@ export function AiBotChecker({ ctx }: { ctx: Ctx }) {
               </thead>
               <tbody>
                 {rep.bots.map((b) => (
-                  <tr key={b.token}>
+                  <tr key={b.token} style={{ ["--i" as string]: rep.bots.indexOf(b) }}>
                     <td><b>{b.token}</b><small>{b.owner} · {b.purpose}</small></td>
                     <td>{KIND[b.kind]}</td>
                     <td>
@@ -152,7 +181,7 @@ export function RobotsTester({ ctx }: { ctx: Ctx }) {
           {(id) => (
             <div className="tinline">
               <input id={id} type="text" inputMode="url" placeholder="https://example.com" value={site} onChange={(e) => setSite(e.target.value)} />
-              <button className="btn" type="button" data-gate onClick={load} disabled={busy || !site.trim()}>{busy ? "Loading…" : "Load"}</button>
+              <button className="btn" type="button" data-gate onClick={load} disabled={busy || !site.trim()} aria-busy={busy}>{busy ? "Loading…" : "Load"}</button>
             </div>
           )}
         </Field>
@@ -171,6 +200,14 @@ export function RobotsTester({ ctx }: { ctx: Ctx }) {
         <Field label="URLs or paths to test" hint="One per line, up to 50.">{(id) => <textarea id={id} rows={5} value={paths} onChange={(e) => setPaths(e.target.value)} />}</Field>
       </div>
       <div className="tres">
+        {rows.length > 0 && (() => {
+          const blocked = rows.filter((r) => !r.v.allowed).length;
+          return (
+            <Verdict tone={blocked === 0 ? "ok" : blocked === rows.length ? "bad" : "warn"} big={<>{rows.length - blocked}<small>/{rows.length}</small></>} title={`${blocked === 0 ? "Every path is" : `${rows.length - blocked} of ${rows.length} paths are`} open to ${ua === "*" ? "any crawler" : ua}`}>
+              Results update as you edit the file or the paths.
+            </Verdict>
+          );
+        })()}
         <div className="crawl-wrap">
           <table className="crawl">
             <thead>
@@ -229,11 +266,23 @@ export function DomainAgeChecker({ ctx }: { ctx: Ctx }) {
     <div className="tcheck">
       <form className="tform" onSubmit={run}>
         <Field label="Domains" hint="One per line or separated by commas, up to 10.">{(id) => <textarea id={id} rows={4} placeholder={"example.com\nexample.org"} value={list} onChange={(e) => setList(e.target.value)} required />}</Field>
-        <button className="btn" type="submit" disabled={busy}>{busy ? "Looking up…" : "Check domains"}</button>
+        <button className="btn" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Looking up…" : "Check domains"}</button>
       </form>
       <ErrorNote p={err} />
+      {busy && !res && <Working label="Reading registration records…" />}
       {res && (
         <section className="tres" aria-label="Domain age results" aria-live="polite">
+          {(() => {
+            const ok = res.results.filter((d) => d.ok);
+            const soon = ok.filter((d) => d.expires && new Date(d.expires).getTime() - res.at < 60 * 86_400_000).length;
+            const oldest = ok.filter((d) => d.created).sort((a, b) => new Date(a.created!).getTime() - new Date(b.created!).getTime())[0];
+            const failed = res.results.length - ok.length;
+            return (
+              <Verdict tone={soon || failed ? "warn" : "ok"} big={oldest ? age(oldest.created, res.at).split(",")[0] : undefined} title={oldest ? `${oldest.domain} is the oldest` : "No registration dates found"}>
+                {soon ? `${soon} domain${soon > 1 ? "s expire" : " expires"} within 60 days. Renew before it lapses.` : failed ? `${failed} couldn't be looked up.` : "No domain expires in the next 60 days."}
+              </Verdict>
+            );
+          })()}
           <div className="crawl-wrap">
             <table className="crawl">
               <thead>
@@ -286,20 +335,19 @@ export function HreflangChecker({ ctx }: { ctx: Ctx }) {
     <div className="tcheck">
       <form className="tform trow" onSubmit={run}>
         <Field label="Page with language versions">{(id) => <input id={id} type="text" inputMode="url" placeholder="https://example.com/en/" value={url} onChange={(e) => setUrl(e.target.value)} required />}</Field>
-        <button className="btn" type="submit" disabled={busy}>{busy ? "Checking alternates…" : "Check hreflang"}</button>
+        <button className="btn" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Checking alternates…" : "Check hreflang"}</button>
       </form>
       <ErrorNote p={err} />
+      {busy && !rep && <Working label="Opening each language version…" />}
       {rep && (
         <section className="tres" aria-label="hreflang results" aria-live="polite">
           {rep.alts.length === 0 ? (
-            <p className="tres-sum">No hreflang tags found on <span className="tres-url">{rep.url}</span>. That&rsquo;s fine for a site in one language.</p>
+            <Verdict tone="ok" title="No hreflang tags on this page">That&rsquo;s fine for a site in one language. <span className="tres-url">{rep.url}</span></Verdict>
           ) : (
             <>
-              <p className="tres-sum">
-                <b>{rep.alts.length}</b> language version{rep.alts.length > 1 ? "s" : ""} on <span className="tres-url">{rep.url}</span>
-                {" · "}
-                {rep.issues.length ? <b className="bad">{rep.issues.length} problem{rep.issues.length > 1 ? "s" : ""}</b> : <b className="ok">no problems found</b>}
-              </p>
+              <Verdict tone={rep.issues.length ? "bad" : "ok"} big={rep.alts.length} title={`language version${rep.alts.length > 1 ? "s" : ""} · ${rep.issues.length ? `${rep.issues.length} problem${rep.issues.length > 1 ? "s" : ""} to fix` : "no problems found"}`}>
+                <span className="tres-url">{rep.url}</span>
+              </Verdict>
               {rep.issues.length > 0 && (
                 <ul className="tissues">
                   {rep.issues.map((i) => (

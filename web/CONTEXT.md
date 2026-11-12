@@ -150,7 +150,8 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
   - `INSIGHTS` and `GROW` define the sections. The sidebar is grouped as Findings, Areas, Insights and Grow.
   - Every section except the overview has a sticky "← Back to overview" button (`.back-btn`) and Previous / Next links (`.dash-pn`).
   - Header: Search, Rescan, Share, Export, More. Share, Export and More each open an `ActionModal` (`action-modal.tsx`) of option tiles; Share also shows the report link with a Copy button.
-  - The Overview has a "From this scan" card per insight section (headline number from `sectionStats`) and a "Do more with this report" list of action rows (`.do-more`). `pitchFor` writes each row's headline, short line and button verb from this report and ranks them. Insight and area headers show `sectionStats` as a stat row, with Why it matters folded (`WhyItMatters`). Colours come from the `--d-*` tokens on `.dash` (redefined for `.dash.dark`), in the "Dashboard refresh" block at the end of globals.css.
+  - Dashboard CTAs use the site's "Analyse My Website" lilac (`--cta`, `--cta-h` in the "Dashboard CTAs" block of globals.css): primary buttons at rest, every button on hover.
+  - The Overview has a "From this scan" card per insight section (five cards, laid out 3 + 2) (headline number from `sectionStats`) and a "Do more with this report" list of action rows (`.do-more`). `pitchFor` writes each row's headline, short line and button verb from this report and ranks them. Insight and area headers show `sectionStats` as a stat row, with Why it matters folded (`WhyItMatters`). Colours come from the `--d-*` tokens on `.dash` (redefined for `.dash.dark`), in the "Dashboard refresh" block at the end of globals.css.
   - `useSiteId` finds the saved site, for the AI visibility link.
 - `panels.tsx`: `FindingsExplorer`, `ExportTiles` (PDF, checklist, CSV and JSON tiles for the Export modal), `VitalsPanel` (plain-English summary, loading timeline, metric cards with a scale and a "what this means" panel), `useInView`, `CrawlPanel`, `ImagesPanel`, `QuickWins`, `ChangePanel`, `ComparePanel`, `DomainPanel`, `TechPanel`, `HowScores`, `useHistory`.
 - `action-modal.tsx`: `ActionModal` (a `<dialog>` with title and tile grid; a bottom sheet on phones) and `Tile`.
@@ -161,6 +162,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
   - `save-site.tsx`: save the site with a schedule and alerts. `inline` shows it as a form instead of a drop-down.
   - `compare-button.tsx`: scan competitors.
   - `rescan.tsx`: `RescanButton` runs a fresh scan in the background while the current report stays up (button reads "Scanning…"), saves it to the account, then opens the new report. Also runs a scan the home page started (`?scan=<id>`; `/api/scan` returns `prevId`, from `latestScanForHost` in `lib/scan/store.ts`).
+- `brand-share.tsx`: `BrandShare`, the Brand & share section: sub-tabs Share report, Brand settings (`BrandEditor embedded`) and Sample report (`/r/demo` in a frame with the owner's first brand). The tab is `?tab=` in the URL.
 - `agency-modal.tsx`: the "are you an agency?" question, plus `useAccount` (plan and paid status).
 
 **Reports:**
@@ -173,7 +175,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 
 **Account:**
 - `account/`: plan and account details.
-- `account/brand`: brand editor; lists and revokes share links.
+- `account/brand`: brand editor; lists and revokes share links. `BrandEditor` takes `embedded` (no heading, breadcrumb or back link) for the dashboard.
 - `account/sites`: agency multi-site view.
 - `account/visibility/[siteId]`: AI visibility.
 
@@ -199,12 +201,13 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
   - `tools/catalog.ts`: `TOOL_LIST`, `TOOLS_BY_SLUG`, `CATEGORIES`, `ToolSlug`. Every tool's slug, category, copy and FAQ, and `paid` for paid-only tools. Add a tool here first.
   - `tools/tool-browser.tsx`: `ToolBrowser`, the /tools directory: a big search box, sticky category chips, then a coloured header band and `ToolCard`s per category (filtering only hides cards).
   - `tools/icons.tsx`: `ToolIcon` (line icon per tool) and `TONE` (category colour class, `.tc-*`).
-  - `tools/tool-view.tsx`: `ToolView` picks the tool by slug and always shows it live. Signed out, submitting the form or clicking a `data-gate` button (Copy, Download, Load) opens `LeadModal` with `tool`, then replays that action after sign-in. Signed in, it pre-fills from the latest report.
+  - `tools/tool-view.tsx`: `VIEWS` (each tool's component by slug) and `ToolView`, which picks the tool by slug and always shows it live. Signed out, submitting the form or clicking a `data-gate` button (Copy, Download, Load) opens `LeadModal` with `tool`, then replays that action after sign-in. Signed in, it pre-fills from the latest report.
   - `tools/tool-card.tsx`: `ToolCard` (one tool with its example result; used on the home page, /tools and "More free tools") and `AllToolsBanner` (the "Browse all tools" banner on tool pages).
   - `tools/samples.tsx`: `SAMPLES` and `ToolSample`, an illustrative example result for each tool (rows, a code file or a search snippet). Used by the home featured tools and each tool page.
   - `tools/tool-steps.tsx`: `ToolSteps`, the "How it works" timeline; a line draws across and the steps pop in when it scrolls into view.
-  - `tools/tools.tsx`: the five generators (`Llms`, `Robots`, `Schema`, `Serp`, `Headers`, plus `Field`, `Output`) and `Tools`, the tabbed version used inside the dashboard (`embedded`).
-  - `tools/checkers.tsx`: `AiBotChecker`, `RobotsTester`, `DomainAgeChecker`, `HreflangChecker`, `ReviewLink`, plus the shared `callTool`, `ErrorNote`, `Chip`.
+  - `tools/tools.tsx`: the five generators (`Llms`, `Robots`, `Schema`, `Serp`, `Headers`, plus `Field`, `Output` (editor-style code box with Copy and Download)).
+  - `tools/dash-tools.tsx`: `DashTools`, the dashboard's Free tools section: every tool as a card (tools that fix this scan's findings first, then by category); a card opens the tool inline, pre-filled from the scan (`?tool=<slug>`).
+  - `tools/checkers.tsx`: `AiBotChecker`, `RobotsTester`, `DomainAgeChecker`, `HreflangChecker`, `ReviewLink`, plus the shared `callTool`, `ErrorNote`, `Chip`, `Verdict` (coloured result banner with icon and big number) and `Working` (spinner and shimmer skeleton while a check runs). Shared tool styles are in the "Free tools: shared polish" block of globals.css.
   - `tools/checkers-bulk.tsx`: `BulkSchemaChecker` (paste URLs or load from sitemap), `SitemapGenerator` (browser-driven crawl with progress and Stop), `RenderedChecker` (paid). The bulk ones send batches to `/api/tools` so each request stays inside the Worker subrequest limit.
 
 **Shared UI:**

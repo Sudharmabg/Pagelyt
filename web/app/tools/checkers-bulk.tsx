@@ -7,7 +7,7 @@ import { BULK_SCHEMA, SITEMAP } from "@/lib/tools/limits";
 import type { RenderReport } from "@/lib/tools/rendered";
 import type { CrawledPage } from "@/lib/tools/sitemap";
 import { sitemapXml } from "@/lib/tools/sitemap-xml";
-import { Chip, ErrorNote, callTool, isProblem, type Problem } from "./checkers";
+import { Chip, ErrorNote, Verdict, Working, callTool, isProblem, type Problem } from "./checkers";
 import { Field, Output, type Ctx } from "./tools";
 
 /* Phase 2 tools: bulk schema checker, sitemap generator and raw vs rendered HTML.
@@ -111,9 +111,9 @@ export function BulkSchemaChecker({ ctx }: { ctx: Ctx }) {
         </Field>
         <div className="tload">
           <Field label="Or load them from a sitemap">{(id) => <input id={id} type="text" inputMode="url" placeholder="https://example.com" value={site} onChange={(e) => setSite(e.target.value)} />}</Field>
-          <button className="btn outline" type="button" data-gate onClick={load} disabled={!!busy}>{busy === "load" ? "Reading sitemap…" : "Load from sitemap"}</button>
+          <button className="btn outline" type="button" data-gate onClick={load} disabled={!!busy} aria-busy={busy === "load"}>{busy === "load" ? "Reading sitemap…" : "Load from sitemap"}</button>
         </div>
-        <button className="btn" type="submit" disabled={!!busy}>
+        <button className="btn" type="submit" disabled={!!busy} aria-busy={busy === "run"}>
           {busy === "run" ? `Checking ${rows?.length ?? 0} of ${total}…` : "Check structured data"}
         </button>
       </form>
@@ -121,11 +121,9 @@ export function BulkSchemaChecker({ ctx }: { ctx: Ctx }) {
       <ErrorNote p={err} />
       {rows && rows.length > 0 && counts && (
         <section className="tres" aria-label="Structured data results" aria-live="polite">
-          <p className="tres-sum">
-            <b>{rows.length}</b> page{rows.length > 1 ? "s" : ""} checked · <b>{counts.withSchema}</b> with JSON-LD ·{" "}
-            {counts.required ? <b className="bad">{counts.required} need fixing</b> : <b className="ok">no required fields missing</b>}
-            {counts.errors > 0 && <> · {counts.errors} couldn&rsquo;t be read</>}
-          </p>
+          <Verdict tone={counts.required ? "bad" : counts.withSchema < rows.length ? "warn" : "ok"} big={<>{counts.withSchema}<small>/{rows.length}</small></>} title={`page${rows.length > 1 ? "s" : ""} with JSON-LD · ${counts.required ? `${counts.required} need fixing` : "no required fields missing"}`}>
+            {counts.errors > 0 ? `${counts.errors} couldn’t be read.` : "Pages missing required fields can’t earn rich results."}
+          </Verdict>
           <div className="crawl-wrap">
             <table className="crawl tschema">
               <thead>
@@ -250,10 +248,9 @@ export function SitemapGenerator({ ctx }: { ctx: Ctx }) {
             </div>
           )}
           {!busy && (
-            <p className="tres-sum">
-              <b>{included.length}</b> page{included.length === 1 ? "" : "s"} in your sitemap, from {pages.length} crawled
-              {byReason.length > 0 && <> · {excluded.length} left out</>}
-            </p>
+            <Verdict tone={included.length ? (excluded.length ? "warn" : "ok") : "bad"} big={included.length} title={`page${included.length === 1 ? "" : "s"} in your sitemap, from ${pages.length} crawled`}>
+              {excluded.length > 0 ? `${excluded.length} left out: redirects, errors, noindex or canonicalised pages.` : "Every crawled page belongs in the sitemap."}
+            </Verdict>
           )}
           <ul className="tfacts">
             <li>
@@ -329,9 +326,10 @@ export function RenderedChecker({ ctx }: { ctx: Ctx }) {
     <div className="tcheck">
       <form className="tform trow" onSubmit={run}>
         <Field label="Page to compare">{(id) => <input id={id} type="text" inputMode="url" placeholder="https://example.com" value={url} onChange={(e) => setUrl(e.target.value)} required />}</Field>
-        <button className="btn" type="submit" disabled={busy}>{busy ? "Rendering in Chrome…" : "Compare"}</button>
+        <button className="btn" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Rendering in Chrome…" : "Compare"}</button>
       </form>
       <ErrorNote p={err} />
+      {busy && !rep && <Working label="Fetching the raw HTML and rendering the page in Chrome…" />}
       {rep && v && (
         <section className="tres" aria-label="Raw vs rendered results" aria-live="polite">
           <div className={`tverdict ${v[0]}`}>

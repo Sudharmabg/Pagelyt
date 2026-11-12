@@ -20,7 +20,8 @@ function validate(f: Form): string {
   return "";
 }
 
-export function BrandEditor() {
+/** `embedded`: shown inside the dashboard's Brand & share section, so no page heading or back link. */
+export function BrandEditor({ embedded = false }: { embedded?: boolean }) {
   const sb = supabaseBrowser();
   const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
   const [brands, setBrands] = useState<Brand[]>([]);
@@ -93,12 +94,21 @@ export function BrandEditor() {
 
   return (
     <div className="acct-grid">
-      <header className="acct-head">
-        <div>
-          <h1>Brand settings</h1>
-          <p className="panel-note">White-label reports show your brand to your clients, with no Pagelyt navigation. <Link className="fnd-link" href="/account">Back to your sites</Link></p>
-        </div>
-      </header>
+      {!embedded && (
+        <header className="acct-head">
+          <div>
+            <nav className="crumbs" aria-label="Breadcrumb">
+              <Link href="/dashboard">Dashboard</Link> <span aria-hidden="true">/</span> <Link href="/account">Account</Link> <span aria-hidden="true">/</span> <span aria-current="page">Brand settings</span>
+            </nav>
+            <h1>Brand settings</h1>
+            <p className="panel-note">White-label reports show your brand to your clients, with no Pagelyt navigation.</p>
+            <div className="sec-row">
+              <Link className="dash-btn" href="/dashboard"><span aria-hidden="true">←</span>&nbsp;Back to dashboard</Link>
+              <Link className="dash-btn" href="/r/demo" target="_blank">See a sample report</Link>
+            </div>
+          </div>
+        </header>
+      )}
       <p className="acct-msg" role="status" aria-live="polite">{msg}</p>
 
       <section className="panel" aria-label={editing ? "Edit brand" : "New brand"}>

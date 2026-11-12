@@ -102,7 +102,7 @@ export function ShareReport({ scanId, host, score, canEmail }: { scanId: string;
 
   return (
     <>
-      <button type="button" className="dash-btn" onClick={() => ref.current?.showModal()} aria-haspopup="dialog">Share branded report</button>
+      <button type="button" className="dash-btn primary" onClick={() => ref.current?.showModal()} aria-haspopup="dialog">Share branded report</button>
       <dialog
         ref={ref}
         className="lead-modal share-modal"
