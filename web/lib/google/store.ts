@@ -1,0 +1,115 @@
+/* Server only. Google connections, site ↔ property links and the cached data (migration 0010), through Supabase
+   REST with the service-role key. Every function that takes a user id must be called only after the route has
+   verified that user. */
+
+import { live, rest, getScanRow } from "../scan/store";
+import { featuresOpen, getPlan } from "../scan/store-ext";
+import { openToken, sealToken } from "./crypto";
+import { GoogleError, refreshAccess, revoke, SCOPES, type Product } from "./oauth";
+import { fetchGsc } from "./gsc";
+import type { GscData } from "./gsc-insights";
+
+/** Google data comes with the Professional and Business plans (open to everyone while billing is off). */
+export async function canUseGoogle(userId: string) {
+  return featuresOpen() || ["professional", "business"].includes(await getPlan(userId));
+}
+
+export type Connection = { user_id: string; google_email: string | null; scopes: string[]; refresh_token_enc: string; created_at: string; updated_at: string };
+export type Link = { site_id: string; user_id: string; gsc_property: string | null };
+export type CacheRow<T> = { site_id: string; source: string; data: T | null; error: string | null; fetched_at: string };
+export type Site = { id: string; user_id: string; host: string; url: string; last_scan_id: string | null };
+
+const q = encodeURIComponent;
+
+export async function getConnection(userId: string): Promise<Connection | null> {
+  if (!live()) return null;
+  return (await rest<Connection[]>(`google_connections?user_id=eq.${q(userId)}&select=*&limit=1`))[0] ?? null;
+}
+
+export const hasScope = (c: Connection | null, p: Product) => !!c?.scopes.includes(SCOPES[p]);
+
+/** Saves a new grant. Scopes add up (incremental consent); a reply without a refresh token keeps the old one. */
+export async function saveConnection(userId: string, g: { refresh: string | null; scopes: string[]; email: string | null }) {
+  const old = await getConnection(userId);
+  const refresh = g.refresh ? await sealToken(g.refresh) : old?.refresh_token_enc;
+  if (!refresh) throw new GoogleError("token", "Google sent no refresh token");
+  const scopes = [...new Set([...(g.refresh ? [] : (old?.scopes ?? [])), ...g.scopes])];
+  const row = { user_id: userId, google_email: g.email ?? old?.google_email ?? null, scopes, refresh_token_enc: refresh, updated_at: new Date().toISOString() };
+  await rest("google_connections?on_conflict=user_id", { method: "POST", body: JSON.stringify(row), prefer: "resolution=merge-duplicates,return=minimal" });
+}
+
+/** Revokes the grant at Google and forgets everything Pagelyt stored from it. */
+export async function disconnect(userId: string) {
+  const c = await getConnection(userId);
+  if (c) await revoke(await openToken(c.refresh_token_enc).catch(() => ""));
+  const sites = await rest<{ site_id: string }[]>(`google_links?user_id=eq.${q(userId)}&select=site_id`);
+  if (sites.length) await rest(`google_cache?site_id=in.(${sites.map((s) => q(s.site_id)).join(",")})`, { method: "DELETE" });
+  await rest(`google_links?user_id=eq.${q(userId)}`, { method: "DELETE" });
+  await rest(`google_connections?user_id=eq.${q(userId)}`, { method: "DELETE" });
+}
+
+/** A fresh access token, or null when the person has revoked access at Google (the connection is then removed). */
+export async function accessFor(c: Connection): Promise<string | null> {
+  try {
+    return await refreshAccess(await openToken(c.refresh_token_enc));
+  } catch (e) {
+    if (e instanceof GoogleError && e.kind === "revoked") {
+      await rest(`google_connections?user_id=eq.${q(c.user_id)}`, { method: "DELETE" });
+      return null;
+    }
+    throw e;
+  }
+}
+
+export async function ownSite(siteId: string, userId: string): Promise<Site | null> {
+  if (!live() || !/^[0-9a-f-]{36}$/i.test(siteId)) return null;
+  return (await rest<Site[]>(`sites?id=eq.${q(siteId)}&user_id=eq.${q(userId)}&select=id,user_id,host,url,last_scan_id&limit=1`))[0] ?? null;
+}
+
+export async function siteForHost(host: string, userId: string): Promise<Site | null> {
+  if (!live()) return null;
+  return (await rest<Site[]>(`sites?host=eq.${q(host)}&user_id=eq.${q(userId)}&select=id,user_id,host,url,last_scan_id&limit=1`))[0] ?? null;
+}
+
+export async function getLink(siteId: string): Promise<Link | null> {
+  return (await rest<Link[]>(`google_links?site_id=eq.${q(siteId)}&select=site_id,user_id,gsc_property&limit=1`))[0] ?? null;
+}
+
+export async function setGscProperty(siteId: string, userId: string, property: string | null) {
+  const row = { site_id: siteId, user_id: userId, gsc_property: property, updated_at: new Date().toISOString() };
+  await rest("google_links?on_conflict=site_id", { method: "POST", body: JSON.stringify(row), prefer: "resolution=merge-duplicates,return=minimal" });
+  // A different property makes the cached numbers wrong.
+  await rest(`google_cache?site_id=eq.${q(siteId)}&source=eq.gsc`, { method: "DELETE" });
+}
+
+export async function getCache<T>(siteId: string, source: "gsc"): Promise<CacheRow<T> | null> {
+  return (await rest<CacheRow<T>[]>(`google_cache?site_id=eq.${q(siteId)}&source=eq.${source}&select=*&limit=1`))[0] ?? null;
+}
+
+async function putCache(siteId: string, source: "gsc", data: unknown, error: string | null) {
+  // After a failure the row counts as stale again an hour later, so the next dashboard open after that retries.
+  const at = error ? Date.now() - STALE_MS + 60 * 60 * 1000 : Date.now();
+  const row = { site_id: siteId, source, data, error, fetched_at: new Date(at).toISOString() };
+  await rest("google_cache?on_conflict=site_id,source", { method: "POST", body: JSON.stringify(row), prefer: "resolution=merge-duplicates,return=minimal" });
+}
+
+/** Cached data is refetched when it is older than this (on dashboard open; there is no cron job). */
+export const STALE_MS = 24 * 60 * 60 * 1000;
+export const isStale = (c: { fetched_at: string } | null) => !c || Date.now() - Date.parse(c.fetched_at) > STALE_MS;
+
+/** Fetches Search Console for a site and caches it. On a Google error the old data is kept and the error stored. */
+export async function refreshGsc(site: Site, conn: Connection, property: string): Promise<CacheRow<GscData> | { revoked: true }> {
+  const access = await accessFor(conn);
+  if (!access) return { revoked: true };
+  const scan = site.last_scan_id ? await getScanRow(site.last_scan_id) : null;
+  try {
+    const data = await fetchGsc(access, property, { url: scan?.result?.url ?? site.url, findings: scan?.result?.findings ?? [] });
+    await putCache(site.id, "gsc", data, null);
+  } catch (e) {
+    const old = await getCache<GscData>(site.id, "gsc");
+    const msg = e instanceof GoogleError && e.kind === "denied" ? "This Google account can no longer read that Search Console property." : "Google didn't answer just now. Try again in a few minutes.";
+    console.error("gsc refresh", e instanceof Error ? e.message : e);
+    await putCache(site.id, "gsc", old?.data ?? null, msg);
+  }
+  return (await getCache<GscData>(site.id, "gsc"))!;
+}

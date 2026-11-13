@@ -16,7 +16,7 @@ const CONFIRM_EMAIL = process.env.MOCK_CONFIRM === "on";
 
 const users = new Map(); // email -> { id, email, password, confirmed, meta }
 const sessions = new Map(); // access token -> email
-const tables = { site_owners: [], site_claims: [], scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [], ai_prompts: [], ai_runs: [], uptime_checks: [], admins: [], requests: [] };
+const tables = { site_owners: [], site_claims: [], scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [], ai_prompts: [], ai_runs: [], uptime_checks: [], admins: [], requests: [], google_connections: [], google_links: [], google_cache: [] };
 // MOCK_ADMIN_EMAILS=a@x.test,b@x.test seeds the admins table, so those accounts can open /admin once signed up.
 for (const email of (process.env.MOCK_ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)) tables.admins.push({ email, created_at: new Date().toISOString() });
 // The account plan for every new profile. MOCK_PLAN=professional lets you try the paid-only agency features.
@@ -83,7 +83,9 @@ http
     if (req.method === "OPTIONS") return send(res, 204);
     let raw = "";
     for await (const c of req) raw += c;
-    const body = raw ? JSON.parse(raw) : {};
+    let body = {};
+    try { body = raw ? JSON.parse(raw) : {}; } catch { body = Object.fromEntries(new URLSearchParams(raw)); } // Google's token endpoint is form-encoded
+
     const p = url.pathname;
 
     // ---- test helpers ----
@@ -94,6 +96,9 @@ http
     // Stand-in for Resend (dev-mock points RESEND_API_URL here): nothing is sent, /__state shows each email.
     if (p === "/emails" && req.method === "POST") { log.emails.push(body); return send(res, 200, { id: crypto.randomUUID() }); }
     if (p === "/__seed-scan") { tables.scans.push(body); return send(res, 200, { ok: true }); }
+
+    // ---- Google (dev-mock sets GOOGLE_MOCK_URL, so every Google call lands here) ----
+    if (p.startsWith("/google/")) return mockGoogle(req, res, url, body);
 
     // ---- GoTrue ----
     // Admin API (service key only): the admin panel lists accounts for owner emails and analytics.
@@ -205,3 +210,65 @@ http
     send(res, 404, { msg: `mock: no route ${req.method} ${p}` });
   })
   .listen(PORT, () => console.log(`[mock supabase] listening on ${PORT} (email confirmation ${CONFIRM_EMAIL ? "ON" : "off"}); data is kept in memory only`));
+
+/* ---------- fake Google: consent, tokens, Search Console ----------
+   MOCK_GOOGLE=deny makes the consent screen decline; MOCK_GOOGLE=noscope grants sign-in but not Search Console;
+   MOCK_GOOGLE=empty gives an account with no Search Console properties. The numbers are made up but stable. */
+const MOCK_GOOGLE = process.env.MOCK_GOOGLE || "";
+const gCodes = new Map(); // code -> scope
+function hashN(str) { let h = 2166136261; for (const ch of str) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0) / 2 ** 32; }
+function mockGoogle(req, res, url, body) {
+  const rest = url.pathname.slice("/google/".length);
+  const host = rest.split("/")[0];
+  const path = rest.slice(host.length);
+  if (host === "accounts.google.com" && path === "/o/oauth2/v2/auth") {
+    const back = new URL(url.searchParams.get("redirect_uri"));
+    back.searchParams.set("state", url.searchParams.get("state") || "");
+    if (MOCK_GOOGLE === "deny") back.searchParams.set("error", "access_denied");
+    else {
+      const code = `mock-${crypto.randomUUID()}`;
+      const scope = (url.searchParams.get("scope") || "").split(" ").filter((x) => MOCK_GOOGLE !== "noscope" || !x.includes("webmasters")).join(" ");
+      gCodes.set(code, scope);
+      back.searchParams.set("code", code);
+    }
+    res.writeHead(302, { location: back.toString() });
+    return res.end();
+  }
+  if (host === "oauth2.googleapis.com" && path === "/token") {
+    if (body.grant_type === "authorization_code") {
+      const scope = gCodes.get(body.code);
+      if (!scope || !body.code_verifier) return send(res, 400, { error: "invalid_grant" });
+      gCodes.delete(body.code);
+      return send(res, 200, { access_token: `gat-${crypto.randomUUID()}`, refresh_token: `grt-${crypto.randomUUID()}`, scope: scope.replace(/\bemail\b/, "https://www.googleapis.com/auth/userinfo.email"), expires_in: 3599, id_token: `x.${b64({ email: "owner@gmail.example" })}.y` });
+    }
+    if (body.grant_type === "refresh_token") return String(body.refresh_token).startsWith("grt-") ? send(res, 200, { access_token: `gat-${crypto.randomUUID()}`, expires_in: 3599 }) : send(res, 400, { error: "invalid_grant" });
+    return send(res, 400, { error: "unsupported_grant_type" });
+  }
+  if (host === "oauth2.googleapis.com" && path === "/revoke") return send(res, 200, {});
+  if (!/^Bearer gat-/.test(String(req.headers.authorization || ""))) return send(res, 401, { error: { code: 401 } });
+  const props = () => MOCK_GOOGLE === "empty" ? [] : [...new Set(tables.sites.map((x) => x.host.replace(/^www\./, "")))].flatMap((h) => [{ siteUrl: `sc-domain:${h}`, permissionLevel: "siteOwner" }]).concat([{ siteUrl: "https://another-site.example/", permissionLevel: "siteFullUser" }]);
+  if (host === "www.googleapis.com" && path === "/webmasters/v3/sites") return send(res, 200, { siteEntry: props() });
+  const sa = path.match(/^\/webmasters\/v3\/sites\/(.+)\/searchAnalytics\/query$/);
+  if (host === "www.googleapis.com" && sa) {
+    const prop = decodeURIComponent(sa[1]);
+    const h = prop.replace(/^sc-domain:/, "").replace(/^https?:\/\//, "").replace(/\/$/, "");
+    const scan = [...tables.scans].reverse().find((x) => x.result && x.host.replace(/^www\./, "") === h.replace(/^www\./, ""));
+    const urls = [...new Set([scan?.result?.url, ...(scan?.result?.crawl?.list ?? []).map((x) => x.url)].filter(Boolean))];
+    if (!urls.length) urls.push(`https://${h}/`);
+    const seed = body.startDate;
+    const page = (u) => { const r = hashN(u + seed); const r0 = hashN(u); const imp = Math.round(200 + r0 * 6000 * (u === urls[0] ? 3 : 1) * (0.6 + r * 0.8)); const pos = 2 + r0 * 22; const ctr = Math.max(0.003, (pos < 10 ? 0.22 / pos : 0.006) * (0.4 + hashN(u + "c") * 1.2)); return { keys: [u], clicks: Math.round(imp * ctr), impressions: imp, ctr, position: pos }; };
+    const dims = body.dimensions || [];
+    let rows;
+    if (!dims.length) { const all = urls.map(page); const c = all.reduce((a, x) => a + x.clicks, 0); const i = all.reduce((a, x) => a + x.impressions, 0); rows = [{ clicks: c, impressions: i, ctr: c / i, position: all.reduce((a, x) => a + x.position * x.impressions, 0) / i }]; }
+    else if (dims[0] === "page") rows = urls.map(page);
+    else if (dims[0] === "date") { rows = []; const d0 = new Date(body.startDate); for (let k = 0; k < 28; k++) { const d = new Date(d0.getTime() + k * 86400000).toISOString().slice(0, 10); const imp = Math.round(800 + hashN(d) * 600); rows.push({ keys: [d], clicks: Math.round(imp * 0.04), impressions: imp, ctr: 0.04, position: 9 }); } }
+    else { const words = ["pricing", "reviews", "near me", "how to", "best", "alternatives", "login", "contact"]; rows = urls.flatMap((u) => words.slice(0, 3 + Math.floor(hashN(u) * 5)).map((w) => { const r = hashN(u + w); const imp = Math.round(20 + r * 900); const pos = 1.5 + hashN(w + u) * 24; return { keys: [`${h.split(".")[0]} ${w}`, u], clicks: Math.round(imp * (pos < 10 ? 0.15 / pos : 0.005)), impressions: imp, ctr: pos < 10 ? 0.15 / pos : 0.005, position: pos }; })); }
+    return send(res, 200, { rows, responseAggregationType: "byPage" });
+  }
+  if (host === "searchconsole.googleapis.com" && path === "/v1/urlInspection/index:inspect") {
+    const u = body.inspectionUrl;
+    const bad = hashN(u + "idx") < 0.25;
+    return send(res, 200, { inspectionResult: { indexStatusResult: { verdict: bad ? "NEUTRAL" : "PASS", coverageState: bad ? "Crawled - currently not indexed" : "Submitted and indexed", lastCrawlTime: new Date(Date.now() - hashN(u) * 20 * 86400000).toISOString(), googleCanonical: u, userCanonical: u } } });
+  }
+  return send(res, 404, { error: { code: 404, message: `mock Google has no ${host}${path}` } });
+}

@@ -8,6 +8,7 @@ import { evidenceText, MODULE_NAMES, type Finding, type PageWeight, type Severit
 import type { StoredScan } from "@/lib/scan/store";
 import { Tile } from "./action-modal";
 import { crawlWhy, type CrawlFix } from "@/lib/scan/crawl-why";
+import type { Traffic } from "@/lib/google/gsc-insights";
 
 /* ------------------------------------------------------------------ */
 /* Explorer: search + severity filter over every finding               */
@@ -20,8 +21,9 @@ const SEV: { key: Severity | "all"; label: string }[] = [
   { key: "low", label: "Minor" },
 ];
 
-export function FindingsExplorer({ findings, fixed, onToggleFixed, gains }: { findings: Finding[]; fixed: Set<string>; onToggleFixed?: (k: string) => void; gains?: Map<string, number> }) {
+export function FindingsExplorer({ findings, fixed, onToggleFixed, gains, traffic }: { findings: Finding[]; fixed: Set<string>; onToggleFixed?: (k: string) => void; gains?: Map<string, number>; traffic?: Map<string, Traffic> }) {
   const [bySize, setBySize] = useState(false);
+  const [byClicks, setByClicks] = useState(false);
   const [sev, setSev] = useState<Severity | "all">("all");
   const [q, setQ] = useState("");
   const [hideFixed, setHideFixed] = useState(false);
@@ -29,14 +31,15 @@ export function FindingsExplorer({ findings, fixed, onToggleFixed, gains }: { fi
 
   const shown = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    const list = bySize ? [...findings].sort((a, b) => (gains?.get(findingKey(b)) ?? 0) - (gains?.get(findingKey(a)) ?? 0)) : findings;
+    const clicks = (f: Finding) => traffic?.get(findingKey(f))?.clicks ?? -1;
+    const list = byClicks && traffic ? [...findings].sort((a, b) => clicks(b) - clicks(a)) : bySize ? [...findings].sort((a, b) => (gains?.get(findingKey(b)) ?? 0) - (gains?.get(findingKey(a)) ?? 0)) : findings;
     return list.filter((f) => {
       if (sev !== "all" && f.severity !== sev) return false;
       if (hideFixed && fixed.has(findingKey(f))) return false;
       if (!needle) return true;
       return `${f.title} ${f.why} ${f.fix} ${MODULE_NAMES[f.module]}`.toLowerCase().includes(needle);
     });
-  }, [findings, sev, q, hideFixed, fixed, bySize, gains]);
+  }, [findings, sev, q, hideFixed, fixed, bySize, gains, byClicks, traffic]);
 
   const count = (k: Severity | "all") => (k === "all" ? findings.length : findings.filter((f) => f.severity === k).length);
 
@@ -79,16 +82,21 @@ export function FindingsExplorer({ findings, fixed, onToggleFixed, gains }: { fi
           <button type="button" aria-pressed={hideFixed} onClick={() => setHideFixed((v) => !v)}>
             Hide fixed
           </button>
-          <button type="button" aria-pressed={bySize} onClick={() => setBySize((v) => !v)} title="Order by the points each fix adds to your score">
+          <button type="button" aria-pressed={bySize && !byClicks} onClick={() => { setBySize((v) => !v); setByClicks(false); }} title="Order by the points each fix adds to your score">
             Biggest gain first
           </button>
+          {traffic && (
+            <button type="button" aria-pressed={byClicks} onClick={() => { setByClicks((v) => !v); setBySize(false); }} title="Order by Google clicks on the affected pages (last 28 days)">
+              Most Google clicks
+            </button>
+          )}
         </div>
       </div>
       <p className="fnd-result" aria-live="polite">
         Showing {shown.length} of {findings.length}
       </p>
       {shown.length ? (
-        <Findings findings={shown} title="All findings" fixed={fixed} onToggleFixed={onToggleFixed} gains={gains} />
+        <Findings findings={shown} title="All findings" fixed={fixed} onToggleFixed={onToggleFixed} gains={gains} traffic={traffic} />
       ) : (
         <p className="fnd-empty">Nothing matches. Try clearing the search or filters.</p>
       )}

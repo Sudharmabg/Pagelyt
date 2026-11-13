@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { STAGE_LABELS } from "@/lib/scan/labels";
 import { AGENCY_UPSELL, useAccount, type AccountInfo } from "../dashboard/agency-modal";
+import { disconnectGoogle, googleAccount, type GoogleStatus } from "../dashboard/use-google";
 
 type Cadence = "none" | "daily" | "weekly" | "monthly";
 type SiteRow = { id: string; host: string; url: string; cadence: Cadence; uptime: boolean; alerts: boolean; last_scan_id: string | null };
@@ -219,6 +220,49 @@ export function Account() {
           </ul>
         )}
       </section>
+
+      <GoogleAccount />
     </div>
+  );
+}
+
+/* Connect Google: which Google account is connected, and Disconnect (revokes Pagelyt's access at Google and deletes
+   everything stored from it). Connecting happens from a report's Google data view, per site. */
+function GoogleAccount() {
+  const [g, setG] = useState<GoogleStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  useEffect(() => {
+    googleAccount().then(setG).catch(() => setG(null));
+  }, []);
+  if (!g?.configured) return null;
+  const off = async () => {
+    if (!window.confirm("Disconnect Google? Pagelyt's access is removed at Google and the Search Console data saved for your sites is deleted.")) return;
+    setBusy(true);
+    setErr("");
+    try {
+      await disconnectGoogle();
+      setG({ ...g, connected: false, email: null, gsc: false });
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <section className="panel" aria-label="Google">
+      <h2>Google</h2>
+      {g.connected ? (
+        <>
+          <p className="panel-note">
+            Connected as <b>{g.email ?? "your Google account"}</b>{g.gsc ? ", with read-only access to Search Console" : ""}. Pagelyt can&rsquo;t change anything in your Google account.
+          </p>
+          <button type="button" className="dash-btn" style={{ justifySelf: "start" }} onClick={() => void off()} disabled={busy}>{busy ? "Disconnecting…" : "Disconnect Google"}</button>
+        </>
+      ) : (
+        <p className="panel-note">Open a saved site&rsquo;s report and choose <b>Google data</b> to connect Search Console{g.allowed ? "" : " (Professional and Business plans)"}.</p>
+      )}
+      {err && <p className="panel-note" role="alert">{err}</p>}
+    </section>
   );
 }

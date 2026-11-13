@@ -3,6 +3,10 @@ import { buildInstructions, chatOn, streamAnswer } from "@/lib/ai/chat";
 import { cleanTurns } from "@/lib/ai/chat-knowledge";
 import { isPaid } from "@/lib/scan/agency";
 import { getScanRow, rateLimit } from "@/lib/scan/store";
+import { findingKey } from "@/lib/scan/score";
+import type { ScanResult } from "@/lib/scan/types";
+import { gscBrief, type GscData } from "@/lib/google/gsc-insights";
+import { canUseGoogle, getCache, siteForHost } from "@/lib/google/store";
 
 /* Pagelyt Assistant. Signed in, about one of your own reports. Streams plain text; the sources
    used are in the x-chat-sources header (URI-encoded JSON). */
@@ -28,7 +32,7 @@ export async function POST(req: Request) {
   if (!(await rateLimit(`chat-day:${user.id}`, paid ? CHAT_DAILY.paid : CHAT_DAILY.free, 86_400)))
     return no(paid ? `You've used today's ${CHAT_DAILY.paid} questions. The limit resets within 24 hours.` : `You've used today's ${CHAT_DAILY.free} free questions. Upgrade for up to ${CHAT_DAILY.paid} a day.`, 429, { upgrade: !paid });
 
-  const { instructions, sources } = buildInstructions(row.result, turns, row.fixed ?? []);
+  const { instructions, sources } = buildInstructions(row.result, turns, row.fixed ?? [], await googleBrief(user.id, row.result, row.fixed ?? []));
   try {
     const stream = await streamAnswer(instructions, turns, req.signal);
     return new Response(stream, {
@@ -37,5 +41,20 @@ export async function POST(req: Request) {
   } catch (e) {
     console.error("chat", e instanceof Error ? e.message : e);
     return no("The assistant couldn't answer just now. Please try again.", 502);
+  }
+}
+
+/* The cached Search Console numbers for this report's site, when the owner has connected Google. Never calls Google
+   here (the dashboard keeps the cache fresh), and never fails the chat. */
+async function googleBrief(userId: string, res: ScanResult, fixed: string[]): Promise<string | undefined> {
+  try {
+    if (!(await canUseGoogle(userId))) return undefined;
+    const site = await siteForHost(res.host, userId);
+    const c = site ? await getCache<GscData>(site.id, "gsc") : null;
+    if (!c?.data) return undefined;
+    const done = new Set(fixed);
+    return gscBrief(c.data, res.findings.filter((f) => !done.has(findingKey(f))), res.url, findingKey);
+  } catch {
+    return undefined;
   }
 }

@@ -23,7 +23,7 @@ export default function PrivacyPage() {
       <main>
         <PageHero
           h1="Privacy Policy."
-          lead="Last updated 5 November 2026. This page explains what Pagelyt collects and why."
+          lead="Last updated 13 November 2026. This page explains what Pagelyt collects and why."
         />
         <section className="sec">
           <div className="container legal">
@@ -44,6 +44,28 @@ export default function PrivacyPage() {
               Pagelyt reads publicly available pages of the website you submit. Some features need your permission or
               access, such as analytics or Google Search Console connections. We only use that access for the features
               you turn on.
+            </p>
+            <h2>Google user data</h2>
+            <p>
+              If you choose Connect Google, Pagelyt asks for read-only access to Google Search Console and your Google
+              account&rsquo;s email address. We read search performance (clicks, impressions, click rate and position by
+              page and search) and Google&rsquo;s index status for your site&rsquo;s pages, and show them next to your
+              report&rsquo;s findings, in your dashboard and in answers from the Pagelyt Assistant. We cannot change
+              anything in your Google account.
+            </p>
+            <p>
+              We store your Google refresh token encrypted and a copy of the latest numbers for each site, refreshed
+              about once a day while you use Pagelyt. Disconnect Google on your account page at any time: we revoke our
+              access at Google and delete the token and the stored data. You can also remove access in your Google
+              Account under Security, Third-party connections.
+            </p>
+            <p>
+              Pagelyt&rsquo;s use and transfer of information received from Google APIs follows the{" "}
+              <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">Google API Services User Data Policy</a>,
+              including the Limited Use requirements. We use Google data only to provide the features you see. We do not
+              sell it, use it for advertising, or let people read it except with your permission, for security, or where
+              the law requires it. We do not use it to train AI models. When you ask the Pagelyt Assistant a question,
+              a short summary of these numbers is sent to our AI provider (OpenAI) only to answer that question.
             </p>
             <h2>Sharing</h2>
             <p>

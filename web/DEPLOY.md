@@ -163,6 +163,62 @@ Security behaviour worth knowing:
 - Needs `OPENAI_API_KEY`. Model: `OPENAI_CHAT_MODEL` (default `gpt-5`, reasoning effort low). Change it to a newer or cheaper model without a code change.
 - Limits per account: 6 questions a minute; 10 a day on the free plan, 100 on paid plans (while `BILLING_ON` is false everyone counts as paid). Questions up to 1,000 characters, the last 10 turns sent, answers up to 2,500 output tokens.
 - Each question sends the report summary, an index of every guide and post, and the full text of the 3 that match best (not the whole library, which is about 32k tokens).
+- When the site has Google Search Console connected, the cached numbers (clicks per issue, near-page-one searches, drops, pages not indexed) go in too, from `gscBrief`.
+
+## Google integrations (Search Console now; Analytics and Ads next)
+
+What it does: dashboard star feature **Google data** (`?view=google`, owner only, saved sites only). One **Connect Google** button; Pagelyt asks Google only for the permission the product needs (Search Console first: `webmasters.readonly`, plus `openid email` to show which account is connected). Then: real clicks and impressions on every finding, Top fixes ordered by Google traffic, searches at positions 8–20, page-one results with a low click rate, pages that lost clicks, URL Inspection for up to 15 key pages, and the same numbers in Ask Pagelyt. Data is cached in `google_cache` and refetched when the dashboard opens and it is older than 24 hours (Refresh now forces it; 6 an hour per site). Plan gate: Professional and Business (open to everyone while `BILLING_ON` is false).
+
+### 1. Database
+
+Run `supabase/migrations/0010_google.sql` in the Supabase SQL editor before deploying.
+
+### 2. Google Cloud project (one time, about 20 minutes)
+
+1. Go to <https://console.cloud.google.com/>, sign in with the Google account that should own the app (a company account, not a personal one), and **create a project** called `Pagelyt`.
+2. **APIs & Services → Library**: enable **Google Search Console API**. (For the next phases also enable **Google Analytics Data API**, **Google Analytics Admin API** and **Google Ads API**; enabling them now costs nothing.)
+3. **APIs & Services → OAuth consent screen** (now called **Google Auth Platform**):
+   - App name `Pagelyt`, support email, logo (120×120), app home page `https://pagelyt.dev`, privacy policy `https://pagelyt.dev/privacy`, terms `https://pagelyt.dev/terms`.
+   - Authorised domain: `pagelyt.dev`. Developer contact email.
+   - Audience: **External**.
+   - **Data access → Add scopes**: `openid`, `.../auth/userinfo.email`, `.../auth/webmasters.readonly`. (Later phases add `.../auth/analytics.readonly` and `.../auth/adwords`.)
+   - **Test users**: add your own Google address and anyone testing before verification (up to 100).
+4. **Clients → Create client → Web application**, name `Pagelyt web`:
+   - Authorised JavaScript origins: `https://pagelyt.dev` (and `http://localhost:3000` for local tests).
+   - Authorised redirect URIs: `https://pagelyt.dev/api/google/callback` (and `http://localhost:3000/api/google/callback`). It must match exactly.
+   - Copy the **Client ID** and **Client secret**.
+
+### 3. Secrets
+
+```bash
+npx wrangler secret put GOOGLE_CLIENT_ID
+npx wrangler secret put GOOGLE_CLIENT_SECRET
+npx wrangler secret put GOOGLE_TOKEN_KEY      # any random string of 32+ characters; encrypts stored refresh tokens
+```
+
+Optional: `GOOGLE_REDIRECT_URI` if the callback URL isn't `<site origin>/api/google/callback` (e.g. behind a proxy). **Never change `GOOGLE_TOKEN_KEY` once people have connected**: stored tokens can't be read with a new key, so everyone would have to connect again.
+
+### 4. Testing mode vs verification
+
+- While the consent screen's publishing status is **Testing**, only the test users can connect, Google shows an "unverified app" warning, and **their connection expires after 7 days** (they connect again from the Google data view).
+- To open it to everyone: **Publish app**, then submit for **verification**. Search Console, Analytics and Ads read-only scopes are *sensitive* (not restricted), so there is no security assessment, but Google wants: a verified domain in Search Console for `pagelyt.dev`, the privacy policy saying what Google data is used for and that it isn't sold or used for ads (Google's Limited Use rules), and a short **YouTube video** showing the consent screen and where the data appears in Pagelyt. Allow 1–4 weeks. Add the Analytics and Ads scopes to the same submission once those phases ship, or verify again then.
+
+### 5. Google Ads (phase 3, start now because approval takes time)
+
+1. Create a **Google Ads manager account** at <https://ads.google.com/home/tools/manager-accounts/> (free; it needs no spend).
+2. In it: **Admin → API Center**: accept the terms and copy the **developer token** (it starts at *Test account* access).
+3. Apply for **Basic access** from the same page: describe Pagelyt as a read-only reporting tool for site owners and agencies (landing-page health, paid vs organic overlap). Approval usually takes a few days to a few weeks.
+4. When approved, set `GOOGLE_ADS_DEVELOPER_TOKEN` (and `GOOGLE_ADS_LOGIN_CUSTOMER_ID`, the manager account ID without dashes) as secrets.
+
+### Local testing
+
+`npm run dev:mock` points every Google call at the mock server's fake Google (consent, tokens, Search Console with made-up but stable numbers), so the whole flow works with no Google project. `MOCK_GOOGLE=deny`, `noscope` or `empty` try a declined consent, an unticked Search Console permission and an account with no properties.
+
+### How it is built
+
+- Tokens: the refresh token is encrypted with AES-GCM (key from `GOOGLE_TOKEN_KEY`) in `google_connections`; access tokens are fetched per request and never stored. Disconnect (account page) revokes the token at Google and deletes the connection, links and cache. A token Google rejects as revoked removes the connection.
+- Consent round trip: `/api/google/connect` returns Google's URL with a signed 15-minute `state` (account, site, report) and PKCE; `/api/google/callback` checks the state, swaps the code, stores the token and matches the site to its Search Console property (`sc-domain:` first, then URL-prefix). If nothing matches, the view shows a property picker.
+- Each refresh makes about 22 Google requests (6 Search Analytics queries and up to 15 URL inspections), inside a Worker's subrequest budget. URL Inspection allows 2,000 a day per property.
 
 ## Commands
 

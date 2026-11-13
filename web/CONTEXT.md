@@ -85,6 +85,18 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `chat-knowledge.ts` | Pure: `rankDocs` (keyword match of guides and blog posts), `reportBrief` (report as text for the model), `cleanTurns`, `CHAT_LIMITS`. Tests in `chat-knowledge.test.ts` |
 | `chat.ts` | Pagelyt Assistant: `buildInstructions` (scope rules, report, source index, best-matching sources), `streamAnswer` (OpenAI streaming to plain text), `chatModel` (`OPENAI_CHAT_MODEL`, default `gpt-5`) |
 
+## Google integrations (`lib/google/`)
+
+Search Console now; Analytics and Ads come next. Setup and design notes in DEPLOY.md (Google integrations).
+
+| File | Key exports | Purpose |
+|---|---|---|
+| `crypto.ts` | `sealToken`, `openToken`, `makeState`, `readState`, `pkceChallenge` | Server only. AES-GCM for stored refresh tokens and the signed OAuth `state` (PKCE verifier derived from it), keyed from `GOOGLE_TOKEN_KEY`. Tests in `crypto.test.ts` |
+| `oauth.ts` | `SCOPES`, `googleOn`, `authUrl`, `exchangeCode`, `refreshAccess`, `revoke`, `gJson`, `GoogleError`, `gUrl` | Server only. OAuth web flow with incremental consent, and fetch for Google APIs. `GOOGLE_MOCK_URL` sends every call to the dev mock |
+| `gsc.ts` | `listProperties`, `matchProperty`, `fetchGsc`, `ranges` | Server only. Search Analytics (28 days and the 28 before: pages, query+page, dates, totals) and URL Inspection for up to 15 pages |
+| `gsc-insights.ts` | `GscData`, `Traffic`, `pageKey`, `trafficFor`, `trafficMap`, `byTraffic`, `strikingDistance`, `lowCtr`, `drops`, `findingsOn`, `notIndexed`, `gscBrief` | Client-safe. The cached data shape and every calculation on it (clicks per finding, near page one, low click rate, drops, the assistant's summary). Tests in `gsc-insights.test.ts` |
+| `store.ts` | `canUseGoogle`, `getConnection`, `saveConnection`, `disconnect`, `accessFor`, `ownSite`, `siteForHost`, `getLink`, `setGscProperty`, `getCache`, `refreshGsc`, `isStale`, `STALE_MS` | Server only. `google_connections`, `google_links`, `google_cache` (migration 0010) and the 24-hour refresh |
+
 ## Auth, ownership, limits (`lib/`)
 
 | File | Key exports | Purpose |
@@ -129,6 +141,9 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `report/pdf` POST | Branded PDF (paid plans) |
 | `compare` POST | Save a competitor comparison |
 | `ai/run` | List AI providers (GET) and run visibility prompts (POST) |
+| `google/connect` POST, `google/callback` GET | Connect Google for a saved site: returns Google's consent URL; the callback stores the encrypted token, matches the Search Console property and returns to `?view=google&google=<status>` |
+| `google/status` GET | Connection, the site's property and cached data (`?siteId=`; `&props=1` lists the account's properties). Without `siteId`: the connection only (account page) |
+| `google/link` POST, `google/refresh` POST, `google/disconnect` POST | Pick the property (checked against Google's list), refetch when older than 24 hours (`force`: 6 an hour per site), revoke and delete everything |
 | `chat` POST | Pagelyt Assistant: signed in, own report only; streams plain text, sources in the `x-chat-sources` header. 6 a minute; 10 a day free, 100 paid |
 | `request` POST | Consultation and contact forms |
 | `admin/*` | `ai`, `analytics`, `requests`, `scan`, `sites`, `uptime`; admin only (`admins` table) |
@@ -160,6 +175,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
   - The Overview has a "From this scan" card per insight section (five cards, laid out 3 + 2) (headline number from `sectionStats`). `pitchFor` writes each star card's headline, short line and button verb from this report. Insight and area headers show `sectionStats` as a stat row, with Why it matters folded (`WhyItMatters`). Colours come from the `--d-*` tokens on `.dash` (redefined for `.dash.dark`), in the "Dashboard refresh" block at the end of globals.css.
   - `useSiteId` finds the saved site, so the AI visibility view can show the whole `Visibility` tool (embedded).
   - Star feature **Ask Pagelyt** (`?view=assistant`, owner only) renders `Assistant`; a floating Ask button (`.asst-fab`) opens it from other views.
+- Star feature **Google data** (`?view=google`, owner only, paid badge): `google-data.tsx` `GoogleData` (connect card, property picker, totals with sparkline, issues ranked by traffic, near page one, seen but not clicked, pages that lost clicks, indexing check, footer with Refresh now / Change property; `?google=<status>` after the consent screen shows a notice). `use-google.ts` `useGoogle` loads the status once per report and refreshes stale data; the dashboard passes its `traffic` map to `Findings` (a "Google clicks" badge, `.trf`), `FindingsExplorer` ("Most Google clicks" sort) and Top fixes (`byTraffic`). Styles in the "Google data" block at the end of globals.css. The account page shows the connection and Disconnect.
 - `assistant.tsx`: `Assistant`, the chat: header with site and score, grouped starter questions from this report, streamed answers with a small safe markdown renderer (only `/` and `https:` links), source chips, Copy, follow-up suggestions, auto-growing input, Stop and New chat, and a jump-to-newest button. The conversation is kept in sessionStorage per report. `mini` (with `onExpand`/`onClose`) is the small widget the dashboard's floating Ask button opens (`.asst-pop`: a bottom-right panel, a sheet on phones); it shares the conversation with the full view. Styles in the "Pagelyt Assistant" block of globals.css.
 - `panels.tsx`: `FindingsExplorer`, `ExportTiles` (PDF, checklist, CSV and JSON tiles for the Export modal; every export has every issue, most important first, with a summary and where each was found), `VitalsPanel` (plain-English summary, loading timeline, metric cards with a scale and a "what this means" panel), `useInView`, `CrawlWhyPanel` (pages crawled, why it stopped, how to find more), `CrawlPanel`, `ImagesPanel`, `QuickWins`, `ChangePanel`, `ComparePanel`, `DomainPanel`, `TechPanel`, `HowScores`, `useHistory`.
 - `action-modal.tsx`: `ActionModal` (a `<dialog>` with title and tile grid; a bottom sheet on phones) and `Tile`.
@@ -248,8 +264,9 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | 0007 | `admins` |
 | 0008 | `requests` |
 | 0009 | `site_owners`, `site_claims` |
+| 0010 | `google_connections`, `google_links`, `google_cache` |
 
 ## Dev mocks (`scripts/`)
 
-- `dev-mock.mjs`: starts Next against the mock and sets the environment, including `RESEND_API_URL`. Setting `EMAILS_ON=1` switches mock emails on.
-- `mock-supabase.mjs`: fake Auth, PostgREST and `POST /emails`. `GET /__state` shows the data, including `log.emails`.
+- `dev-mock.mjs`: starts Next against the mock and sets the environment, including `RESEND_API_URL` and the `GOOGLE_*` values for the fake Google. Setting `EMAILS_ON=1` switches mock emails on.
+- `mock-supabase.mjs`: fake Auth, PostgREST, `POST /emails` and a fake Google under `/google/<host>/…` (consent, tokens, Search Console; `MOCK_GOOGLE=deny|noscope|empty`). `GET /__state` shows the data, including `log.emails`.

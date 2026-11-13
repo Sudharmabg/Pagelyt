@@ -87,6 +87,12 @@ const X = {
     </>
   ),
   compare: <path d="M7 4v16M17 4v16M3 9h8M13 15h8" />,
+  google: (
+    <>
+      <path d="M4 19h16" />
+      <path d="M7 15v-3M12 15V8M17 15v-5" />
+    </>
+  ),
   share: (
     <>
       <circle cx="6" cy="12" r="2.5" />

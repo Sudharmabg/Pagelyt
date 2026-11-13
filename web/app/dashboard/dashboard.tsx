@@ -14,6 +14,9 @@ import { RescanButton } from "./rescan";
 import { ActionModal, Tile } from "./action-modal";
 import { AGENCY_UPSELL, AgencyModal, useAccount } from "./agency-modal";
 import { Assistant } from "./assistant";
+import { GoogleData } from "./google-data";
+import { useGoogle } from "./use-google";
+import { byTraffic, trafficMap } from "@/lib/google/gsc-insights";
 import { Visibility } from "../account/visibility/[siteId]/visibility";
 import { CompareButton } from "./compare-button";
 import { downloadPdf, fullReportPrintUrl } from "@/lib/download-pdf";
@@ -56,6 +59,7 @@ const WHY: Record<ModuleKey | Extra, string> = {
   tech: "Your domain and email records keep you reachable and stop others sending mail in your name, and an expired domain can take everything offline at once. Knowing the technology behind a site also shows what can be updated or switched on.",
   changes: "Tracking scores over time shows whether fixes are working and catches new problems early. An unexpected change to the homepage can also be the first sign that a site has been hacked.",
   assistant: "Reports list what is wrong; knowing what to do next is the hard part. Asking in plain words gets you steps for your own site, drawn from the same guides our checks are built on.",
+  google: "A report says what is wrong; Search Console says how many real searchers it affects. Fixing the issues on the pages Google already sends people to pays off first, and the searches just off page one are the cheapest traffic to win.",
   monitor: "Websites break without warning: a plugin update, an expired certificate or a host outage. Regular rescans and uptime checks tell you within minutes instead of when a customer complains.",
   ai: "People increasingly ask AI assistants which business to choose, and those answers don't show a list of ten links. If you aren't mentioned, you aren't considered, so it is worth knowing where you stand.",
   compare: "Your score means more next to the sites you compete with. Seeing where competitors are ahead shows which fixes will make the biggest difference to winning visitors from them.",
@@ -195,7 +199,7 @@ function useLocalFixed(scanId: string) {
 /* The dashboard's sections beyond the areas: the star features, the tools, and details from the scan (opened from
    their Overview cards, not the sidebar).
    Each tool is a view of its own (?view=<tool slug>); "tools" is the grid of all of them. */
-type Extra = "speed" | "pages" | "images" | "tech" | "changes" | "assistant" | "monitor" | "ai" | "compare" | "share" | "tools";
+type Extra = "speed" | "pages" | "images" | "tech" | "changes" | "assistant" | "monitor" | "google" | "ai" | "compare" | "share" | "tools";
 type View = "overview" | "all" | ModuleKey | Extra | ToolSlug;
 const isTool = (v: string): v is ToolSlug => TOOLS_BY_SLUG.has(v as ToolSlug);
 type Section = { id: Extra; label: string; icon: IconKey; text: string };
@@ -212,6 +216,7 @@ const INSIGHTS: Section[] = [
 const STAR: Section[] = [
   { id: "assistant", label: "Ask Pagelyt", icon: "chat", text: "Ask anything about improving this site. Answers come from this report, our fix guides and our blog." },
   { id: "monitor", label: "Save & monitor", icon: "monitor", text: "Keep this report in your account, rescan on a schedule and get uptime checks and email alerts." },
+  { id: "google", label: "Google data", icon: "google", text: "Connect Search Console to see the real clicks behind each issue, searches close to page one and pages Google hasn't indexed." },
   { id: "ai", label: "AI visibility", icon: "ai", text: "See whether ChatGPT mentions and cites this site when people ask about its field." },
   { id: "compare", label: "Compare competitors", icon: "compare", text: "Scan up to three competitors and line them up against this report, area by area." },
   { id: "share", label: "Brand & share", icon: "share", text: "Send your client a report with your logo and colours, by link or straight to their inbox." },
@@ -222,15 +227,15 @@ const ALL_TOOLS: Section = { id: "tools", label: "All tools", icon: "tools", tex
 const MAIN_TOOLS = 5;
 
 const SECTIONS = new Map<string, Section>([...INSIGHTS, ...STAR, ALL_TOOLS].map((s) => [s.id, s]));
-const PAID_ONLY = new Set<Extra>(["ai", "compare", "share"]);
-const OWNER_ONLY = new Set<Extra>(["assistant", "monitor", "ai", "compare", "share"]);
+const PAID_ONLY = new Set<Extra>(["google", "ai", "compare", "share"]);
+const OWNER_ONLY = new Set<Extra>(["assistant", "monitor", "google", "ai", "compare", "share"]);
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 /* "Do more" rows written for this report: a headline from its own numbers, a short line, a verb for the button,
    and how relevant it is right now (most relevant first). */
 type Pitch = { hook: string; text: string; cta: string; weight: number };
-function pitchFor(id: Extra, r: { open: Finding[]; high: number; overall: number; modules: { key: ModuleKey; score: number }[]; saved: boolean; prev: boolean }): Pitch {
+function pitchFor(id: Extra, r: { open: Finding[]; high: number; overall: number; modules: { key: ModuleKey; score: number }[]; saved: boolean; prev: boolean; gscClicks: number | null }): Pitch {
   const score = (k: ModuleKey) => r.modules.find((m) => m.key === k)?.score ?? 100;
   switch (id) {
     case "assistant":
@@ -239,6 +244,9 @@ function pitchFor(id: Extra, r: { open: Finding[]; high: number; overall: number
       if (r.saved) return { hook: "This site is saved", text: "Pick a rescan schedule and alerts.", cta: "Set alerts", weight: 1 };
       if (r.high) return { hook: `${plural(r.high, "important issue")} to fix`, text: "Rescan weekly to confirm each fix lands.", cta: "Save & monitor", weight: 4 };
       return { hook: r.prev ? "Stop rescanning by hand" : "Know the moment something breaks", text: "Scheduled rescans, uptime checks, email alerts.", cta: "Save & monitor", weight: 3 };
+    case "google":
+      if (r.gscClicks != null) return { hook: `${r.gscClicks.toLocaleString("en-GB")} Google clicks in 28 days`, text: "See which issues touch the most traffic.", cta: "Open Google data", weight: 3 };
+      return { hook: "Which issues cost you traffic?", text: "Connect Search Console for real clicks per issue.", cta: "Connect Google", weight: r.open.length ? 2.5 : 1 };
     case "ai": {
       const g = score("geo");
       return { hook: `AI readiness is ${g}/100`, text: g < 80 ? "Find out if ChatGPT mentions you." : "See whether ChatGPT cites you.", cta: "Check AI answers", weight: g < 80 ? (80 - g) / 10 + 1 : 1.5 };
@@ -316,6 +324,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const [help, setHelp] = useState(false);
   const [chat, setChat] = useState(false); // the small Ask Pagelyt widget, bottom right
   const siteId = useSiteId(scan.host, access === "owner");
+  const google = useGoogle(siteId, access === "owner");
 
   // Show the compact score bar once the hero has scrolled out of view.
   const watchHero = useCallback((el: HTMLElement | null) => {
@@ -360,6 +369,10 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     return m;
   }, [remaining]);
   const highGain = useMemo(() => overallScore(scoreModules(remaining.filter((f) => f.severity !== "high"))) - potential, [remaining, potential]);
+  // Real Google traffic per open finding, once Search Console is connected for this site.
+  const gsc = google.gsc;
+  const traffic = useMemo(() => (gsc ? trafficMap(remaining, gsc, scan.url, findingKey) : undefined), [gsc, remaining, scan.url]);
+  const topFixes = useMemo(() => (traffic ? byTraffic(remaining, traffic, findingKey) : remaining).slice(0, 5), [remaining, traffic]);
   const topArea = useMemo(() => [...modules].sort((a, b) => a.score - b.score)[0], [modules]);
 
   // The sections this visitor can open, in sidebar order (also the order the ← / → keys step through). Tools past the
@@ -426,7 +439,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const toolCtx = tool ? toolContext(scan.id, scan) : null;
   const needsPlan = (id: Extra) => PAID_ONLY.has(id) && access === "owner" && !!acct && !acct.paid;
   // The star features with a reason from this report each, in their fixed sidebar order.
-  const pitches = star.map((g) => ({ g, p: pitchFor(g.id, { open: remaining, high, overall: potential, modules, saved: !!siteId, prev: !!prev }) }));
+  const pitches = star.map((g) => ({ g, p: pitchFor(g.id, { open: remaining, high, overall: potential, modules, saved: !!siteId, prev: !!prev, gscClicks: gsc ? gsc.totals.clicks : null }) }));
   const toolMissing = fixableCount(remaining);
   const topTool = tools[0]?.n ? tools[0].t : null;
 
@@ -514,7 +527,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
             <p>Search, filter by priority and tick things off as you fix them.</p>
           </div>
         </section>
-        <FindingsExplorer findings={scan.findings} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} />
+        <FindingsExplorer findings={scan.findings} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} />
       </>
     );
   } else if (view === "overview") {
@@ -596,7 +609,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
         </ul>
 
         {remaining.length > 0 && (
-          <Findings findings={remaining.slice(0, 5)} title="Top fixes" fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} />
+          <Findings findings={topFixes} title={traffic ? "Top fixes · by Google traffic" : "Top fixes"} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} />
         )}
         <QuickWins findings={remaining} gains={gains} onOpen={(f) => setView(f.module)} />
         {remaining.length > 5 && (
@@ -670,7 +683,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
             </p>
           </div>
         </section>
-        {inModule.length > 0 && <Findings findings={inModule} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} grouped />}
+        {inModule.length > 0 && <Findings findings={inModule} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} grouped />}
       </>
     );
   } else if (tool && toolCtx) {
@@ -726,6 +739,10 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     else if (s.id === "tools") content = <DashToolGrid findings={remaining} onOpen={setView} />;
     else if (!owner) content = signInNote;
     else if (s.id === "assistant") content = access === "owner" ? <Assistant key={scan.id} scan={scan} paid={!!acct?.paid} /> : empty("The assistant needs accounts, which aren't switched on here.");
+    else if (s.id === "google")
+      content = access === "owner" ? (
+        <GoogleData g={google} scan={scan} siteId={siteId} findings={remaining} onSave={() => setView("monitor")} onOpenArea={setView} />
+      ) : empty("Google data needs accounts, which aren't switched on here.");
     else if (s.id === "monitor") content = access === "local" ? empty("Saving sites needs accounts, which aren't switched on here.") : <SaveSite scanId={scan.id} host={scan.host} />;
     else if (s.id === "ai")
       // The whole AI visibility tool, right here (the same tool as /account/visibility/<site>).
