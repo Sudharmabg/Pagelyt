@@ -19,12 +19,12 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 import { firstName, useSignedInUser } from "@/lib/use-signed-in";
 import { AuthLink } from "../auth-link";
 import { CommandPalette, ShortcutHelp, useShortcuts, type Cmd } from "./extras";
-import { ComparePanel, DomainPanel, ExportTiles, FindingsExplorer, CrawlPanel, ChangePanel, HowScores, ImagesPanel, QuickWins, TechPanel, VitalsPanel, useHistory, type Snap } from "./panels";
+import { ComparePanel, DomainPanel, ExportTiles, FindingsExplorer, CrawlPanel, CrawlWhyPanel, ChangePanel, HowScores, ImagesPanel, QuickWins, TechPanel, VitalsPanel, useHistory, type Snap } from "./panels";
 import type { StoredScan } from "@/lib/scan/store";
 import { toolContext } from "@/lib/scan/tools-context";
 import { DashTool, DashToolGrid, fixableCount, toolsByNeed } from "../tools/dash-tools";
-import { TOOL_LIST, TOOLS_BY_SLUG, type ToolSlug } from "../tools/catalog";
-import { ToolIcon } from "../tools/icons";
+import { TOOL_LIST, TOOLS_BY_SLUG, type ToolInfo, type ToolSlug } from "../tools/catalog";
+import { TONE, ToolIcon } from "../tools/icons";
 
 /* One plain-English line per area, shown at the top of its breakdown. */
 const BLURB: Record<ModuleKey, string> = {
@@ -189,7 +189,8 @@ function useLocalFixed(scanId: string) {
   return { fixed, toggle };
 }
 
-/* The dashboard's sections beyond the areas: the star features, the tools, and insights from the scan.
+/* The dashboard's sections beyond the areas: the star features, the tools, and details from the scan (opened from
+   their Overview cards, not the sidebar).
    Each tool is a view of its own (?view=<tool slug>); "tools" is the grid of all of them. */
 type Extra = "speed" | "pages" | "images" | "tech" | "changes" | "monitor" | "ai" | "compare" | "share" | "tools";
 type View = "overview" | "all" | ModuleKey | Extra | ToolSlug;
@@ -212,6 +213,9 @@ const STAR: Section[] = [
   { id: "share", label: "Brand & share", icon: "share", text: "Send your client a report with your logo and colours, by link or straight to their inbox." },
 ];
 const ALL_TOOLS: Section = { id: "tools", label: "All tools", icon: "tools", text: `All ${TOOL_LIST.length} free checkers and generators, pre-filled for this site. The ones that fix this scan's findings come first.` };
+
+/** Tools listed in the sidebar; the rest are under "More tools". */
+const MAIN_TOOLS = 5;
 
 const SECTIONS = new Map<string, Section>([...INSIGHTS, ...STAR, ALL_TOOLS].map((s) => [s.id, s]));
 const PAID_ONLY = new Set<Extra>(["ai", "compare", "share"]);
@@ -351,13 +355,16 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const highGain = useMemo(() => overallScore(scoreModules(remaining.filter((f) => f.severity !== "high"))) - potential, [remaining, potential]);
   const topArea = useMemo(() => [...modules].sort((a, b) => a.score - b.score)[0], [modules]);
 
-  // The sections this visitor can open, in sidebar order (also the order the ← / → keys step through). Areas are
-  // not in the sidebar: they open from the Overview tiles and search, so they come last.
+  // The sections this visitor can open, in sidebar order (also the order the ← / → keys step through). Tools past the
+  // main five, the scan details and the areas are not in the sidebar: they open from "More tools", the Overview
+  // cards and search, so they come last.
   const owner = canEdit; // the owner, or local development
   const star = useMemo(() => STAR.filter((g) => owner || !OWNER_ONLY.has(g.id)), [owner]);
   const tools = useMemo(() => toolsByNeed(remaining), [remaining]);
+  // The sidebar lists the five tools with the most to fix for this scan; "More tools" opens all of them.
+  const mainTools = tools.slice(0, MAIN_TOOLS);
   const order: View[] = useMemo(
-    () => ["overview", "all", ...star.map((s) => s.id), "tools", ...tools.map((x) => x.t.slug), ...INSIGHTS.map((s) => s.id), ...modules.map((m) => m.key)],
+    () => ["overview", "all", ...star.map((s) => s.id), ...tools.slice(0, MAIN_TOOLS).map((x) => x.t.slug), "tools", ...tools.slice(MAIN_TOOLS).map((x) => x.t.slug), ...INSIGHTS.map((s) => s.id), ...modules.map((m) => m.key)],
     [modules, star, tools]
   );
 
@@ -377,7 +384,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   }, []);
   const at = order.indexOf(view);
   const groupOf = (v: View) =>
-    v === "overview" ? "Start" : v === "all" ? "Findings" : v in MODULE_NAMES ? "Areas" : INSIGHTS.some((s) => s.id === v) ? "Insights" : STAR.some((s) => s.id === v) ? "Star features" : "Tools";
+    v === "overview" ? "Start" : v === "all" ? "Findings" : v in MODULE_NAMES ? "Areas" : INSIGHTS.some((s) => s.id === v) ? "From this scan" : STAR.some((s) => s.id === v) ? "Star features" : "Tools";
 
   const onToggle = (key: string) => {
     if (!canEdit) return; // viewers cannot change a report
@@ -506,10 +513,13 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   } else if (view === "overview") {
     body = (
       <>
-        <section className="dash-hero" aria-label="Overall score" ref={watchHero}>
-          <CountRing score={potential} size={132} stroke={13} enabled={intro} />
+        <section className="dash-hero bn bn-score" aria-label="Overall score" ref={watchHero}>
+          <BannerFx />
+          <div className="bn-ring">
+            <CountRing score={potential} size={132} stroke={13} enabled={intro} />
+          </div>
           <div className="dash-hero-txt">
-            <p className="dash-eyebrow">Website Intelligence Score</p>
+            <p className="dash-eyebrow"><span className="bn-spark" aria-hidden="true">✦</span>Website Intelligence Score</p>
             <h1>{VERDICT(potential)}</h1>
             <p aria-live="polite">
               {scan.findings.length === 0
@@ -539,39 +549,15 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
                 </span>
               </div>
             )}
+            <ul className="bn-chips" aria-label="This scan">
+              <li><b>{modules.length}</b> areas scored</li>
+              <li><b>{scan.crawl?.pages ?? 1}</b> {(scan.crawl?.pages ?? 1) === 1 ? "page" : "pages"} crawled</li>
+              <li><b>{TOOL_LIST.length}</b> tools ready</li>
+            </ul>
           </div>
         </section>
 
-        {pitches.length > 0 && (
-          <section className="star-strip" aria-labelledby="star-h">
-            <h2 id="star-h"><span className="star-ic" aria-hidden="true">★</span>Do more with this report</h2>
-            <ul>
-              {pitches.map(({ g, p }, i) => (
-                <li key={g.id} style={{ ["--i" as string]: i }}>
-                  <button type="button" onClick={() => setView(g.id)}>
-                    <span className="ss-top">
-                      <span className="ss-ico"><AreaIcon k={g.icon} size={20} /></span>
-                      <span className="ss-name">{g.label}</span>
-                      {needsPlan(g.id) && <span className="plan-badge">Paid plans</span>}
-                    </span>
-                    <b className="ss-hook">{p.hook}</b>
-                    <span className="ss-text">{p.text}</span>
-                    <span className="ss-cta">{p.cta} <span aria-hidden="true">→</span></span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {topTool && (
-              <button type="button" className="ss-tools" onClick={() => setView(topTool.slug)}>
-                <span className="ss-tools-ic"><AreaIcon k="tools" size={18} /></span>
-                <span><b>{toolMissing} missing item{toolMissing === 1 ? "" : "s"} have a free fix.</b> Start with the {topTool.name}, pre-filled for {scan.host}.</span>
-                <span className="ss-cta">Open tool <span aria-hidden="true">→</span></span>
-              </button>
-            )}
-          </section>
-        )}
-
-        <ul className="dash-cards" aria-label="Scores by area">
+        <ul className="dash-cards dash-cards-13" aria-label="Scores by area and details from this scan">
           {modules.map((m, i) => (
             <li key={m.key} style={{ ["--i" as string]: i }}>
               <button type="button" className={`dc-${tone(m.score)}`} onClick={() => setView(m.key)}>
@@ -584,6 +570,22 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
               </button>
             </li>
           ))}
+          {INSIGHTS.map((s, i) => {
+            const [main, sub] = statsOf(s.id);
+            const t = main?.tone === "good" ? "good" : main?.tone === "ok" ? "warn" : main?.tone === "bad" ? "bad" : "none";
+            return (
+              <li key={s.id} className="dc-ins-li" style={{ ["--i" as string]: modules.length + i }}>
+                <button type="button" className={`dc-ins dc-${t}`} onClick={() => setView(s.id)}>
+                  <span className={`dc-stat${main && main.value.length > 4 ? " long" : ""}`} aria-hidden={main ? undefined : true}>
+                    {main ? <b>{main.value}</b> : <AreaIcon k={s.icon} size={22} />}
+                  </span>
+                  <span className="dc-name"><AreaIcon k={s.icon} size={16} />{s.label}</span>
+                  <span className="dc-n">{main ? main.label : "Not measured in this scan"}</span>
+                  {sub && <span className={`dc-sub${sub.tone ? ` st-${sub.tone}` : ""}`}>{sub.value} {sub.label}</span>}
+                </button>
+              </li>
+            );
+          })}
         </ul>
 
         {remaining.length > 0 && (
@@ -600,31 +602,44 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           </p>
         )}
 
-        <section className="insights" aria-labelledby="ins-h">
-          <h2 id="ins-h">From this scan</h2>
-          <ul>
-            {INSIGHTS.map((s, i) => {
-              const [main, sub] = statsOf(s.id);
-              return (
-                <li key={s.id} style={{ ["--i" as string]: i }}>
-                  <button type="button" className={main?.tone ? `ins-${main.tone}` : undefined} onClick={() => setView(s.id)}>
-                    <span className="ins-top">
-                      <span className="ins-ico"><AreaIcon k={s.icon} size={18} /></span>
-                      <span className="ins-name">{s.label}</span>
-                      <span className="ins-go" aria-hidden="true">→</span>
+        {pitches.length > 0 && (
+          <section className="star-strip" aria-labelledby="star-h">
+            <div className="bn bn-more">
+              <BannerFx />
+              <div className="bn-more-txt">
+                <p className="bn-kicker"><span aria-hidden="true">★</span> Star features</p>
+                <h2 id="star-h">Do more with this report</h2>
+                <p>Keep watch over {scan.host}, see what AI assistants say about it, line it up against rivals and send it to clients.</p>
+              </div>
+              <span className="bn-orbit" aria-hidden="true">
+                <span className="bn-orbit-core">★</span>
+                {pitches.map(({ g }, i) => (
+                  <span key={g.id} className="bn-orbit-dot" style={{ ["--k" as string]: i, ["--n" as string]: pitches.length }}>
+                    <span><AreaIcon k={g.icon} size={16} /></span>
+                  </span>
+                ))}
+              </span>
+            </div>
+            <ul>
+              {pitches.map(({ g, p }, i) => (
+                <li key={g.id} style={{ ["--i" as string]: i }}>
+                  <button type="button" onClick={() => setView(g.id)}>
+                    <span className="ss-top">
+                      <span className="ss-ico"><AreaIcon k={g.icon} size={20} /></span>
+                      <span className="ss-name">{g.label}</span>
+                      {needsPlan(g.id) && <span className="plan-badge">Paid plans</span>}
                     </span>
-                    {main ? (
-                      <span className="ins-stat"><b>{main.value}</b> {main.label}</span>
-                    ) : (
-                      <span className="ins-stat ins-none">Not measured in this scan</span>
-                    )}
-                    {sub && <span className={`ins-sub${sub.tone ? ` st-${sub.tone}` : ""}`}>{sub.value} {sub.label}</span>}
+                    <b className="ss-hook">{p.hook}</b>
+                    <span className="ss-text">{p.text}</span>
+                    <span className="ss-cta">{p.cta} <span aria-hidden="true">→</span></span>
                   </button>
                 </li>
-              );
-            })}
-          </ul>
-        </section>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <ToolsBanner host={scan.host} missing={toolMissing} top={topTool} onOpen={setView} />
         <HowScores />
       </>
     );
@@ -654,12 +669,21 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   } else if (tool && toolCtx) {
     body = (
       <>
-        <section className="dash-hero sec-hero" aria-label={tool.name}>
-          <span className="sec-ico"><ToolIcon slug={tool.slug} size={28} /></span>
+        <section className={`dash-hero sec-hero bn bn-tool ${TONE[tool.category]}`} aria-label={tool.name}>
+          <BannerFx />
+          <span className="sec-ico bn-tool-ic"><ToolIcon slug={tool.slug} size={30} /></span>
           <div className="dash-hero-txt">
             <p className="dash-eyebrow">Tools · {tool.category}{tool.paid && <span className="plan-badge">Paid plans</span>}</p>
             <h1>{tool.name}</h1>
             <p>{tool.lead}</p>
+            <ul className="bn-chips" aria-label="About this tool">
+              {(() => {
+                const n = tools.find((x) => x.t.slug === tool.slug)?.n ?? 0;
+                return <li className={n ? "bn-chip-hot" : "bn-chip-ok"}><b>{n || "✓"}</b> {n ? `missing item${n === 1 ? "" : "s"} to fix` : "nothing missing"}</li>;
+              })()}
+              <li>{tool.kind === "checker" ? "Checks the live site" : "Runs in your browser"}</li>
+              <li>Pre-filled for {scan.host}</li>
+            </ul>
           </div>
         </section>
         <DashTool slug={tool.slug} ctx={toolCtx} findings={remaining} />
@@ -671,7 +695,12 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     if (s.id === "speed") content = scan.vitals ? <VitalsPanel vitals={scan.vitals} /> : empty("Speed wasn't measured in this scan. Rescan to try again.");
     else if (s.id === "pages")
       // The crawl table needs at least two pages; a one-page crawl found no other pages to visit.
-      content = (scan.crawl?.list.length ?? 0) >= 2 ? <CrawlPanel crawl={scan.crawl} /> : empty(scan.crawl ? "We couldn't find any pages beyond the homepage to crawl. Add a sitemap or link to your main pages from the homepage." : "Only the homepage was checked in this scan, so there is no site-wide crawl to show.");
+      content = (
+        <>
+          <CrawlWhyPanel crawl={scan.crawl} noSitemap={scan.findings.some((f) => f.id === "no-sitemap")} onTool={setView} />
+          {(scan.crawl?.list.length ?? 0) >= 2 && <CrawlPanel crawl={scan.crawl} />}
+        </>
+      );
     else if (s.id === "images") content = scan.images ? <ImagesPanel images={scan.images} weight={scan.vitals?.weight} /> : empty("No images were checked in this scan.");
     else if (s.id === "tech")
       content = !scan.domain && !scan.tech ? empty("Domain and technology details weren't available for this scan. Rescan to try again.") : (
@@ -714,7 +743,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     else if (s.id === "share") content = <BrandShare scanId={scan.id} host={scan.host} score={scan.overall} canEmail={!!canEmail} owner={access === "owner"} />;
     body = (
       <>
-        {hero(s)}
+        {s.id === "tools" ? <ToolsBanner host={scan.host} missing={toolMissing} top={topTool} onOpen={setView} heading="h1" /> : hero(s)}
         {content}
       </>
     );
@@ -823,10 +852,10 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
             </div>
           )}
           <p className="nav-h">Tools</p>
-          {navBtn("tools", "tools", "All tools", <b>{TOOL_LIST.length}</b>)}
-          {tools.map(({ t, n }) => navBtn(t.slug, <ToolIcon slug={t.slug} size={16} />, t.name, n ? <b className="nav-miss" title={`${n} missing`}>{n}</b> : undefined, "nav-tool"))}
-          <p className="nav-h">Insights</p>
-          {INSIGHTS.map((s) => navBtn(s.id, s.icon, s.label))}
+          {mainTools.map(({ t, n }) => navBtn(t.slug, <ToolIcon slug={t.slug} size={16} />, t.name, n ? <b className="nav-miss" title={`${n} missing`}>{n}</b> : undefined, "nav-tool"))}
+          {/* The tool on screen stays visible in the sidebar even when it isn't one of the main five. */}
+          {tool && !mainTools.some((x) => x.t.slug === tool.slug) && navBtn(tool.slug, <ToolIcon slug={tool.slug} size={16} />, tool.name, undefined, "nav-tool")}
+          {navBtn("tools", "tools", "More tools", <b>{TOOL_LIST.length}</b>, "nav-more")}
         </nav>
 
         <main className="dash-main">
@@ -866,6 +895,58 @@ function WhyItMatters({ text }: { text: string }) {
       <summary>Why it matters</summary>
       <p>{text}</p>
     </details>
+  );
+}
+
+/* Decoration behind every animated banner: drifting light, a faint grid and twinkling sparks. */
+const SPARKS = [[8, 22], [18, 78], [34, 12], [52, 70], [66, 18], [78, 84], [90, 30], [96, 66]];
+function BannerFx() {
+  return (
+    <span className="bn-fx" aria-hidden="true">
+      <i className="bn-orb o1" />
+      <i className="bn-orb o2" />
+      <i className="bn-orb o3" />
+      <i className="bn-grid" />
+      <i className="bn-sweep" />
+      {SPARKS.map(([x, y], k) => <i key={k} className="bn-sp" style={{ left: `${x}%`, top: `${y}%`, ["--k" as string]: k }} />)}
+    </span>
+  );
+}
+
+/* The free tools, as a banner: on the Overview and as the heading of the All tools page. Tool icons circle the
+   count of missing items they can fix; the button opens the tool with the most to fix. */
+function ToolsBanner({ host, missing, top, onOpen, heading = "h2" }: { host: string; missing: number; top: ToolInfo | null; onOpen: (v: ToolSlug | "tools") => void; heading?: "h1" | "h2" }) {
+  const H = heading;
+  const ring = TOOL_LIST.slice(0, 8);
+  return (
+    <section className="bn bn-tools" aria-labelledby="bn-tools-h">
+      <BannerFx />
+      <span className="bn-tools-art" aria-hidden="true">
+        <span className="bn-tools-core"><b>{missing || TOOL_LIST.length}</b><small>{missing ? "to fix" : "tools"}</small></span>
+        {ring.map((t, i) => (
+          <span key={t.slug} className="bn-orbit-dot" style={{ ["--k" as string]: i, ["--n" as string]: ring.length }}>
+            <span><ToolIcon slug={t.slug} size={15} /></span>
+          </span>
+        ))}
+      </span>
+      <div className="bn-tools-txt">
+        <p className="bn-kicker">{TOOL_LIST.length} free tools · pre-filled for {host}</p>
+        <H id="bn-tools-h">{missing ? `${missing} missing item${missing === 1 ? " has" : "s have"} a free fix` : "Checkers and generators, ready to use"}</H>
+        <p>{top ? `Start with the ${top.name}: it fixes the most from this scan.` : "Make llms.txt, robots.txt, schema, security headers and sitemaps without starting from a blank page."}</p>
+      </div>
+      <span className="bn-ctas">
+        {top && (
+          <button type="button" className="bn-cta" onClick={() => onOpen(top.slug)}>
+            Open {top.name} <span aria-hidden="true">→</span>
+          </button>
+        )}
+        {heading === "h2" && (
+          <button type="button" className="bn-cta ghost" onClick={() => onOpen("tools")}>
+            See all {TOOL_LIST.length} tools
+          </button>
+        )}
+      </span>
+    </section>
   );
 }
 

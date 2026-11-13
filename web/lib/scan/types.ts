@@ -70,7 +70,12 @@ export type CrawlPage = {
   /** Optional (newer scans): canonical target, hreflang alternates, structured-data problems. */
   canonicalUrl?: string; alts?: { lang: string; href: string }[]; ld?: string[];
 };
-export type CrawlSummary = { pages: number; sitemapUrls: number; broken: number; list: CrawlPage[] };
+/** Why the crawl stopped where it did (newer scans only).
+    `found`: distinct pages known before crawling (sitemap + homepage links, homepage excluded); `homeLinks`: internal
+    links on the homepage; `linked`: pages the crawled pages link to that were never visited (capped near 600); `missed`: queued pages
+    that didn't answer in time; `sitemap`: what /sitemap.xml held; `limit`: the page cap per scan. */
+export type CrawlStop = { found: number; homeLinks: number; linked: number; missed: number; sitemap: "none" | "index" | "list"; limit: number };
+export type CrawlSummary = { pages: number; sitemapUrls: number; broken: number; list: CrawlPage[]; stop?: CrawlStop };
 
 export type TechItem = { name: string; category: string };
 

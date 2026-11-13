@@ -1,15 +1,16 @@
 import * as cheerio from "cheerio";
 import { safeFetch } from "./fetcher";
-import type { Finding, CrawlSummary, CrawlPage, PageTable } from "./types";
+import type { Finding, CrawlSummary, CrawlPage, CrawlStop, PageTable } from "./types";
 import { crawlDeepFindings, hreflangs, pageSchemaProblems } from "./seo-deep";
 import { imagesIn } from "./images";
+import { CRAWL_LIMIT, CRAWL_WAIT_S } from "./crawl-why";
 
 /* Multi-page crawl. Two stages of PER_STAGE pages each (one subrequest per page), so a scan covers
    up to MAX_PAGES pages of the same site. Pages come from the sitemap first, then internal links. */
 
-export const MAX_PAGES = 30;
+export const MAX_PAGES = CRAWL_LIMIT;
 export const PER_STAGE = 15;
-const DEADLINE_MS = 12_000;
+const DEADLINE_MS = CRAWL_WAIT_S * 1000;
 const THIN_WORDS = 150;
 
 const SKIP_EXT = /\.(?:jpe?g|png|gif|webp|avif|svg|ico|pdf|zip|gz|mp4|mp3|webm|css|js|json|xml|txt|woff2?|ttf)(?:$|\?)/i;
@@ -51,19 +52,21 @@ export function internalLinks(html: string, base: string, host: string): string[
   return [...seen];
 }
 
-/** Pages to crawl: the homepage, then sitemap URLs, then homepage links, deduplicated. */
-export function crawlQueue(home: string, host: string, sitemap: string[], homeLinks: string[]): string[] {
+/** Pages to crawl: the homepage, then sitemap URLs, then homepage links, deduplicated. `found`: every distinct page
+    known that way (homepage excluded), before the MAX_PAGES cap. */
+export function crawlQueue(home: string, host: string, sitemap: string[], homeLinks: string[]): { queue: string[]; found: number } {
   const out: string[] = [];
+  let found = 0;
   const seen = new Set<string>([home, home.replace(/\/$/, "")]);
   for (const u of [...sitemap, ...homeLinks]) {
     const key = u.replace(/\/$/, "");
     if (seen.has(u) || seen.has(key)) continue;
     seen.add(u);
     seen.add(key);
-    out.push(u);
-    if (out.length >= MAX_PAGES - 1) break;
+    found++;
+    if (out.length < MAX_PAGES - 1) out.push(u);
   }
-  return out;
+  return { queue: out, found };
 }
 
 const words = (s: string) => (s.trim() ? s.trim().split(/\s+/).length : 0);
@@ -103,7 +106,7 @@ export function inspect(url: string, status: number, html: string, host: string)
 }
 
 /** Fetch one batch of pages in parallel; whatever finished by the deadline is kept. */
-export async function crawlBatch(urls: string[], host: string): Promise<{ pages: CrawlPage[]; linked: string[]; images: { url: string; page: string }[] }> {
+export async function crawlBatch(urls: string[], host: string): Promise<{ pages: CrawlPage[]; linked: string[]; images: { url: string; page: string }[]; missed: number }> {
   const pages: CrawlPage[] = [];
   const linked = new Set<string>();
   const images: { url: string; page: string }[] = [];
@@ -127,7 +130,9 @@ export async function crawlBatch(urls: string[], host: string): Promise<{ pages:
     }
   };
   await Promise.race([Promise.all(urls.map(one)), new Promise((r) => setTimeout(r, DEADLINE_MS))]);
-  return { pages, linked: [...linked].slice(0, 600), images };
+  // Copy before returning: requests still running after the deadline must not change what we report.
+  const done = [...pages];
+  return { pages: done, linked: [...linked].slice(0, 600), images: [...images], missed: urls.length - done.length };
 }
 
 const ex = (list: string[], n = 5) => list.slice(0, n).join(" · ") + (list.length > n ? ` · +${list.length - n} more` : "");
@@ -140,8 +145,14 @@ const path = (u: string) => {
   }
 };
 
-export function crawlSummary(pages: CrawlPage[], sitemapCount: number): CrawlSummary {
-  return { pages: pages.length, sitemapUrls: sitemapCount, broken: pages.filter((p) => p.status === 0 || p.status >= 400).length, list: pages.slice(0, MAX_PAGES) };
+export function crawlSummary(pages: CrawlPage[], sitemapCount: number, stop?: Omit<CrawlStop, "limit">): CrawlSummary {
+  return {
+    pages: pages.length,
+    sitemapUrls: sitemapCount,
+    broken: pages.filter((p) => p.status === 0 || p.status >= 400).length,
+    list: pages.slice(0, MAX_PAGES),
+    ...(stop ? { stop: { ...stop, limit: MAX_PAGES } } : {}),
+  };
 }
 
 export function crawlFindings(pages: CrawlPage[], opts: { sitemap: string[]; linked: string[]; home: string }): Finding[] {

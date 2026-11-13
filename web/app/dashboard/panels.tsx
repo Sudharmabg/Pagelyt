@@ -7,6 +7,7 @@ import { EFFORT_LABEL, quickWins } from "@/lib/scan/effort";
 import { evidenceText, MODULE_NAMES, type Finding, type PageWeight, type Severity, type Vitals, type VitalsRun } from "@/lib/scan/types";
 import type { StoredScan } from "@/lib/scan/store";
 import { Tile } from "./action-modal";
+import { crawlWhy, type CrawlFix } from "@/lib/scan/crawl-why";
 
 /* ------------------------------------------------------------------ */
 /* Explorer: search + severity filter over every finding               */
@@ -660,6 +661,67 @@ export function HowScores() {
 /* ------------------------------------------------------------------ */
 /* Site crawl                                                          */
 /* ------------------------------------------------------------------ */
+
+/* How many pages the crawl reached, why it stopped there, and what would let it find more. */
+const TOOL_NAME: Record<NonNullable<CrawlFix["tool"]>, string> = {
+  "sitemap-generator": "Open the Sitemap generator",
+  "raw-vs-rendered-html": "Compare raw and rendered HTML",
+  "robots-txt-tester": "Test robots.txt",
+};
+export function CrawlWhyPanel({ crawl, noSitemap, onTool }: { crawl: StoredScan["crawl"]; noSitemap: boolean; onTool: (slug: NonNullable<CrawlFix["tool"]>) => void }) {
+  const w = crawlWhy(crawl, { noSitemap });
+  const pct = w.known ? Math.max(4, Math.min(100, Math.round((w.crawled / w.known) * 100))) : 100;
+  return (
+    <section className={`panel cwhy cwhy-${w.kind}`} aria-labelledby="cwhy-h">
+      <div className="cwhy-head">
+        <div className="cwhy-num" aria-hidden="true">
+          <b>{w.crawled}</b>
+          {w.known && w.known > w.crawled ? <span>of {w.known}+</span> : <span>{w.crawled === 1 ? "page" : "pages"}</span>}
+        </div>
+        <div>
+          <h2 id="cwhy-h">
+            {w.kind === "full"
+              ? `We crawled all ${w.crawled} pages we could find`
+              : w.kind === "capped"
+                ? `We crawled ${w.crawled} pages${w.known && w.known > w.crawled ? ` of at least ${w.known}` : ""}`
+                : w.crawled === 1
+                  ? "We could only reach the homepage"
+                  : `We could only reach ${w.crawled} pages`}
+          </h2>
+          {w.known && w.known > w.crawled && (
+            <div className="cwhy-bar" role="img" aria-label={`${w.crawled} of at least ${w.known} pages crawled`}>
+              <i style={{ width: `${pct}%` }} />
+            </div>
+          )}
+          {!w.exact && <p className="cwhy-guess">This report is older, so the reasons below are our best guess.</p>}
+        </div>
+      </div>
+      <div className="cwhy-cols">
+        <div>
+          <h3>Why it stopped here</h3>
+          <ul className="cwhy-list">
+            {w.reasons.map((r) => <li key={r}>{r}</li>)}
+          </ul>
+        </div>
+        <div>
+          <h3>{w.kind === "full" ? "To keep it that way" : "To find more pages"}</h3>
+          <ol className="cwhy-fix">
+            {w.fixes.map((f) => (
+              <li key={f.text}>
+                <span>{f.text}</span>
+                {f.tool && (
+                  <button type="button" className="fnd-link" onClick={() => onTool(f.tool!)}>
+                    {TOOL_NAME[f.tool]} <span aria-hidden="true">→</span>
+                  </button>
+                )}
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+    </section>
+  );
+}
 
 export function CrawlPanel({ crawl }: { crawl: StoredScan["crawl"] }) {
   if (!crawl || crawl.list.length < 2) return null;

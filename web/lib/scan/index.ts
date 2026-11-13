@@ -46,6 +46,12 @@ type State = {
   sitemapUrls?: string[];
   crawlPages?: CrawlPage[];
   crawlLinked?: string[];
+  /** For the "why the crawl stopped" note: pages known before crawling, homepage links, pages that timed out, sitemap kind. */
+  crawlFound?: number;
+  crawlLinkedCount?: number;
+  crawlHomeLinks?: number;
+  crawlMissed?: number;
+  sitemapKind?: "none" | "index" | "list";
 };
 
 async function tryText(u: URL): Promise<{ ok: boolean; body: string }> {
@@ -110,6 +116,8 @@ async function stagePage(row: ScanRow): Promise<State> {
   $("script,style,noscript,svg,template").remove();
   const snapshot: Snapshot = { title: pageTitle, sig: null, text: textSignature($("body").text()), shot: false };
   const sitemapUrls = sitemap.ok ? sitemapLocs(sitemap.body, host) : [];
+  const homeLinks = internalLinks(page.body, page.url, host);
+  const queue = crawlQueue(finalUrl.href, host, sitemapUrls, homeLinks);
   const findings = runChecks({
     page,
     finalUrl,
@@ -129,9 +137,13 @@ async function stagePage(row: ScanRow): Promise<State> {
     siteImages: imgs.all.map((url) => ({ url, page: page.url })),
     snapshot,
     sitemapUrls,
-    crawlQueue: crawlQueue(finalUrl.href, host, sitemapUrls, internalLinks(page.body, page.url, host)),
+    crawlQueue: queue.queue,
+    crawlFound: queue.found,
+    crawlHomeLinks: homeLinks.length,
+    crawlMissed: 0,
+    sitemapKind: sitemapUrls.length ? "list" : sitemap.ok && /<sitemapindex/i.test(sitemap.body) ? "index" : "none",
     crawlPages: [crawlHome(page, host)],
-    crawlLinked: internalLinks(page.body, page.url, host).slice(0, 600),
+    crawlLinked: homeLinks.slice(0, 600),
   };
 }
 
@@ -154,7 +166,7 @@ async function stageLinks(st: State): Promise<State> {
 async function stageCrawl(st: State, part: 0 | 1): Promise<State> {
   const host = st.host!;
   const batch = (st.crawlQueue ?? []).slice(part * PER_STAGE, (part + 1) * PER_STAGE);
-  const r = batch.length ? await crawlBatch(batch, host) : { pages: [], linked: [], images: [] };
+  const r = batch.length ? await crawlBatch(batch, host) : { pages: [], linked: [], images: [], missed: 0 };
   const pages = [...(st.crawlPages ?? []), ...r.pages].slice(0, MAX_PAGES);
   const linked = [...new Set([...(st.crawlLinked ?? []), ...r.linked])].slice(0, 600);
   // Images on the crawled pages join the homepage's (first page each image was seen on).
@@ -169,12 +181,15 @@ async function stageCrawl(st: State, part: 0 | 1): Promise<State> {
   }
   const withImages = new Set(siteImages.map((i) => i.page)).size;
   const images = st.images ? { ...st.images, count: siteImages.length, pages: withImages } : st.images;
-  const next: State = { ...st, crawlPages: pages, crawlLinked: linked, siteImages, images };
+  const next: State = { ...st, crawlPages: pages, crawlLinked: linked, siteImages, images, crawlMissed: (st.crawlMissed ?? 0) + r.missed };
   if (part === 1) {
     // Last crawl stage: turn what we saw into findings.
     next.findings = [...st.findings!, ...crawlFindings(pages, { sitemap: st.sitemapUrls ?? [], linked, home: st.finalUrl! })];
     next.crawlQueue = undefined;
     next.crawlLinked = undefined;
+    // Pages the crawled pages link to that we never visited (the cap or the clock stopped us first).
+    const visited = new Set(pages.map((p) => p.url.replace(/\/$/, "")));
+    next.crawlLinkedCount = linked.filter((u) => !visited.has(u.replace(/\/$/, ""))).length;
   }
   return next;
 }
@@ -233,7 +248,10 @@ async function build(row: ScanRow, st: State): Promise<ScanResult> {
     images: st.images ?? null,
     snapshot: st.snapshot ?? null,
     change: await changeSince(row, st.snapshot),
-    crawl: st.crawlPages && st.crawlPages.length > 1 ? crawlSummary(st.crawlPages, st.sitemapUrls?.length ?? 0) : null,
+    // Kept even when only the homepage was crawled, so the dashboard can say why no other pages were found.
+    crawl: st.crawlPages?.length
+      ? crawlSummary(st.crawlPages, st.sitemapUrls?.length ?? 0, st.crawlFound == null ? undefined : { found: st.crawlFound, homeLinks: st.crawlHomeLinks ?? 0, linked: st.crawlLinkedCount ?? 0, missed: st.crawlMissed ?? 0, sitemap: st.sitemapKind ?? "none" })
+      : null,
   };
 }
 
