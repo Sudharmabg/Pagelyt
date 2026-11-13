@@ -158,9 +158,9 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
   - Header: Search, Rescan, Share, Export, More. Share, Export and More each open an `ActionModal` (`action-modal.tsx`) of option tiles; Share also shows the report link with a Copy button.
   - Dashboard CTAs use the site's "Analyse My Website" lilac (`--cta`, `--cta-h` in the "Dashboard CTAs" block of globals.css): primary buttons at rest, every button on hover. The same lilac is the main colour for fills (`--d-main`, `--d-main-tint`, `--d-grad` in the "Main colour" block): active nav item, tabs, badges, icon tiles, always with dark ink. Small text keeps the deeper `--d-accent`.
   - The Overview has a "From this scan" card per insight section (five cards, laid out 3 + 2) (headline number from `sectionStats`). `pitchFor` writes each star card's headline, short line and button verb from this report. Insight and area headers show `sectionStats` as a stat row, with Why it matters folded (`WhyItMatters`). Colours come from the `--d-*` tokens on `.dash` (redefined for `.dash.dark`), in the "Dashboard refresh" block at the end of globals.css.
-  - `useSiteId` finds the saved site, for the AI visibility link.
+  - `useSiteId` finds the saved site, so the AI visibility view can show the whole `Visibility` tool (embedded).
   - Star feature **Ask Pagelyt** (`?view=assistant`, owner only) renders `Assistant`; a floating Ask button (`.asst-fab`) opens it from other views.
-- `assistant.tsx`: `Assistant`, the chat: starter questions from this report, streamed answers with a small safe markdown renderer (only `/` and `https:` links), sources, Stop and Clear; the conversation is kept in sessionStorage per report. Styles in the "Pagelyt Assistant" block at the end of globals.css.
+- `assistant.tsx`: `Assistant`, the chat: header with site and score, grouped starter questions from this report, streamed answers with a small safe markdown renderer (only `/` and `https:` links), source chips, Copy, follow-up suggestions, auto-growing input, Stop and New chat, and a jump-to-newest button. The conversation is kept in sessionStorage per report. `mini` (with `onExpand`/`onClose`) is the small widget the dashboard's floating Ask button opens (`.asst-pop`: a bottom-right panel, a sheet on phones); it shares the conversation with the full view. Styles in the "Pagelyt Assistant" block of globals.css.
 - `panels.tsx`: `FindingsExplorer`, `ExportTiles` (PDF, checklist, CSV and JSON tiles for the Export modal; every export has every issue, most important first, with a summary and where each was found), `VitalsPanel` (plain-English summary, loading timeline, metric cards with a scale and a "what this means" panel), `useInView`, `CrawlWhyPanel` (pages crawled, why it stopped, how to find more), `CrawlPanel`, `ImagesPanel`, `QuickWins`, `ChangePanel`, `ComparePanel`, `DomainPanel`, `TechPanel`, `HowScores`, `useHistory`.
 - `action-modal.tsx`: `ActionModal` (a `<dialog>` with title and tile grid; a bottom sheet on phones) and `Tile`.
 - `../modal-close.tsx`: `ModalX` (the × every modal uses) and `onBackdrop` (close on a click outside the dialog's box). Every modal closes with ×, Esc or a click outside, except while busy and the email-code lock in `pending.tsx`.
@@ -186,7 +186,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 - `account/`: plan and account details.
 - `account/brand`: brand editor; lists and revokes share links. `BrandEditor` takes `embedded` (no heading, breadcrumb or back link) for the dashboard.
 - `account/sites`: agency multi-site view.
-- `account/visibility/[siteId]`: AI visibility.
+- `account/visibility/[siteId]`: AI visibility. `visibility.tsx` `Visibility({ siteId, embedded })`: run bar and summary tiles, then the questions beside "who ChatGPT names" and the settings. `embedded` is the same tool inside the dashboard's AI visibility view.
 
 **Admin:** `admin/`, with the panel, analytics and requests tabs.
 
@@ -204,6 +204,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
   - `fix/guide-browser.tsx`: `GuideBrowser`, search box, area chips (`.ga-*` tone classes) and guide cards per area (filtering only hides cards).
   - `fix/[id]/page.tsx`: one guide: breadcrumb with area tag, "Why it matters", numbered steps, developer snippet, "Check it worked", tool button, related guides in the same area, previous/next. HowTo JSON-LD.
   - `fix/copy-code.tsx`: `CopyCode`, the developer snippet with a copy button.
+- `rail-nav.tsx`: `RailNav`, dots and previous/next arrows under a row of cards that swipes one card at a time on phones (homepage tools, comparison and examples); renders nothing when the row doesn't overflow.
 - `chip-rail.tsx`: `ChipRail`, the horizontally scrolling filter chip row on /tools and /fix: arrow buttons and edge fades on the side with more, wheel scrolls sideways, mouse drag, keeps the pressed chip in view.
 - `/tools` is the directory of free tools, grouped by category. `/tools?scan=<id>` redirects to that report's `?view=tools`.
 - `/tools/[slug]` is one page per tool: hero, the tool itself, "What you'll get" with an example result, a "How it works" timeline, "Why it matters" with icons, FAQ with FAQPage JSON-LD, then the scan CTA band (no related tools or all-tools banner). The pages are public; using a tool needs sign-in.

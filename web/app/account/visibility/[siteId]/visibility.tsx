@@ -26,19 +26,22 @@ function Trend({ points }: { points: number[] }) {
   );
 }
 
-export function Visibility({ siteId }: { siteId: string }) {
+/** The AI visibility tool. On its own page (/account/visibility/<id>) it has a page title and a link back to the
+    account; `embedded` is the same tool inside the report dashboard's AI visibility view. */
+export function Visibility({ siteId, embedded }: { siteId: string; embedded?: boolean }) {
   const sb = supabaseBrowser();
   const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
   const [site, setSite] = useState<Site | null>(null);
   const [prompts, setPrompts] = useState<Prompt[]>([]);
   const [runs, setRuns] = useState<Run[]>([]);
-  const [providers, setProviders] = useState<Provider[]>([]);
+  const [providers, setProviders] = useState<Provider[] | null>(null); // null until we know whether ChatGPT is connected
   const [terms, setTerms] = useState("");
   const [comps, setComps] = useState("");
   const [newPrompt, setNewPrompt] = useState("");
   const [category, setCategory] = useState("");
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState("");
+  const [step, setStep] = useState<[number, number] | null>(null); // progress of "Run check now"
 
   const load = useCallback(async () => {
     if (!sb) return;
@@ -59,7 +62,9 @@ export function Visibility({ siteId }: { siteId: string }) {
 
   useEffect(() => {
     if (!sb) return;
-    fetch("/api/ai/run").then((r) => r.json()).then((j) => setProviders(j.providers ?? [])).catch(() => {});
+    // One retry: the first request can fail while a dev server is still compiling the route.
+    const ask = () => fetch("/api/ai/run").then((r) => r.json()).then((j) => setProviders(j.providers ?? []));
+    ask().catch(() => window.setTimeout(() => void ask().catch(() => setProviders([])), 1500));
     sb.auth.getSession().then(({ data }) => {
       setSignedIn(!!data.session);
       if (data.session) void load();
@@ -149,6 +154,7 @@ export function Visibility({ siteId }: { siteId: string }) {
       const token = (await sb!.auth.getSession()).data.session?.access_token;
       for (let i = 0; i < prompts.length; i++) {
         setBusy(`Asking question ${i + 1} of ${prompts.length}…`);
+        setStep([i, prompts.length]);
         const r = await fetch("/api/ai/run", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ siteId, promptId: prompts[i].id }) });
         const j = await r.json();
         if (!r.ok) throw new Error(j.error || "Run failed.");
@@ -159,6 +165,7 @@ export function Visibility({ siteId }: { siteId: string }) {
       setMsg(e instanceof Error ? e.message : "Run failed.");
     } finally {
       setBusy("");
+      setStep(null);
     }
   };
 
@@ -167,18 +174,33 @@ export function Visibility({ siteId }: { siteId: string }) {
   if (!signedIn) return <div className="panel auth-card"><h1>Sign in to track AI visibility</h1><Link className="btn" href="/login">Sign in</Link></div>;
   if (!site) return <div className="panel auth-card"><h1>Site not found</h1><p className="panel-note">It may belong to another account. <Link className="fnd-link" href="/account">Back to your sites</Link></p></div>;
 
+  const lastRun = runs[0]?.at;
+
   return (
-    <div className="acct-grid">
-      <header className="acct-head">
+    <div className={`vis${embedded ? " embedded" : ""}`}>
+      <header className="vis-head">
         <div>
-          <h1>AI visibility: {site.host}</h1>
-          <p className="panel-note">Does ChatGPT name and cite this site when people ask about it? <Link className="fnd-link" href="/account">Back to your sites</Link></p>
+          {!embedded && <h1>AI visibility: {site.host}</h1>}
+          <p className="panel-note">
+            Does ChatGPT name and cite {site.host} when people ask about what you offer?{" "}
+            {!embedded && <Link className="fnd-link" href="/account">Back to your sites</Link>}
+          </p>
         </div>
-        <button type="button" className="btn sm" onClick={runAll} disabled={!!busy || providers.length === 0}>{busy ? (busy === "run" ? "Starting…" : busy) : "Run check now"}</button>
+        <div className="vis-run">
+          <button type="button" className="dash-btn primary" onClick={runAll} disabled={!!busy || !providers?.length || prompts.length === 0}>
+            {busy ? (busy === "run" ? "Starting…" : busy) : "Run check now"}
+          </button>
+          <small>{lastRun ? `Last checked ${new Date(lastRun).toLocaleDateString("en-GB", { dateStyle: "medium" })}` : "Not checked yet"}{site.ai_track && " · weekly"}</small>
+        </div>
+        {step && (
+          <div className="vis-progress" role="progressbar" aria-label="Checking questions" aria-valuemin={0} aria-valuemax={step[1]} aria-valuenow={step[0]}>
+            <i style={{ width: `${(step[0] / step[1]) * 100}%` }} />
+          </div>
+        )}
       </header>
       <p className="acct-msg" role="status" aria-live="polite">{msg}</p>
 
-      {providers.length === 0 && (
+      {providers?.length === 0 && (
         <div className="panel"><h2>ChatGPT isn’t connected</h2><p className="panel-note">Set OPENAI_API_KEY as a server secret to run checks. See DEPLOY.md.</p></div>
       )}
 
@@ -189,78 +211,93 @@ export function Visibility({ siteId }: { siteId: string }) {
         <div className="vt trend"><Trend points={trend} /><span>{trend.length > 1 ? "Over time" : "Run more checks to see a trend"}</span></div>
       </section>
 
-      <section className="panel" aria-label="Questions to ask">
-        <h2>Questions people ask</h2>
-        {prompts.length === 0 ? <p className="panel-note">No questions yet. Add your own, or generate suggestions below.</p> : (
-          <ul className="vis-prompts">
-            {prompts.map((p) => (
-              <li key={p.id}>
-                <details>
-                  <summary>
-                    <span className="vp-q">{p.prompt}</span>
-                    <span className="vp-cells">
+      <div className="vis-layout">
+        <section className="panel vis-main" aria-label="Questions to ask">
+          <div className="vis-ph">
+            <h2>Questions people ask</h2>
+            <span className="vis-count">{prompts.length} question{prompts.length === 1 ? "" : "s"}</span>
+          </div>
+          {prompts.length === 0 ? (
+            <div className="vis-empty">
+              <p><b>No questions yet.</b> Add the questions your customers might ask ChatGPT, or tell us what you offer and we’ll suggest some.</p>
+            </div>
+          ) : (
+            <ul className="vis-prompts">
+              {prompts.map((p) => (
+                <li key={p.id}>
+                  <details>
+                    <summary>
+                      <span className="vp-q">{p.prompt}</span>
+                      <span className="vp-cells">
+                        {cols.map((c) => {
+                          const r = latest.get(`${p.id}:${c.id}`);
+                          const state = !r ? "na" : r.error ? "err" : r.mentioned ? (r.cited ? "cited" : "yes") : "no";
+                          const text = { na: "Not run", err: "Error", cited: "Named and cited", yes: "Named", no: "Not named" }[state];
+                          return <span key={c.id} className={`vc vc-${state}`} title={`${c.label}: ${text}`}>{text}</span>;
+                        })}
+                      </span>
+                    </summary>
+                    <div className="vp-body">
                       {cols.map((c) => {
                         const r = latest.get(`${p.id}:${c.id}`);
-                        const state = !r ? "na" : r.error ? "err" : r.mentioned ? (r.cited ? "cited" : "yes") : "no";
-                        const text = { na: "Not run", err: "Error", cited: "Named and cited", yes: "Named", no: "Not named" }[state];
-                        return <span key={c.id} className={`vc vc-${state}`} title={`${c.label}: ${text}`}><i>{c.label}</i>{text}</span>;
+                        if (!r) return <p key={c.id} className="panel-note">Not checked yet. Run a check to see ChatGPT’s answer.</p>;
+                        return (
+                          <div key={c.id} className="vp-ans">
+                            <h3>{c.label}’s answer <small>{new Date(r.at).toLocaleDateString("en-GB", { dateStyle: "medium" })}</small></h3>
+                            {r.error ? <p className="lm-err">{r.error}</p> : <p>{(r.answer ?? "").slice(0, 700)}{(r.answer ?? "").length > 700 ? "…" : ""}</p>}
+                            {r.citations.length > 0 && <p className="vp-src">Sources: {r.citations.slice(0, 5).map((u) => <a key={u} href={u} target="_blank" rel="noopener noreferrer">{u.replace(/^https?:\/\/(www\.)?/, "").slice(0, 40)}</a>)}</p>}
+                          </div>
+                        );
                       })}
-                    </span>
-                  </summary>
-                  <div className="vp-body">
-                    {cols.map((c) => {
-                      const r = latest.get(`${p.id}:${c.id}`);
-                      if (!r) return null;
-                      return (
-                        <div key={c.id} className="vp-ans">
-                          <h3>{c.label} <small>{new Date(r.at).toLocaleDateString("en-GB", { dateStyle: "medium" })}</small></h3>
-                          {r.error ? <p className="lm-err">{r.error}</p> : <p>{(r.answer ?? "").slice(0, 700)}{(r.answer ?? "").length > 700 ? "…" : ""}</p>}
-                          {r.citations.length > 0 && <p className="vp-src">Sources: {r.citations.slice(0, 5).map((u) => <a key={u} href={u} target="_blank" rel="noopener noreferrer">{u.replace(/^https?:\/\/(www\.)?/, "").slice(0, 40)}</a>)}</p>}
-                        </div>
-                      );
-                    })}
-                    <button type="button" className="fnd-link" onClick={() => removePrompt(p.id)}>Remove this question</button>
-                  </div>
-                </details>
-              </li>
-            ))}
-          </ul>
-        )}
-        <form className="acct-add" onSubmit={(e) => { e.preventDefault(); void addPrompt(newPrompt); }}>
-          <label className="sr-only" htmlFor="v-new">New question</label>
-          <input id="v-new" className="fnd-search" placeholder="e.g. Who are the best plumbers in Pune?" value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} maxLength={300} />
-          <button className="btn sm" type="submit">Add</button>
-        </form>
-        <div className="acct-add">
-          <label className="sr-only" htmlFor="v-cat">What you offer, and where</label>
-          <input id="v-cat" className="fnd-search" placeholder="What you offer, e.g. emergency plumbers in Pune" value={category} onChange={(e) => setCategory(e.target.value)} />
-          <button className="dash-btn" type="button" onClick={suggest}>Suggest questions</button>
-        </div>
-      </section>
-
-      {voice.total > 0 && (
-        <section className="panel" aria-label="Share of voice">
-          <h2>Who ChatGPT names</h2>
-          <p className="panel-note">Of {voice.total} answers, how many named each business.</p>
-          <ul className="sov">
-            {voice.rows.map((r) => (
-              <li key={r.name} className={r.you ? "you" : ""}>
-                <span>{r.name}{r.you && " (you)"}</span>
-                <span className="sov-bar"><i style={{ width: `${(r.n / voice.max) * 100}%` }} /></span>
-                <b>{r.n}</b>
-              </li>
-            ))}
-          </ul>
+                      <button type="button" className="fnd-link" onClick={() => removePrompt(p.id)}>Remove this question</button>
+                    </div>
+                  </details>
+                </li>
+              ))}
+            </ul>
+          )}
+          <form className="vis-add" onSubmit={(e) => { e.preventDefault(); void addPrompt(newPrompt); }}>
+            <label className="sr-only" htmlFor="v-new">New question</label>
+            <input id="v-new" className="fnd-search" placeholder="e.g. Who are the best plumbers in Pune?" value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} maxLength={300} />
+            <button className="dash-btn primary" type="submit" disabled={newPrompt.trim().length < 5}>Add</button>
+          </form>
+          <div className="vis-add">
+            <label className="sr-only" htmlFor="v-cat">What you offer, and where</label>
+            <input id="v-cat" className="fnd-search" placeholder="What you offer, e.g. emergency plumbers in Pune" value={category} onChange={(e) => setCategory(e.target.value)} />
+            <button className="dash-btn" type="button" onClick={suggest}>Suggest questions</button>
+          </div>
         </section>
-      )}
 
-      <section className="panel" aria-label="Settings">
-        <h2>Names and tracking</h2>
-        <div className="tf"><label htmlFor="v-terms">Other names for your business</label><input id="v-terms" value={terms} onChange={(e) => setTerms(e.target.value)} placeholder="Acme Plumbing, Acme" /><small>Comma separated. We always look for your domain too.</small></div>
-        <div className="tf"><label htmlFor="v-comps">Competitors to compare against</label><input id="v-comps" value={comps} onChange={(e) => setComps(e.target.value)} placeholder="PipePro, FixIt Fast" /></div>
-        <div className="brand-act"><button type="button" className="dash-btn primary" onClick={saveSettings}>Save names</button></div>
-        <label className="as-f check"><input type="checkbox" checked={site.ai_track} onChange={(e) => toggleTrack(e.target.checked)} />Check automatically every week</label>
-      </section>
+        <aside className="vis-side">
+          <section className="panel" aria-label="Share of voice">
+            <h2>Who ChatGPT names</h2>
+            {voice.total > 0 ? (
+              <>
+                <p className="panel-note">Of {voice.total} answers, how many named each business.</p>
+                <ul className="sov">
+                  {voice.rows.map((r) => (
+                    <li key={r.name} className={r.you ? "you" : ""}>
+                      <span title={r.name}>{r.name}{r.you && " (you)"}</span>
+                      <span className="sov-bar"><i style={{ width: `${(r.n / voice.max) * 100}%` }} /></span>
+                      <b>{r.n}</b>
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <p className="panel-note">Run a check to see how often ChatGPT names you next to your competitors.</p>
+            )}
+          </section>
+
+          <section className="panel" aria-label="Settings">
+            <h2>Names and tracking</h2>
+            <div className="tf"><label htmlFor="v-terms">Other names for your business</label><input id="v-terms" value={terms} onChange={(e) => setTerms(e.target.value)} placeholder="Acme Plumbing, Acme" /><small>Comma separated. We always look for your domain too.</small></div>
+            <div className="tf"><label htmlFor="v-comps">Competitors to compare against</label><input id="v-comps" value={comps} onChange={(e) => setComps(e.target.value)} placeholder="PipePro, FixIt Fast" /></div>
+            <div className="brand-act"><button type="button" className="dash-btn primary" onClick={saveSettings}>Save names</button></div>
+            <label className="as-f check"><input type="checkbox" checked={site.ai_track} onChange={(e) => toggleTrack(e.target.checked)} />Check automatically every week</label>
+          </section>
+        </aside>
+      </div>
 
       <p className="panel-note vis-limits">ChatGPT’s answers vary by wording, location and time, and these checks use the OpenAI API, which can differ from the ChatGPT app. Treat results as samples and look at trends, not single runs. A failed call is shown as an error and never counted as “not named”.</p>
     </div>

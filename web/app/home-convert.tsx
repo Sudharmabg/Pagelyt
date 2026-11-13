@@ -7,6 +7,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Arrow } from "./arrow";
+import { RailNav } from "./rail-nav";
 import { COMPARE, COMPARE_COLS, PROCESS, ROTATOR, STATS, STORIES, type Mark } from "./home-data";
 import { CATEGORIES, TOOL_LIST, type ToolCategory } from "./tools/catalog";
 import { TONE } from "./tools/icons";
@@ -163,6 +164,7 @@ export function ProcessDraw() {
 const MARK_LABEL: Record<Mark, string> = { yes: "Strong", part: "Partial", no: "Weak" };
 
 export function Compare({ onGo }: { onGo: () => void }) {
+  const rail = useRef<HTMLUListElement>(null);
   return (
     <div className="vs-wrap" data-r>
       <table className="vs">
@@ -206,7 +208,7 @@ export function Compare({ onGo }: { onGo: () => void }) {
       </table>
 
       {/* phones: one swipeable card per option instead of the table (only one of the two is ever displayed) */}
-      <ul className="vs-cards">
+      <ul className="vs-cards" ref={rail}>
         {COMPARE_COLS.map((c, i) => (
           <li key={c} className={i === 0 ? "us" : undefined}>
             {i === 0 && <span className="vs-rib">Best for owners</span>}
@@ -233,6 +235,7 @@ export function Compare({ onGo }: { onGo: () => void }) {
           </li>
         ))}
       </ul>
+      <RailNav rail={rail} count={COMPARE_COLS.length} label="Choose a comparison card" />
     </div>
   );
 }
@@ -243,6 +246,7 @@ export function ToolGrid() {
   const [cat, setCat] = useState<ToolCategory | "All">("All");
   const cats = CATEGORIES.filter((c) => TOOL_LIST.some((t) => t.category === c.name));
   const shown = cat === "All" ? TOOL_LIST : TOOL_LIST.filter((t) => t.category === cat);
+  const rail = useRef<HTMLUListElement>(null);
   return (
     <>
       <div className="tf-chips" data-r role="group" aria-label="Filter tools by category">
@@ -254,13 +258,14 @@ export function ToolGrid() {
       </div>
 
       <div className="tf-wrap">
-        <ul className="tf-feat" key={cat}>
+        <ul className="tf-feat" key={cat} ref={rail}>
           {shown.map((t, i) => (
             <li key={t.slug} style={{ ["--i" as string]: i }}>
               <ToolCard t={t} />
             </li>
           ))}
         </ul>
+        <RailNav key={`nav-${cat}`} rail={rail} count={shown.length} label="Choose a tool card" />
       </div>
       <div className="btn-row hl-tools-cta">
         <Link className="btn" href="/tools">
@@ -283,8 +288,10 @@ const STORY_ICONS = [
 ];
 
 export function Stories() {
+  const rail = useRef<HTMLUListElement>(null);
   return (
-    <ul className="story-row" data-r>
+    <>
+    <ul className="story-row" data-r ref={rail}>
       {STORIES.map((s, i) => (
         <li key={s.who} className={`story st-${i}`} style={{ ["--i" as string]: i }}>
           <div className="story-top">
@@ -323,6 +330,8 @@ export function Stories() {
         </li>
       ))}
     </ul>
+    <RailNav rail={rail} count={STORIES.length} label="Choose an example" />
+    </>
   );
 }
 

@@ -14,6 +14,7 @@ import { RescanButton } from "./rescan";
 import { ActionModal, Tile } from "./action-modal";
 import { AGENCY_UPSELL, AgencyModal, useAccount } from "./agency-modal";
 import { Assistant } from "./assistant";
+import { Visibility } from "../account/visibility/[siteId]/visibility";
 import { CompareButton } from "./compare-button";
 import { downloadPdf, fullReportPrintUrl } from "@/lib/download-pdf";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -313,6 +314,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const router = useRouter();
   const [palette, setPalette] = useState(false);
   const [help, setHelp] = useState(false);
+  const [chat, setChat] = useState(false); // the small Ask Pagelyt widget, bottom right
   const siteId = useSiteId(scan.host, access === "owner");
 
   // Show the compact score bar once the hero has scrolled out of view.
@@ -726,19 +728,16 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     else if (s.id === "assistant") content = access === "owner" ? <Assistant key={scan.id} scan={scan} paid={!!acct?.paid} /> : empty("The assistant needs accounts, which aren't switched on here.");
     else if (s.id === "monitor") content = access === "local" ? empty("Saving sites needs accounts, which aren't switched on here.") : <SaveSite scanId={scan.id} host={scan.host} />;
     else if (s.id === "ai")
-      content = (
+      // The whole AI visibility tool, right here (the same tool as /account/visibility/<site>).
+      content = siteId ? (
+        <>
+          {needsPlan("ai") && <p className="panel-note">AI visibility checks come with the Professional and Business plans. <Link className="fnd-link" href={AGENCY_UPSELL}>Talk to us about a plan</Link></p>}
+          <Visibility siteId={siteId} embedded />
+        </>
+      ) : (
         <div className="panel sec-cta">
-          {siteId ? (
-            <>
-              <p>Weekly checks of what ChatGPT says about {scan.host}, with the prompts you choose.</p>
-              <Link className="dash-btn primary" href={`/account/visibility/${siteId}`}>Open AI visibility for {scan.host}</Link>
-            </>
-          ) : (
-            <>
-              <p>AI visibility runs on saved sites. Save {scan.host} first, then come back here.</p>
-              <button type="button" className="dash-btn primary" onClick={() => setView("monitor")}>Save this site</button>
-            </>
-          )}
+          <p>AI visibility runs on saved sites. Save {scan.host} first, then come back here.</p>
+          <button type="button" className="dash-btn primary" onClick={() => setView("monitor")}>Save this site</button>
           {needsPlan("ai") && <p className="panel-note">AI visibility checks come with the Professional and Business plans. <Link className="fnd-link" href={AGENCY_UPSELL}>Talk to us about a plan</Link></p>}
         </div>
       );
@@ -868,10 +867,37 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           {body}
         </main>
       </div>
+      {/* The small chat widget: the report stays visible and scrollable behind it on wide screens; on phones it
+          opens as a sheet. It shares its conversation with the full Ask Pagelyt view (Expand opens that view). */}
+      {access === "owner" && view !== "assistant" && chat && (
+        <div
+          className="asst-pop"
+          role="dialog"
+          aria-label="Ask Pagelyt"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setChat(false);
+              document.querySelector<HTMLButtonElement>(".asst-fab")?.focus();
+            }
+          }}
+        >
+          <Assistant
+            key={scan.id}
+            scan={scan}
+            paid={!!acct?.paid}
+            mini
+            onClose={() => setChat(false)}
+            onExpand={() => {
+              setChat(false);
+              setView("assistant");
+            }}
+          />
+        </div>
+      )}
       {access === "owner" && view !== "assistant" && (
-        <button type="button" className="asst-fab" onClick={() => setView("assistant")} aria-label="Ask Pagelyt about this report">
-          <AreaIcon k="chat" size={20} />
-          <span>Ask</span>
+        <button type="button" className={`asst-fab${chat ? " open" : ""}`} onClick={() => setChat((c) => !c)} aria-expanded={chat} aria-label={chat ? "Close the chat" : "Ask Pagelyt about this report"}>
+          {chat ? <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" /></svg> : <AreaIcon k="chat" size={20} />}
+          <span>{chat ? "Close" : "Ask"}</span>
         </button>
       )}
     </div>

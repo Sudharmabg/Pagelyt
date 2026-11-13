@@ -368,11 +368,11 @@ function Scale({ k, v, on }: { k: MetricKey; v: number; on: boolean }) {
   const m = METRIC[k];
   const pct = (x: number) => Math.min(100, (x / m.max) * 100);
   return (
-    <span className="vs" aria-hidden="true">
-      <span className="vs-band good" style={{ width: `${pct(m.good)}%` }} />
-      <span className="vs-band ok" style={{ width: `${pct(m.poor) - pct(m.good)}%` }} />
-      <span className="vs-band poor" />
-      <i className="vs-mark" style={{ left: on ? `${Math.min(pct(v), 98.5)}%` : "0%" }} />
+    <span className="vscale" aria-hidden="true">
+      <span className="vsc-band good" style={{ width: `${pct(m.good)}%` }} />
+      <span className="vsc-band ok" style={{ width: `${pct(m.poor) - pct(m.good)}%` }} />
+      <span className="vsc-band poor" />
+      <i className="vsc-mark" style={{ left: on ? `${Math.min(pct(v), 98.5)}%` : "0%" }} />
     </span>
   );
 }
