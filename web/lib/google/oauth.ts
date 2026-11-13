@@ -5,6 +5,8 @@
 export const SCOPES = {
   gsc: "https://www.googleapis.com/auth/webmasters.readonly",
   ga4: "https://www.googleapis.com/auth/analytics.readonly",
+  // Google Ads has no read-only scope; Pagelyt only ever runs search (read) queries with it.
+  ads: "https://www.googleapis.com/auth/adwords",
 } as const;
 export type Product = keyof typeof SCOPES;
 const IDENTITY = ["openid", "email"];

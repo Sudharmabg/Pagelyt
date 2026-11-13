@@ -1,10 +1,11 @@
 import { userFromRequest } from "@/lib/auth";
 import { listProperties } from "@/lib/google/gsc";
 import { listGa4Properties } from "@/lib/google/ga4";
-import { accessFor, canUseGoogle, getConnection, ownSite, setGa4Property, setGscProperty } from "@/lib/google/store";
+import { AdsTokenError, listAdsAccounts } from "@/lib/google/ads";
+import { accessFor, canUseGoogle, getConnection, ownSite, setAdsAccount, setGa4Property, setGscProperty } from "@/lib/google/store";
 
 /* POST {siteId, property, product?}: links a saved site to one of the connected account's Search Console properties
-   (product "gsc", the default) or GA4 properties ("ga4"), checked against Google's own list, so nobody can link a
+   (product "gsc", the default) or GA4 properties ("ga4") or Google Ads accounts ("ads", property = the customer id), checked against Google's own list, so nobody can link a
    property they can't read. */
 
 const no = (error: string, status: number) => Response.json({ error }, { status, headers: { "cache-control": "no-store" } });
@@ -21,7 +22,11 @@ export async function POST(req: Request) {
   if (!conn) return no("Connect Google first.", 409);
   const access = await accessFor(conn);
   if (!access) return no("Google access was removed. Connect Google again.", 409);
-  if (body.product === "ga4") {
+  if (body.product === "ads") {
+    const hit = await listAdsAccounts(access).then((a) => a.find((x) => x.id === body.property), (e) => { if (e instanceof AdsTokenError) return null; throw e; });
+    if (!hit) return no("This Google account can't read that Google Ads account.", 403);
+    await setAdsAccount(site.id, user.id, hit);
+  } else if (body.product === "ga4") {
     const hit = (await listGa4Properties(access)).find((p) => p.property === body.property);
     if (!hit) return no("This Google account can't read that Analytics property.", 403);
     await setGa4Property(site.id, user.id, hit.property, hit.name);

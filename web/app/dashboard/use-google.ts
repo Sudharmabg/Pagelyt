@@ -4,16 +4,19 @@ import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import type { GscData } from "@/lib/google/gsc-insights";
 import type { Ga4Ai, Ga4Data } from "@/lib/google/ga4-insights";
+import type { AdsAi, AdsData } from "@/lib/google/ads-insights";
 
-/* The Google connection for one saved site, as the dashboard sees it. Loads the status and the cached Search Console
-   and Analytics data, and refreshes each in the background when it is older than 24 hours (there is no cron job).
-   Shared by the Google data view, the numbers shown on findings and the Overview, so it is fetched once per report.
-   The AI's Analytics insights load with the status and are (re)made only on request. */
+/* The Google connection for one saved site, as the dashboard sees it. Loads the status and the cached Search Console,
+   Analytics and Google Ads data, and refreshes each in the background when it is older than 24 hours (there is no
+   cron job). Shared by the Google data view, the numbers shown on findings and the Overview, so it is fetched once per
+   report. The AI's insights (Analytics and Ads, separately) load with the status and are (re)made only on request. */
 
 type Cached<T> = { data: T | null; error: string | null; fetchedAt: string; stale: boolean };
 export type Ga4Property = { property: string; name: string; account: string };
 export type AiInsights = Ga4Ai & { at: string; current: boolean };
-export type Product = "gsc" | "ga4";
+export type AdsAiInsights = AdsAi & { at: string; current: boolean };
+export type AdsAccount = { id: string; name: string; login: string | null; currency: string };
+export type Product = "gsc" | "ga4" | "ads";
 
 export type GoogleStatus = {
   configured: boolean;
@@ -30,6 +33,13 @@ export type GoogleStatus = {
   ga4Properties?: Ga4Property[];
   ga4Cache?: Cached<Ga4Data> | null;
   ai?: AiInsights | null;
+  adsOn?: boolean;
+  ads?: boolean;
+  adsCustomer?: string | null;
+  adsName?: string | null;
+  adsAccounts?: AdsAccount[];
+  adsCache?: Cached<AdsData> | null;
+  adsAi?: AdsAiInsights | null;
   printToken?: string;
 };
 
@@ -47,13 +57,14 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return d;
 }
 
-type Busy = null | "load" | "refresh" | "ga4refresh" | "connect" | "link" | "props" | "analyse";
+type Busy = null | "load" | "refresh" | "ga4refresh" | "adsrefresh" | "connect" | "link" | "props" | "analyse" | "adsanalyse";
 
 export function useGoogle(siteId: string | null, enabled: boolean) {
   const [status, setStatus] = useState<GoogleStatus | null>(null);
   const [busy, setBusy] = useState<Busy>(enabled ? "load" : null);
   const [error, setError] = useState("");
   const [aiError, setAiError] = useState("");
+  const [adsAiError, setAdsAiError] = useState("");
 
   const run = useCallback(async (b: Busy, fn: () => Promise<void>, onErr = setError) => {
     setBusy(b);
@@ -69,19 +80,24 @@ export function useGoogle(siteId: string | null, enabled: boolean) {
 
   const load = useCallback(async (props?: Product) => {
     if (!siteId) return null;
-    const s = await call<GoogleStatus>(`/api/google/status?siteId=${encodeURIComponent(siteId)}${props === "gsc" ? "&props=1" : props === "ga4" ? "&ga4props=1" : ""}`);
-    setStatus((old) => (old && props ? { ...old, ...s, properties: s.properties ?? old.properties, ga4Properties: s.ga4Properties ?? old.ga4Properties } : s));
+    const s = await call<GoogleStatus>(`/api/google/status?siteId=${encodeURIComponent(siteId)}${props === "gsc" ? "&props=1" : props === "ga4" ? "&ga4props=1" : props === "ads" ? "&adsprops=1" : ""}`);
+    setStatus((old) => (old && props ? { ...old, ...s, properties: s.properties ?? old.properties, ga4Properties: s.ga4Properties ?? old.ga4Properties, adsAccounts: s.adsAccounts ?? old.adsAccounts } : s));
     return s;
   }, [siteId]);
 
   const fetchFresh = useCallback(async (product: Product, force: boolean) => {
-    const cache = await call<Cached<GscData | Ga4Data>>("/api/google/refresh", { siteId, force, product });
-    setStatus((s) => (s ? (product === "ga4" ? { ...s, ga4Cache: cache as Cached<Ga4Data>, ai: s.ai ? { ...s.ai, current: s.ai.basedOn === cache.fetchedAt } : s.ai } : { ...s, cache: cache as Cached<GscData> }) : s));
+    const cache = await call<Cached<GscData | Ga4Data | AdsData>>("/api/google/refresh", { siteId, force, product });
+    setStatus((s) => {
+      if (!s) return s;
+      if (product === "ga4") return { ...s, ga4Cache: cache as Cached<Ga4Data>, ai: s.ai ? { ...s.ai, current: s.ai.basedOn === cache.fetchedAt } : s.ai };
+      if (product === "ads") return { ...s, adsCache: cache as Cached<AdsData>, adsAi: s.adsAi ? { ...s.adsAi, current: s.adsAi.basedOn === cache.fetchedAt } : s.adsAi };
+      return { ...s, cache: cache as Cached<GscData> };
+    });
   }, [siteId]);
 
   const refresh = useCallback(async (force = false, product: Product = "gsc") => {
     if (!siteId) return;
-    await run(product === "ga4" ? "ga4refresh" : "refresh", () => fetchFresh(product, force));
+    await run(product === "ga4" ? "ga4refresh" : product === "ads" ? "adsrefresh" : "refresh", () => fetchFresh(product, force));
   }, [siteId, run, fetchFresh]);
 
   useEffect(() => {
@@ -94,6 +110,7 @@ export function useGoogle(siteId: string | null, enabled: boolean) {
         const jobs: Promise<void>[] = [];
         if (s.gsc && s.property && (!s.cache || s.cache.stale)) jobs.push(fetchFresh("gsc", false));
         if (s.ga4 && s.ga4Property && (!s.ga4Cache || s.ga4Cache.stale)) jobs.push(fetchFresh("ga4", false));
+        if (s.adsOn && s.ads && s.adsCustomer && (!s.adsCache || s.adsCache.stale)) jobs.push(fetchFresh("ads", false));
         if (jobs.length) setBusy("refresh");
         const out = await Promise.allSettled(jobs);
         const bad = out.find((x): x is PromiseRejectedResult => x.status === "rejected");
@@ -130,13 +147,16 @@ export function useGoogle(siteId: string | null, enabled: boolean) {
     if (!siteId) return;
     await run("link", async () => {
       await call("/api/google/link", { siteId, property, product });
-      if (product === "ga4") {
+      if (product === "ads") {
+        const name = status?.adsAccounts?.find((a) => a.id === property)?.name ?? null;
+        setStatus((s) => (s ? { ...s, adsCustomer: property, adsName: name, adsCache: null, adsAi: null } : s));
+      } else if (product === "ga4") {
         const name = status?.ga4Properties?.find((p) => p.property === property)?.name ?? null;
         setStatus((s) => (s ? { ...s, ga4Property: property, ga4Name: name, ga4Cache: null, ai: null } : s));
       } else setStatus((s) => (s ? { ...s, property, cache: null } : s));
       await fetchFresh(product, true);
     });
-  }, [siteId, run, fetchFresh, status?.ga4Properties]);
+  }, [siteId, run, fetchFresh, status?.ga4Properties, status?.adsAccounts]);
 
   const analyse = useCallback(async (scanId: string, force = false) => {
     if (!siteId) return;
@@ -146,17 +166,25 @@ export function useGoogle(siteId: string | null, enabled: boolean) {
     }, setAiError);
   }, [siteId, run]);
 
-  /** A fresh pass for the print page's Analytics section (it lasts 15 minutes), or undefined without Analytics data. */
+  const analyseAds = useCallback(async (scanId: string, force = false) => {
+    if (!siteId) return;
+    await run("adsanalyse", async () => {
+      const adsAi = await call<AdsAiInsights>("/api/google/analyse", { siteId, scanId, force, product: "ads" });
+      setStatus((s) => (s ? { ...s, adsAi } : s));
+    }, setAdsAiError);
+  }, [siteId, run]);
+
+  /** A fresh pass for the print page's Analytics and Ads sections (it lasts 15 minutes), or undefined without either. */
   const printPass = useCallback(async (scanId: string) => {
-    if (!siteId || !status?.ga4Cache?.data) return undefined;
+    if (!siteId || !(status?.ga4Cache?.data || status?.adsCache?.data)) return undefined;
     try {
       return (await call<GoogleStatus>(`/api/google/status?siteId=${encodeURIComponent(siteId)}&scanId=${encodeURIComponent(scanId)}`)).printToken;
     } catch {
       return undefined;
     }
-  }, [siteId, status?.ga4Cache?.data]);
+  }, [siteId, status?.ga4Cache?.data, status?.adsCache?.data]);
 
-  return { status, busy, error, aiError, gsc: status?.cache?.data ?? null, ga4: status?.ga4Cache?.data ?? null, ai: status?.ai ?? null, refresh, connect, loadProps, link, analyse, printPass };
+  return { status, busy, error, aiError, adsAiError, gsc: status?.cache?.data ?? null, ga4: status?.ga4Cache?.data ?? null, ai: status?.ai ?? null, ads: status?.adsCache?.data ?? null, adsAi: status?.adsAi ?? null, refresh, connect, loadProps, link, analyse, analyseAds, printPass };
 }
 
 export type GoogleState = ReturnType<typeof useGoogle>;

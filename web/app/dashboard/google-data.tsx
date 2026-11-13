@@ -8,9 +8,10 @@ import { MODULE_NAMES, type Finding, type ModuleKey } from "@/lib/scan/types";
 import { byTraffic, change, drops, findingsOn, lowCtr, notIndexed, strikingDistance, trafficMap, type GscData, type Traffic } from "@/lib/google/gsc-insights";
 import type { GoogleState } from "./use-google";
 import { AnalyticsTab } from "./analytics-data";
+import { AdsTab } from "./ads-data";
 
 /* The ★ Google data view, in two tabs. Search Console: Connect Google, pick the property, then real search numbers
-   for this site joined to this report's findings. Analytics: see analytics-data.tsx. Only the owner sees it. */
+   for this site joined to this report's findings. Analytics: see analytics-data.tsx; Google Ads: ads-data.tsx. Only the owner sees it. */
 
 const n0 = (n: number) => Math.round(n).toLocaleString("en-GB");
 const pct = (n: number) => `${(n * 100).toFixed(n < 0.1 ? 1 : 0)}%`;
@@ -35,7 +36,7 @@ const NOTICE: Record<string, { text: string; bad?: boolean }> = {
   failed: { text: "Google couldn't be connected just now. Please try again.", bad: true },
 };
 
-export type GoogleTab = "gsc" | "ga4";
+export type GoogleTab = "gsc" | "ga4" | "ads";
 
 /** `tab`: kept by the dashboard (from ?gtab=analytics on arrival), so the Overview's AI card can open Analytics. */
 export function GoogleData({ g, scan, siteId, findings, onSave, onOpenArea, tab, onTab }: { g: GoogleState; scan: { id: string; url: string; host: string }; siteId: string | null; findings: Finding[]; onSave: () => void; onOpenArea: (m: ModuleKey) => void; tab: GoogleTab; onTab: (t: GoogleTab) => void }) {
@@ -64,16 +65,20 @@ export function GoogleData({ g, scan, siteId, findings, onSave, onOpenArea, tab,
   if (!s.allowed) return <p className="panel sec-empty">Google data comes with the Professional and Business plans.</p>;
 
   const gaNotice = notice?.startsWith("ga4") ? notice.slice(3) : null;
+  const adsNotice = notice?.startsWith("ads") ? notice.slice(3) : null;
   return (
     <>
       <div className="gd-tabs" role="tablist" aria-label="Google data">
         <button type="button" role="tab" aria-selected={tab === "gsc"} className={tab === "gsc" ? "on" : ""} onClick={() => setTab("gsc")}>Search Console</button>
         <button type="button" role="tab" aria-selected={tab === "ga4"} className={tab === "ga4" ? "on" : ""} onClick={() => setTab("ga4")}>Analytics</button>
+        <button type="button" role="tab" aria-selected={tab === "ads"} className={tab === "ads" ? "on" : ""} onClick={() => setTab("ads")}>Google Ads</button>
       </div>
       {tab === "gsc" ? (
-        <GscTab g={g} scan={scan} findings={findings} onOpenArea={onOpenArea} notice={gaNotice ? null : notice} />
-      ) : (
+        <GscTab g={g} scan={scan} findings={findings} onOpenArea={onOpenArea} notice={gaNotice || adsNotice ? null : notice} />
+      ) : tab === "ga4" ? (
         <AnalyticsTab g={g} scan={scan} findings={findings} onOpenArea={onOpenArea} notice={gaNotice} />
+      ) : (
+        <AdsTab g={g} scan={scan} findings={findings} onOpenArea={onOpenArea} notice={adsNotice} />
       )}
     </>
   );

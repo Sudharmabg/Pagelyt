@@ -8,6 +8,7 @@ import { EFFORT_LABEL, effortOf } from "@/lib/scan/effort";
 import { evidenceText, MODULE_NAMES, type Finding, type PageTable, type Severity } from "@/lib/scan/types";
 import type { Traffic } from "@/lib/google/gsc-insights";
 import type { Visits } from "@/lib/google/ga4-insights";
+import { money, type AdSpend } from "@/lib/google/ads-insights";
 
 const FIRST_ROWS = 10;
 
@@ -81,6 +82,7 @@ function Item({
   gain,
   traffic,
   visits,
+  spend,
 }: {
   f: Finding;
   fixed: boolean;
@@ -92,6 +94,8 @@ function Item({
   traffic?: Traffic;
   /** Google Analytics visits on the pages this finding affects (Analytics connected). */
   visits?: Visits;
+  /** Google Ads spend landing on the pages this finding affects (Google Ads connected). */
+  spend?: AdSpend;
 }) {
   const [tech, setTech] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -130,6 +134,11 @@ function Item({
             {visits && visits.sessions > 0 && (
               <span className="trf vis" title={`Google Analytics, last 28 days, on ${visits.scope === "site" ? "the whole site" : visits.scope === "homepage" ? "the homepage" : `the ${visits.pages} affected page${visits.pages === 1 ? "" : "s"}`}: ${visits.sessions.toLocaleString("en-GB")} visits, ${Math.round((visits.engaged / visits.sessions) * 100)}% engaged`}>
                 {compact(visits.sessions)} visits{visits.scope === "site" ? " · site-wide" : ""}
+              </span>
+            )}
+            {spend && spend.cost >= 1 && spend.scope !== "site" && (
+              <span className="trf ads" title={`Google Ads, last 28 days: ${money(spend.cost, spend.currency, 2)} of ad spend and ${spend.clicks.toLocaleString("en-GB")} ad clicks landing on ${spend.scope === "homepage" ? "the homepage" : `the ${spend.pages} affected page${spend.pages === 1 ? "" : "s"}`}`}>
+                {money(spend.cost, spend.currency)} ad spend
               </span>
             )}
           </div>
@@ -174,6 +183,7 @@ export function Findings({
   gains,
   traffic,
   visits,
+  spend,
 }: {
   findings: Finding[];
   title?: string;
@@ -182,11 +192,12 @@ export function Findings({
   gains?: Map<string, number>;
   traffic?: Map<string, Traffic>;
   visits?: Map<string, Visits>;
+  spend?: Map<string, AdSpend>;
   /** Group by priority with plain-English headings (used on single-area views). */
   grouped?: boolean;
 }) {
   const item = (f: Finding, i: number, showModule: boolean) => (
-    <Item key={findingKey(f)} f={f} index={i} fixed={!!fixed?.has(findingKey(f))} onToggleFixed={onToggleFixed} showModule={showModule} gain={fixed?.has(findingKey(f)) ? undefined : gains?.get(findingKey(f))} traffic={traffic?.get(findingKey(f))} visits={visits?.get(findingKey(f))} />
+    <Item key={findingKey(f)} f={f} index={i} fixed={!!fixed?.has(findingKey(f))} onToggleFixed={onToggleFixed} showModule={showModule} gain={fixed?.has(findingKey(f)) ? undefined : gains?.get(findingKey(f))} traffic={traffic?.get(findingKey(f))} visits={visits?.get(findingKey(f))} spend={spend?.get(findingKey(f))} />
   );
 
   if (!grouped) {

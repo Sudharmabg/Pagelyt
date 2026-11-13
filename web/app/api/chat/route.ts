@@ -7,6 +7,7 @@ import { findingKey } from "@/lib/scan/score";
 import type { ScanResult } from "@/lib/scan/types";
 import { gscBrief, type GscData } from "@/lib/google/gsc-insights";
 import { ga4Brief, type Ga4Ai, type Ga4Data } from "@/lib/google/ga4-insights";
+import { adsBrief, type AdsAi, type AdsData } from "@/lib/google/ads-insights";
 import { canUseGoogle, getCache, getLink, siteForHost } from "@/lib/google/store";
 
 /* Pagelyt Assistant. Signed in, about one of your own reports. Streams plain text; the sources
@@ -45,7 +46,7 @@ export async function POST(req: Request) {
   }
 }
 
-/* The cached Search Console and Analytics numbers for this report's site, when the owner has connected Google. Never
+/* The cached Search Console, Analytics and Google Ads numbers for this report's site, when the owner has connected Google. Never
    calls Google here (the dashboard keeps the cache fresh), and never fails the chat. */
 async function googleBrief(userId: string, res: ScanResult, fixed: string[]): Promise<string | undefined> {
   try {
@@ -53,14 +54,16 @@ async function googleBrief(userId: string, res: ScanResult, fixed: string[]): Pr
     const site = await siteForHost(res.host, userId);
     if (!site) return undefined;
     const link = await getLink(site.id);
-    const [c, ga, ai] = await Promise.all([
+    const [c, ga, ai, ads, adsAi] = await Promise.all([
       link?.gsc_property ? getCache<GscData>(site.id, "gsc") : null,
       link?.ga4_property ? getCache<Ga4Data>(site.id, "ga4") : null,
       link?.ga4_property ? getCache<Ga4Ai>(site.id, "ga4_ai") : null,
+      link?.ads_customer ? getCache<AdsData>(site.id, "ads") : null,
+      link?.ads_customer ? getCache<AdsAi>(site.id, "ads_ai") : null,
     ]);
     const done = new Set(fixed);
     const open = res.findings.filter((f) => !done.has(findingKey(f)));
-    const parts = [c?.data && gscBrief(c.data, open, res.url, findingKey), ga?.data && ga4Brief(ga.data, open, findingKey, ai?.data)].filter(Boolean);
+    const parts = [c?.data && gscBrief(c.data, open, res.url, findingKey), ga?.data && ga4Brief(ga.data, open, findingKey, ai?.data), ads?.data && adsBrief(ads.data, open, res.url, findingKey, c?.data, adsAi?.data)].filter(Boolean);
     return parts.length ? parts.join("\n") : undefined;
   } catch {
     return undefined;

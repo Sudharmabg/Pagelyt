@@ -8,6 +8,8 @@ import { openToken, sealToken } from "./crypto";
 import { GoogleError, refreshAccess, revoke, SCOPES, type Product } from "./oauth";
 import { fetchGsc } from "./gsc";
 import { fetchGa4 } from "./ga4";
+import { AdsTokenError, fetchAds } from "./ads";
+import type { AdsData } from "./ads-insights";
 import type { Ga4Data } from "./ga4-insights";
 import type { GscData } from "./gsc-insights";
 
@@ -17,8 +19,8 @@ export async function canUseGoogle(userId: string) {
 }
 
 export type Connection = { user_id: string; google_email: string | null; scopes: string[]; refresh_token_enc: string; created_at: string; updated_at: string };
-export type Link = { site_id: string; user_id: string; gsc_property: string | null; ga4_property: string | null; ga4_name: string | null };
-export type Source = "gsc" | "ga4" | "ga4_ai";
+export type Link = { site_id: string; user_id: string; gsc_property: string | null; ga4_property: string | null; ga4_name: string | null; ads_customer: string | null; ads_login: string | null; ads_name: string | null };
+export type Source = "gsc" | "ga4" | "ga4_ai" | "ads" | "ads_ai";
 export type CacheRow<T> = { site_id: string; source: string; data: T | null; error: string | null; fetched_at: string };
 export type Site = { id: string; user_id: string; host: string; url: string; last_scan_id: string | null };
 
@@ -75,7 +77,7 @@ export async function siteForHost(host: string, userId: string): Promise<Site | 
 }
 
 export async function getLink(siteId: string): Promise<Link | null> {
-  return (await rest<Link[]>(`google_links?site_id=eq.${q(siteId)}&select=site_id,user_id,gsc_property,ga4_property,ga4_name&limit=1`))[0] ?? null;
+  return (await rest<Link[]>(`google_links?site_id=eq.${q(siteId)}&select=site_id,user_id,gsc_property,ga4_property,ga4_name,ads_customer,ads_login,ads_name&limit=1`))[0] ?? null;
 }
 
 export async function setGscProperty(siteId: string, userId: string, property: string | null) {
@@ -89,6 +91,12 @@ export async function setGa4Property(siteId: string, userId: string, property: s
   const row = { site_id: siteId, user_id: userId, ga4_property: property, ga4_name: name, updated_at: new Date().toISOString() };
   await rest("google_links?on_conflict=site_id", { method: "POST", body: JSON.stringify(row), prefer: "resolution=merge-duplicates,return=minimal" });
   await rest(`google_cache?site_id=eq.${q(siteId)}&source=in.(ga4,ga4_ai)`, { method: "DELETE" });
+}
+
+export async function setAdsAccount(siteId: string, userId: string, acct: { id: string; login: string | null; name: string } | null) {
+  const row = { site_id: siteId, user_id: userId, ads_customer: acct?.id ?? null, ads_login: acct?.login ?? null, ads_name: acct?.name ?? null, updated_at: new Date().toISOString() };
+  await rest("google_links?on_conflict=site_id", { method: "POST", body: JSON.stringify(row), prefer: "resolution=merge-duplicates,return=minimal" });
+  await rest(`google_cache?site_id=eq.${q(siteId)}&source=in.(ads,ads_ai)`, { method: "DELETE" });
 }
 
 export async function getCache<T>(siteId: string, source: Source): Promise<CacheRow<T> | null> {
@@ -137,4 +145,25 @@ export async function refreshGa4(site: Site, conn: Connection, link: Link): Prom
     await putCache(site.id, "ga4", old?.data ?? null, msg);
   }
   return (await getCache<Ga4Data>(site.id, "ga4"))!;
+}
+
+/** Fetches Google Ads for a site and caches it. On a Google error the old data is kept and the error stored. */
+export async function refreshAds(site: Site, conn: Connection, link: Link): Promise<CacheRow<AdsData> | { revoked: true }> {
+  const access = await accessFor(conn);
+  if (!access) return { revoked: true };
+  try {
+    const data = await fetchAds(access, { id: link.ads_customer!, login: link.ads_login, name: link.ads_name });
+    await putCache(site.id, "ads", data, null);
+  } catch (e) {
+    const old = await getCache<AdsData>(site.id, "ads");
+    const msg =
+      e instanceof AdsTokenError
+        ? "Pagelyt's Google Ads access is still waiting for Google's approval, so it can't read real accounts yet."
+        : e instanceof GoogleError && e.kind === "denied"
+          ? "This Google account can no longer read that Google Ads account."
+          : "Google didn't answer just now. Try again in a few minutes.";
+    console.error("ads refresh", e instanceof Error ? e.message : e);
+    await putCache(site.id, "ads", old?.data ?? null, msg);
+  }
+  return (await getCache<AdsData>(site.id, "ads"))!;
 }

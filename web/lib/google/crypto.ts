@@ -39,7 +39,7 @@ async function sign(data: string) {
   return b64u(await crypto.subtle.sign("HMAC", await hmacKey(), enc.encode(data)));
 }
 
-export type OAuthState = { u: string; s: string; r: string; p: "gsc" | "ga4"; n: string; x: number };
+export type OAuthState = { u: string; s: string; r: string; p: "gsc" | "ga4" | "ads"; n: string; x: number };
 
 /** A short-lived (15 minutes) pass that lets the print page show this scan's Google Analytics section. The print page
     is private by link only, so Google data appears there only when the owner's PDF request signed for it. */
@@ -75,7 +75,7 @@ export async function readState(state: string): Promise<(OAuthState & { verifier
   if (!ok) return null;
   try {
     const st = JSON.parse(dec.decode(unb64u(body))) as OAuthState;
-    if (typeof st.x !== "number" || st.x < Date.now() || (st.p !== "gsc" && st.p !== "ga4") || typeof st.u !== "string") return null;
+    if (typeof st.x !== "number" || st.x < Date.now() || !["gsc", "ga4", "ads"].includes(st.p) || typeof st.u !== "string") return null;
     return { ...st, verifier: await pkceVerifier(st.n) };
   } catch {
     return null;

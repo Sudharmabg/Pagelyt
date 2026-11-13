@@ -1,10 +1,11 @@
 import { userFromRequest } from "@/lib/auth";
 import { makeState, pkceChallenge } from "@/lib/google/crypto";
 import { authUrl, googleOn, redirectUri } from "@/lib/google/oauth";
+import { adsOn } from "@/lib/google/ads";
 import { canUseGoogle, getConnection, ownSite } from "@/lib/google/store";
 import { rateLimit } from "@/lib/scan/store";
 
-/* Starts Connect Google for one saved site, for Search Console (`product` "gsc", the default) or Analytics ("ga4").
+/* Starts Connect Google for one saved site, for Search Console (`product` "gsc", the default), Analytics ("ga4") or Google Ads ("ads").
    The browser sends its bearer token here and gets back Google's consent
    URL; the signed `state` carries who asked and where to return, so the callback needs no cookie. */
 
@@ -16,7 +17,8 @@ export async function POST(req: Request) {
   if (!googleOn()) return no("Google isn't set up on this server yet.", 503);
   if (!(await canUseGoogle(user.id))) return no("Google data comes with the Professional and Business plans.", 402);
   const body = (await req.json().catch(() => ({}))) as { siteId?: unknown; scanId?: unknown; product?: unknown };
-  const product = body.product === "ga4" ? "ga4" : "gsc";
+  const product = body.product === "ga4" || body.product === "ads" ? body.product : "gsc";
+  if (product === "ads" && !adsOn()) return no("Google Ads isn't set up on this server yet.", 503);
   if (typeof body.siteId !== "string" || typeof body.scanId !== "string" || !/^[A-Za-z0-9_-]{6,32}$/.test(body.scanId)) return no("Open a saved site's report first.", 400);
   if (!(await ownSite(body.siteId, user.id))) return no("Save this site to your account first.", 404);
   if (!(await rateLimit(`gconnect:${user.id}`, 10, 3600))) return no("Too many attempts. Try again in an hour.", 429);

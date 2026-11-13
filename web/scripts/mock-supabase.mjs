@@ -213,12 +213,13 @@ http
   })
   .listen(PORT, () => console.log(`[mock supabase] listening on ${PORT} (email confirmation ${CONFIRM_EMAIL ? "ON" : "off"}); data is kept in memory only`));
 
-/* ---------- fake Google: consent, tokens, Search Console, Analytics ----------
-   MOCK_GOOGLE=deny makes the consent screen decline; MOCK_GOOGLE=noscope grants sign-in but not Search Console or
-   Analytics; MOCK_GOOGLE=empty gives an account with no Search Console or Analytics properties. The numbers are made
-   up but stable. */
+/* ---------- fake Google: consent, tokens, Search Console, Analytics, Google Ads ----------
+   MOCK_GOOGLE=deny makes the consent screen decline; MOCK_GOOGLE=noscope grants sign-in but not Search Console,
+   Analytics or Ads; MOCK_GOOGLE=empty gives an account with no properties or ad accounts; MOCK_GOOGLE=adstoken answers
+   Ads queries like an unapproved developer token. The numbers are made up but stable. */
 const MOCK_GOOGLE = process.env.MOCK_GOOGLE || "";
 const gCodes = new Map(); // code -> scope
+const gGranted = []; // scopes the (single) mock Google account has granted so far
 function hashN(str) { let h = 2166136261; for (const ch of str) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0) / 2 ** 32; }
 function mockGoogle(req, res, url, body) {
   const rest = url.pathname.slice("/google/".length);
@@ -230,8 +231,11 @@ function mockGoogle(req, res, url, body) {
     if (MOCK_GOOGLE === "deny") back.searchParams.set("error", "access_denied");
     else {
       const code = `mock-${crypto.randomUUID()}`;
-      const scope = (url.searchParams.get("scope") || "").split(" ").filter((x) => MOCK_GOOGLE !== "noscope" || !(x.includes("webmasters") || x.includes("analytics"))).join(" ");
-      gCodes.set(code, scope);
+      const asked = (url.searchParams.get("scope") || "").split(" ").filter((x) => MOCK_GOOGLE !== "noscope" || !(x.includes("webmasters") || x.includes("analytics") || x.includes("adwords")));
+      // Like Google with include_granted_scopes=true: the new token also carries every scope granted before.
+      if (url.searchParams.get("include_granted_scopes") === "true") asked.push(...gGranted);
+      for (const x of asked) if (!gGranted.includes(x)) gGranted.push(x);
+      gCodes.set(code, [...new Set(asked)].join(" "));
       back.searchParams.set("code", code);
     }
     res.writeHead(302, { location: back.toString() });
@@ -316,13 +320,84 @@ function mockGoogle(req, res, url, body) {
     };
     return send(res, 200, { reports: (body.requests || []).map(report) });
   }
+  if (host === "googleads.googleapis.com") return mockAds(req, res, path, body, gaHosts);
   return send(res, 404, { error: { code: 404, message: `mock Google has no ${host}${path}` } });
 }
 
-/* Fake OpenAI Responses API for the Analytics AI insights: builds 4 insights from the pages and issue ids in the
-   prompt, as structured JSON in output_text, like the real API with a json_schema format. */
+/* Google Ads: one agency manager account with a client account per saved site (read through the manager), and one
+   direct account for another business. Queries are told apart by their FROM resource. Pages come from the site's
+   latest scan; the second page gets a lot of spend, a below-average landing page rating and few conversions, and
+   some search terms match the fake Search Console queries so paid vs organic has rows. */
+function mockAds(req, res, path, body, gaHosts) {
+  if (!req.headers["developer-token"]) return send(res, 401, { error: { code: 401, message: "developer-token header missing" } });
+  const MANAGER = "9990001111", OTHER = "5550002222";
+  const adsId = (h) => String(1000000000 + Math.floor(hashN(`ads${h}`) * 8999999999)).slice(0, 10);
+  const hosts = gaHosts();
+  if (path.endsWith("/customers:listAccessibleCustomers")) return send(res, 200, { resourceNames: hosts.length ? [`customers/${MANAGER}`, `customers/${OTHER}`] : [] });
+  const m = path.match(/\/customers\/(\d+)\/googleAds:search$/);
+  if (!m) return send(res, 404, { error: { code: 404, message: `mock Google Ads has no ${path}` } });
+  if (MOCK_GOOGLE === "adstoken") return send(res, 403, { error: { code: 403, message: "The caller does not have permission", details: [{ errors: [{ errorCode: { authorizationError: "DEVELOPER_TOKEN_NOT_APPROVED" } }] }] } });
+  const id = m[1];
+  const q = String(body.query || "");
+  const from = (q.match(/\bFROM\s+(\w+)/i) || [])[1];
+  const h = hosts.find((x) => adsId(x) === id);
+  const micros = (n) => String(Math.round(n * 1e6));
+  if (from === "customer_client") return send(res, 200, { results: id === MANAGER ? hosts.map((x) => ({ customerClient: { id: adsId(x), descriptiveName: `${x} – Ads`, manager: false, currencyCode: "GBP" } })) : [] });
+  if (from === "customer" && !/segments\.date/.test(q)) {
+    const c = id === MANAGER ? { id, descriptiveName: "Mock agency (manager)", manager: true, currencyCode: "GBP" } : id === OTHER ? { id, descriptiveName: "Another business", manager: false, currencyCode: "USD" } : { id, descriptiveName: h ? `${h} – Ads` : id, manager: false, currencyCode: "GBP" };
+    return send(res, 200, { results: [{ customer: c }] });
+  }
+  const site = h ?? "another-business.example";
+  const scan = [...tables.scans].reverse().find((x) => x.result && x.host.replace(/^www\./, "") === site);
+  const urls = [...new Set([scan?.result?.url, ...(scan?.result?.crawl?.list ?? []).map((x) => x.url)].filter(Boolean))].slice(0, 8);
+  if (!urls.length) urls.push(`https://${site}/`);
+  if (from === "landing_page_view" && /LAST_30_DAYS/.test(q)) return send(res, 200, { results: urls.slice(0, 3).map((u) => ({ landingPageView: { unexpandedFinalUrl: u } })) });
+  const cost = (u) => (u === urls[1] ? 900 : 120 + hashN(`c${u}`) * 400);
+  const conv = (u) => (u === urls[1] ? 2 : 3 + Math.round(hashN(`v${u}`) * 12));
+  const met = (c, clicks, cv) => ({ costMicros: micros(c), clicks: String(Math.round(clicks)), impressions: String(Math.round(clicks * 22)), conversions: cv, conversionsValue: cv * 40 });
+  const total = urls.reduce((a, u) => a + cost(u), 0), totalConv = urls.reduce((a, u) => a + conv(u), 0);
+  let results = [];
+  if (from === "customer") {
+    const [, a, b] = q.match(/BETWEEN '([\d-]+)' AND '([\d-]+)'/) || [];
+    for (let d = new Date(a); d <= new Date(b); d = new Date(d.getTime() + 86400000)) {
+      const day = d.toISOString().slice(0, 10), mid = Date.parse(b) - 28 * 86400000;
+      const k = (d.getTime() > mid ? 1 : 0.8) * (0.8 + hashN(day) * 0.4) / 28;
+      results.push({ segments: { date: day }, metrics: met(total * k, (total / 2.1) * k, totalConv * k) });
+    }
+  } else if (from === "campaign") {
+    results = [["Search – Brand", "SEARCH", 0.2], ["Search – Products", "SEARCH", 0.55], ["Performance Max", "PERFORMANCE_MAX", 0.25]].map(([name, type, share]) => ({ campaign: { name, status: "ENABLED", advertisingChannelType: type }, metrics: met(total * share, (total * share) / 2.1, totalConv * share * (type === "PERFORMANCE_MAX" ? 0.4 : 1.2)) }));
+  } else if (from === "landing_page_view") {
+    results = urls.map((u) => ({ landingPageView: { unexpandedFinalUrl: `${u}${u.includes("?") ? "&" : "?"}utm_source=google` }, metrics: met(cost(u), cost(u) / 2.1, conv(u)) }));
+  } else if (from === "keyword_view" || from === "search_term_view" || from === "ad_group_ad") {
+    const brand = site.split(".")[0];
+    const words = ["pricing", "reviews", "near me", "how to", "best", "alternatives", "login", "contact"];
+    const kws = [brand, ...words.map((w) => `${brand} ${w}`)];
+    if (from === "ad_group_ad") results = kws.map((_, i) => ({ adGroup: { id: String(i + 1) }, adGroupAd: { ad: { finalUrls: [urls[i % urls.length]] } } }));
+    else if (from === "keyword_view")
+      results = kws.map((text, i) => { const c = (total / kws.length) * (0.5 + hashN(text)); const bad = urls[i % urls.length] === urls[1] || hashN(`q${text}`) < 0.2; return { adGroup: { id: String(i + 1) }, campaign: { name: i === 0 ? "Search – Brand" : "Search – Products" }, adGroupCriterion: { keyword: { text, matchType: i % 2 ? "PHRASE" : "EXACT" }, qualityInfo: { qualityScore: bad ? 3 + Math.floor(hashN(text) * 2) : 6 + Math.floor(hashN(text) * 4), postClickQualityScore: bad ? "BELOW_AVERAGE" : "AVERAGE" } }, metrics: met(c, c / 2.1, bad ? 0 : 1 + Math.round(hashN(`k${text}`) * 5)) }; });
+    else results = [...kws, `free ${brand}`, `${brand} jobs`, `what is ${brand}`].map((term, i) => { const c = (total / 12) * (0.4 + hashN(`t${term}`)); const junk = i >= kws.length; return { searchTermView: { searchTerm: term }, metrics: met(c, c / 2, junk ? 0 : Math.round(hashN(`s${term}`) * 6)) }; });
+  }
+  return send(res, 200, { results });
+}
+
+/* Fake OpenAI Responses API for the Analytics and Google Ads AI insights: builds 4 insights from the pages and issue ids
+   in the prompt, as structured JSON in output_text, like the real API with a json_schema format. */
 function mockOpenAI(res, body) {
   const input = String(body.input || "");
+  const reply = (insights) => send(res, 200, { id: `resp_${crypto.randomUUID()}`, object: "response", status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify({ insights }) }] }] });
+  // The Google Ads analysis: built from its LANDING PAGES table and the summary lines.
+  if (input.includes("LANDING PAGES (")) {
+    const lps = [...input.matchAll(/^(\/[^ |]*) \| spend (\S+) \| clicks (\d+) \| conversions ([\d.]+)(?: \| issues (.+))?$/gm)].map((m) => ({ path: m[1], spend: m[2], clicks: +m[3], conv: +m[4], issues: m[5] ? m[5].split(", ") : [] }));
+    const bad = lps.find((l) => l.issues.length) ?? lps[0];
+    const weak = (input.match(/below average for landing-page experience: "([^"]+)" ([^,;]+)/) || []).slice(1);
+    const junk = (input.match(/and no conversions: "([^"]+)" ([^,;]+)/) || []).slice(1);
+    return reply([
+      bad && { title: `${bad.spend} of ad spend lands on ${bad.path}, which has issues`, detail: `${bad.path} took ${bad.clicks} ad clicks but only ${bad.conv} conversions. The problems this report found there can lower Quality Score and lose sales.`, action: `Fix the issues on ${bad.path} first, then watch its conversion rate in Google Ads next week.`, priority: "high", pages: [bad.path], findings: bad.issues.slice(0, 2) },
+      weak.length && { title: `"${weak[0]}" has a below-average landing page`, detail: `Google rates the landing page for this keyword below average, so each click costs more. It spent ${weak[1]} in 28 days.`, action: "Point the keyword at a faster, more relevant page or fix the page it lands on.", priority: "medium", pages: [], findings: [] },
+      junk.length && { title: `"${junk[0]}" spent ${junk[1]} with no conversions`, detail: "People searching this are unlikely to buy, and the clicks brought no conversions in 28 days.", action: `Add "${junk[0]}" as a negative keyword.`, priority: "medium", pages: [], findings: [] },
+      { title: "Performance Max costs the most per conversion", detail: "It converts at a much higher cost than your Search campaigns.", action: "Review its asset groups and final URL expansion this week.", priority: "low", pages: [], findings: [] },
+    ].filter(Boolean));
+  }
   const pages = [...input.matchAll(/^(\/[^ |]*) \| visits (\d+) \(before (\d+)\)/gm)].map((m) => ({ path: m[1], now: +m[2], before: +m[3] }));
   const ids = [...new Set([...input.matchAll(/^- \[([\w-]+)\]/gm)].map((m) => m[1]))];
   const drop = pages.find((p) => p.before >= 20 && p.now < p.before * 0.7) ?? pages[1] ?? pages[0];
@@ -333,5 +408,5 @@ function mockOpenAI(res, body) {
     { title: "Organic Search is your biggest channel", detail: "Over half of all visits come from Google Search, which makes SEO fixes the best-value work on this site.", action: "Work through the SEO issues in this report in order of the visits they reach.", priority: "medium", pages: [], findings: [] },
     { title: "Key events are steady but low", detail: "About 2% of visits end in a key event. Small improvements on your busiest pages would move this most.", action: "Add one clear call to action above the fold on your top two pages.", priority: "low", pages: [], findings: [] },
   ].filter(Boolean);
-  return send(res, 200, { id: `resp_${crypto.randomUUID()}`, object: "response", status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify({ insights }) }] }] });
+  return reply(insights);
 }

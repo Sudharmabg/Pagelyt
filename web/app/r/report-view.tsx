@@ -1,6 +1,9 @@
 import { Ring, tone } from "../ui";
 import { PrintButton } from "./[token]/print-button";
 import { ReportAnalytics } from "./report-analytics";
+import { ReportAds } from "./report-ads";
+import type { AdsAi, AdsData } from "@/lib/google/ads-insights";
+import type { GscData } from "@/lib/google/gsc-insights";
 import type { Ga4Ai, Ga4Data } from "@/lib/google/ga4-insights";
 import { MODULE_NAMES, type Finding, type ScanResult, type Severity } from "@/lib/scan/types";
 
@@ -18,8 +21,9 @@ const GROUPS: { sev: Severity; title: string }[] = [
 ];
 
 
-/** `analytics`: the owner's Google Analytics section, only on the print page when the owner's PDF request signed for it. */
-export function ReportView({ brand, res, ai, showDetails, pdfToken, analytics }: { brand: ReportBrand | null; res: ScanResult; ai: ReportAi | null; showDetails: boolean; pdfToken?: string; analytics?: { d: Ga4Data; ai: Ga4Ai | null } | null }) {
+/** `analytics` / `ads`: the owner's Google Analytics and Google Ads sections, only on the print page when the owner's
+    PDF request signed for them. */
+export function ReportView({ brand, res, ai, showDetails, pdfToken, analytics, ads }: { brand: ReportBrand | null; res: ScanResult; ai: ReportAi | null; showDetails: boolean; pdfToken?: string; analytics?: { d: Ga4Data; ai: Ga4Ai | null } | null; ads?: { d: AdsData; ai: AdsAi | null; gsc: GscData | null } | null }) {
   const color = brand && HEX.test(brand.color) ? brand.color : "#14202b";
   const name = brand?.name ?? "Website report";
   const when = new Date(res.scannedAt).toLocaleDateString("en-GB", { dateStyle: "long", timeZone: "UTC" });
@@ -108,6 +112,7 @@ export function ReportView({ brand, res, ai, showDetails, pdfToken, analytics }:
         )}
 
         {analytics && <ReportAnalytics d={analytics.d} ai={analytics.ai} findings={res.findings} />}
+        {ads && <ReportAds d={ads.d} ai={ads.ai} gsc={ads.gsc} findings={res.findings} />}
 
         {GROUPS.map((g) => {
           const list = res.findings.filter((f) => f.severity === g.sev);

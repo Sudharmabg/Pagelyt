@@ -8207,6 +8207,9 @@ i.rv-them { background: repeating-linear-gradient(45deg, var(--d-line) 0 4px, tr
 /* Google data: Search Console | Analytics tabs, AI insights, visits on findings */
 .trf.vis { background: #e6f4ea; color: #137333; }
 .dash.dark .trf.vis { background: rgba(129, 201, 149, .16); color: #a8dab5; }
+.trf.ads { background: #fef7e0; color: #8a5a00; }
+.dash.dark .trf.ads { background: rgba(253, 214, 99, .16); color: #fde293; }
+.gd-sub { font-size: .95rem; margin: 1.25rem 0 .5rem; }
 .gd-tabs { display: inline-flex; gap: .25rem; padding: .25rem; border-radius: 12px; background: var(--d-soft, #f1ebff); justify-self: start; max-width: 100%; }
 .gd-tabs button { border: 0; background: none; font: inherit; font-size: .9rem; font-weight: 700; padding: .45rem .95rem; border-radius: 9px; color: var(--d-mute, #5b6472); cursor: pointer; }
 .gd-tabs button.on { background: var(--d-card, #fff); color: var(--d-ink, #14202b); box-shadow: 0 1px 3px rgba(20, 32, 43, .12); }

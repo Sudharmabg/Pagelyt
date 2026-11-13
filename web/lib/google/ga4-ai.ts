@@ -24,7 +24,7 @@ Write 3 to 6 insights, most valuable first. Each one:
 Look for: pages that lost visits and which channel lost them; busy pages with low engagement; channels growing or shrinking; issues on the pages that get the most visits; key events (conversions) moving; new versus returning visitors; anything surprising.
 Never invent numbers, pages or issue ids. If the data is thin (few visits), say so in one insight rather than guessing. British English. No markdown.`;
 
-const SCHEMA = {
+export const SCHEMA = {
   type: "object",
   additionalProperties: false,
   required: ["insights"],
@@ -92,7 +92,9 @@ export function cleanInsights(raw: unknown, d: Ga4Data, res: ScanResult): Ga4Ins
     .slice(0, 6);
 }
 
-export async function analyseGa4(d: Ga4Data, res: ScanResult, basedOn: string, gsc?: string): Promise<Ga4Ai> {
+/** One structured-JSON call to the OpenAI Responses API (strict schema), shared by the Analytics and Ads analyses.
+    Uses the assistant's model (`chatModel()`), low reasoning, 90 seconds at most. */
+export async function askJson(instructions: string, input: string, name: string, schema: object): Promise<{ json: unknown; model: string }> {
   const model = chatModel();
   const reasoning = /^(gpt-5|o\d)/.test(model) ? { reasoning: { effort: "low" } } : {};
   const base = (process.env.OPENAI_API_KEY ? "" : process.env.OPENAI_MOCK_URL) || "https://api.openai.com";
@@ -102,24 +104,21 @@ export async function analyseGa4(d: Ga4Data, res: ScanResult, basedOn: string, g
     const r = await fetch(`${base.replace(/\/$/, "")}/v1/responses`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${process.env.OPENAI_API_KEY || "mock"}` },
-      body: JSON.stringify({
-        model,
-        instructions: RULES,
-        input: analysePrompt(d, res, gsc),
-        text: { format: { type: "json_schema", name: "analytics_insights", strict: true, schema: SCHEMA } },
-        store: false,
-        max_output_tokens: 6000,
-        ...reasoning,
-      }),
+      body: JSON.stringify({ model, instructions, input, text: { format: { type: "json_schema", name, strict: true, schema } }, store: false, max_output_tokens: 6000, ...reasoning }),
       signal: ctl.signal,
     });
     if (!r.ok) throw new Error(`OpenAI HTTP ${r.status}: ${(await r.text().catch(() => "")).slice(0, 200)}`);
     const j = (await r.json()) as { output?: { type?: string; content?: { type?: string; text?: string }[] }[] };
     const text = (j.output ?? []).flatMap((o) => o.content ?? []).find((c) => c.type === "output_text")?.text ?? "";
-    const insights = cleanInsights(JSON.parse(text), d, res);
-    if (!insights.length) throw new Error("No usable insights in the answer");
-    return { insights, basedOn, model };
+    return { json: JSON.parse(text), model };
   } finally {
     clearTimeout(t);
   }
+}
+
+export async function analyseGa4(d: Ga4Data, res: ScanResult, basedOn: string, gsc?: string): Promise<Ga4Ai> {
+  const { json, model } = await askJson(RULES, analysePrompt(d, res, gsc), "analytics_insights", SCHEMA);
+  const insights = cleanInsights(json, d, res);
+  if (!insights.length) throw new Error("No usable insights in the answer");
+  return { insights, basedOn, model };
 }

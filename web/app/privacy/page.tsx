@@ -53,7 +53,10 @@ export default function PrivacyPage() {
               report&rsquo;s findings, in your dashboard and in answers from the Pagelyt Assistant. If you also connect
               Google Analytics, we ask for read-only Analytics access and read visits, engaged visits, page views and
               traffic sources by page for your site&rsquo;s property, and show them in your dashboard and your downloaded
-              PDF report. We cannot change anything in your Google account.
+              PDF report. If you connect Google Ads, Google asks for Google Ads access (Google offers no read-only
+              option for Ads); Pagelyt only reads your accounts&rsquo; spend, clicks, conversions, campaigns, landing
+              pages, keywords with their quality ratings and search terms for the last two months, and never creates or
+              changes campaigns, budgets, bids or ads. Search Console and Analytics access is read-only.
             </p>
             <p>
               We store your Google refresh token encrypted and a copy of the latest numbers for each site, refreshed
@@ -67,7 +70,7 @@ export default function PrivacyPage() {
               including the Limited Use requirements. We use Google data only to provide the features you see. We do not
               sell it, use it for advertising, or let people read it except with your permission, for security, or where
               the law requires it. We do not use it to train AI models. When you ask the Pagelyt Assistant a question,
-              or press Analyse with AI on the Analytics tab, a summary of these numbers and your report&rsquo;s findings
+              or press Analyse with AI on the Analytics or Google Ads tab, a summary of these numbers and your report&rsquo;s findings
               is sent to our AI provider (OpenAI) only to write that answer or those insights for you.
             </p>
             <h2>Sharing</h2>

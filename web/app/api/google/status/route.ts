@@ -3,15 +3,18 @@ import { signPrint } from "@/lib/google/crypto";
 import { googleOn } from "@/lib/google/oauth";
 import { listProperties } from "@/lib/google/gsc";
 import { listGa4Properties } from "@/lib/google/ga4";
+import { adsOn, listAdsAccounts, type AdsAccount } from "@/lib/google/ads";
+import type { AdsAi, AdsData } from "@/lib/google/ads-insights";
 import { accessFor, canUseGoogle, getCache, getConnection, getLink, hasScope, isStale, ownSite, type CacheRow } from "@/lib/google/store";
 import type { GscData } from "@/lib/google/gsc-insights";
 import type { Ga4Ai, Ga4Data } from "@/lib/google/ga4-insights";
 import { getScanRow, live } from "@/lib/scan/store";
 
-/* GET ?siteId=<id>[&props=1|&ga4props=1][&scanId=<id>]: the Google connection, the site's linked Search Console and
-   Analytics properties and their cached data, plus the AI's Analytics insights. props=1 / ga4props=1 also list the
-   properties the connected account can read (Google calls), for the property pickers. With the owner's scanId and
-   Analytics data, `printToken` lets the print page include the Analytics section. Without siteId it only describes
+/* GET ?siteId=<id>[&props=1|&ga4props=1|&adsprops=1][&scanId=<id>]: the Google connection, the site's linked Search
+   Console property, Analytics property and Google Ads account with their cached data, plus the AI's insights on
+   Analytics and on Ads. props=1 / ga4props=1 / adsprops=1 also list what the connected account can read (Google
+   calls), for the pickers. With the owner's scanId and Analytics or Ads data, `printToken` lets the print page include
+   those sections. Without siteId it only describes
    the connection (account page). */
 
 const H = { "cache-control": "no-store" };
@@ -23,7 +26,7 @@ export async function GET(req: Request) {
   const configured = googleOn() && live();
   const allowed = await canUseGoogle(user.id);
   const conn = configured ? await getConnection(user.id) : null;
-  const base = { configured, allowed, connected: !!conn, email: conn?.google_email ?? null, gsc: hasScope(conn, "gsc"), ga4: hasScope(conn, "ga4") };
+  const base = { configured, allowed, connected: !!conn, email: conn?.google_email ?? null, gsc: hasScope(conn, "gsc"), ga4: hasScope(conn, "ga4"), adsOn: adsOn(), ads: hasScope(conn, "ads") };
 
   const p = new URL(req.url).searchParams;
   const siteId = p.get("siteId");
@@ -32,30 +35,36 @@ export async function GET(req: Request) {
   if (!site) return Response.json({ error: "Site not found." }, { status: 404, headers: H });
 
   const link = await getLink(site.id);
-  const [cache, ga4Cache, ai] = await Promise.all([
+  const [cache, ga4Cache, ai, adsCache, adsAi] = await Promise.all([
     link?.gsc_property ? getCache<GscData>(site.id, "gsc") : null,
     link?.ga4_property ? getCache<Ga4Data>(site.id, "ga4") : null,
     link?.ga4_property ? getCache<Ga4Ai>(site.id, "ga4_ai") : null,
+    link?.ads_customer ? getCache<AdsData>(site.id, "ads") : null,
+    link?.ads_customer ? getCache<AdsAi>(site.id, "ads_ai") : null,
   ]);
 
   let properties: string[] | undefined;
   let ga4Properties: { property: string; name: string; account: string }[] | undefined;
   const wantGsc = p.get("props") === "1" && conn && base.gsc;
+  let adsAccounts: AdsAccount[] | undefined;
   const wantGa = p.get("ga4props") === "1" && conn && base.ga4;
-  if (wantGsc || wantGa) {
+  const wantAds = p.get("adsprops") === "1" && conn && base.ads && base.adsOn;
+  if (wantGsc || wantGa || wantAds) {
     try {
       const access = await accessFor(conn!);
       if (wantGsc) properties = access ? (await listProperties(access)).map((x) => x.siteUrl) : [];
       if (wantGa) ga4Properties = access ? await listGa4Properties(access) : [];
+      if (wantAds) adsAccounts = access ? await listAdsAccounts(access).catch(() => []) : [];
     } catch {
       if (wantGsc) properties = [];
       if (wantGa) ga4Properties = [];
+      if (wantAds) adsAccounts = [];
     }
   }
 
   const scanId = p.get("scanId");
   let printToken: string | undefined;
-  if (scanId && ga4Cache?.data && /^[A-Za-z0-9_-]{6,32}$/.test(scanId)) {
+  if (scanId && (ga4Cache?.data || adsCache?.data) && /^[A-Za-z0-9_-]{6,32}$/.test(scanId)) {
     const row = await getScanRow(scanId).catch(() => null);
     if (row?.user_id === user.id && row.host === site.host) printToken = await signPrint(scanId);
   }
@@ -71,6 +80,11 @@ export async function GET(req: Request) {
       ga4Properties,
       ga4Cache: view(ga4Cache),
       ai: ai?.data ? { ...ai.data, at: ai.fetched_at, current: ai.data.basedOn === ga4Cache?.fetched_at } : null,
+      adsCustomer: link?.ads_customer ?? null,
+      adsName: link?.ads_name ?? null,
+      adsAccounts,
+      adsCache: view(adsCache),
+      adsAi: adsAi?.data ? { ...adsAi.data, at: adsAi.fetched_at, current: adsAi.data.basedOn === adsCache?.fetched_at } : null,
       printToken,
     },
     { headers: H }
