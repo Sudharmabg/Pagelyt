@@ -18,7 +18,7 @@ This is a quick lookup of where things live, so you don't have to search the who
 | `npx tsc --noEmit` | Type check |
 | `npm run cf:deploy` | Build and deploy to Cloudflare |
 
-Tests sit next to the code as `lib/**/*.test.ts`. The Claude preview servers are configured in `../.claude/launch.json`.
+Tests sit next to the code as `lib/**/*.test.ts`. Run them all with `node --import ./scripts/test-resolve.mjs --experimental-strip-types --test "lib/**/*.test.ts"` (`scripts/test-resolve.mjs` adds the missing `.ts` extensions and the `@/` alias). The Claude preview servers are configured in `../.claude/launch.json`.
 
 **Docs:**
 - `DEPLOY.md`: secrets, environment variables, the email switch and the deploy steps.
@@ -87,15 +87,18 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 
 ## Google integrations (`lib/google/`)
 
-Search Console now; Analytics and Ads come next. Setup and design notes in DEPLOY.md (Google integrations).
+Search Console and Analytics (GA4) now; Ads comes next. Setup and design notes in DEPLOY.md (Google integrations).
 
 | File | Key exports | Purpose |
 |---|---|---|
-| `crypto.ts` | `sealToken`, `openToken`, `makeState`, `readState`, `pkceChallenge` | Server only. AES-GCM for stored refresh tokens and the signed OAuth `state` (PKCE verifier derived from it), keyed from `GOOGLE_TOKEN_KEY`. Tests in `crypto.test.ts` |
+| `crypto.ts` | `sealToken`, `openToken`, `makeState`, `readState`, `pkceChallenge`, `signPrint`, `readPrint` | Server only. AES-GCM for stored refresh tokens, the signed OAuth `state` (product `p`: gsc or ga4; PKCE verifier derived from it) and the 15-minute print pass that lets `/print/[id]?g=` show the Analytics section, keyed from `GOOGLE_TOKEN_KEY`. Tests in `crypto.test.ts` |
 | `oauth.ts` | `SCOPES`, `googleOn`, `authUrl`, `exchangeCode`, `refreshAccess`, `revoke`, `gJson`, `GoogleError`, `gUrl` | Server only. OAuth web flow with incremental consent, and fetch for Google APIs. `GOOGLE_MOCK_URL` sends every call to the dev mock |
 | `gsc.ts` | `listProperties`, `matchProperty`, `fetchGsc`, `ranges` | Server only. Search Analytics (28 days and the 28 before: pages, query+page, dates, totals) and URL Inspection for up to 15 pages |
 | `gsc-insights.ts` | `GscData`, `Traffic`, `pageKey`, `trafficFor`, `trafficMap`, `byTraffic`, `strikingDistance`, `lowCtr`, `drops`, `findingsOn`, `notIndexed`, `gscBrief` | Client-safe. The cached data shape and every calculation on it (clicks per finding, near page one, low click rate, drops, the assistant's summary). Tests in `gsc-insights.test.ts` |
-| `store.ts` | `canUseGoogle`, `getConnection`, `saveConnection`, `disconnect`, `accessFor`, `ownSite`, `siteForHost`, `getLink`, `setGscProperty`, `getCache`, `refreshGsc`, `isStale`, `STALE_MS` | Server only. `google_connections`, `google_links`, `google_cache` (migration 0010) and the 24-hour refresh |
+| `ga4.ts` | `listGa4Properties`, `matchGa4Property`, `fetchGa4`, `ga4Ranges` | Server only. GA4 Admin API (properties, web streams to match the site) and one Data API `batchRunReports` (totals, daily, pages, channels, page × channel; 28 days and the 28 before) |
+| `ga4-insights.ts` | `Ga4Data`, `Ga4Ai`, `Ga4Insight`, `gaPath`, `visitsFor`, `visitsMap`, `byVisits`, `ga4Drops`, `findingsOnPath`, `lowEngagement`, `channelRows`, `ga4Brief` | Client-safe. Analytics data shape and calculations (visits per finding, drop detective, low engagement, channels, the assistant's summary). Tests in `ga4-insights.test.ts` |
+| `ga4-ai.ts` | `analyseGa4`, `analyseOn`, `analysePrompt`, `cleanInsights` | Server only. "Analyse with AI": OpenAI Responses API with a strict JSON schema (`chatModel()`), reply re-checked so only real paths and finding ids stay (max 6). `OPENAI_MOCK_URL` for the dev mock. Tests in `ga4-ai.test.ts` |
+| `store.ts` | `canUseGoogle`, `getConnection`, `saveConnection`, `disconnect`, `accessFor`, `ownSite`, `siteForHost`, `getLink`, `setGscProperty`, `setGa4Property`, `getCache`, `putCache`, `refreshGsc`, `refreshGa4`, `isStale`, `STALE_MS` | Server only. `google_connections`, `google_links`, `google_cache` (migrations 0010, 0011; cache sources gsc, ga4, ga4_ai) and the 24-hour refresh |
 
 ## Auth, ownership, limits (`lib/`)
 
@@ -118,7 +121,7 @@ Search Console now; Analytics and Ads come next. Setup and design notes in DEPLO
 | `email.ts` | `emailsOn`, `sendEmail`, `headerName`, `escapeHtml` | Resend; on only when `EMAILS_ON=1` and `RESEND_API_KEY` are set |
 | `requests.ts` | `checkRequest`, `saveRequest`, `listRequests`, `setRequestStatus` | Consultation and contact requests |
 | `pdf.ts` | `renderPdf`, `withBrowser`, `NoBrowser` | Server PDF through Cloudflare Browser Rendering (opens `/print/[id]`). `withBrowser` opens and always closes a browser session (also used by raw vs rendered) |
-| `download-pdf.ts` | `downloadPdf`, `fullReportPrintUrl` | Client: fetch the PDF, or fall back to printing (`printUrl`: the dashboard opens `/print/[id]?auto=1`, so every issue is in it) |
+| `download-pdf.ts` | `downloadPdf`, `fullReportPrintUrl` | Client: fetch the PDF, or fall back to printing (`printUrl`: the dashboard opens `/print/[id]?auto=1`, so every issue is in it; `&g=` adds the owner's Analytics section) |
 | `run-scan.ts` | `beginScan` (start only; `fresh` skips the 10-min cache), `runScan`, `stepScan` (callback gets `StepInfo` with `areas`) | Starts scans and drives their stages from the browser |
 
 ## API routes (`app/api/`)
@@ -141,9 +144,10 @@ Search Console now; Analytics and Ads come next. Setup and design notes in DEPLO
 | `report/pdf` POST | Branded PDF (paid plans) |
 | `compare` POST | Save a competitor comparison |
 | `ai/run` | List AI providers (GET) and run visibility prompts (POST) |
-| `google/connect` POST, `google/callback` GET | Connect Google for a saved site: returns Google's consent URL; the callback stores the encrypted token, matches the Search Console property and returns to `?view=google&google=<status>` |
-| `google/status` GET | Connection, the site's property and cached data (`?siteId=`; `&props=1` lists the account's properties). Without `siteId`: the connection only (account page) |
-| `google/link` POST, `google/refresh` POST, `google/disconnect` POST | Pick the property (checked against Google's list), refetch when older than 24 hours (`force`: 6 an hour per site), revoke and delete everything |
+| `google/connect` POST, `google/callback` GET | Connect Google for a saved site (`product`: gsc or ga4): returns Google's consent URL; the callback stores the encrypted token, matches the Search Console or GA4 property and returns to `?view=google&google=<status>` (`&gtab=analytics&google=ga4<status>` for Analytics) |
+| `google/status` GET | Connection, the site's properties and cached data, plus the AI insights (`?siteId=`; `&props=1` / `&ga4props=1` list the account's properties; `&scanId=` adds a `printToken` for the owner's PDF). Without `siteId`: the connection only (account page) |
+| `google/link` POST, `google/refresh` POST, `google/disconnect` POST | Pick the property (`product`: gsc or ga4; checked against Google's list), refetch when older than 24 hours (`force`: 6 an hour per site), revoke and delete everything |
+| `google/analyse` POST | "Analyse with AI" on the Analytics data (`{siteId, scanId, force?}`): cached 24 hours in `google_cache` (`ga4_ai`) while the Analytics data is unchanged; 4 a day per site, 20 per account; not part of the chat quota |
 | `chat` POST | Pagelyt Assistant: signed in, own report only; streams plain text, sources in the `x-chat-sources` header. 6 a minute; 10 a day free, 100 paid |
 | `request` POST | Consultation and contact forms |
 | `admin/*` | `ai`, `analytics`, `requests`, `scan`, `sites`, `uptime`; admin only (`admins` table) |
@@ -176,6 +180,7 @@ Search Console now; Analytics and Ads come next. Setup and design notes in DEPLO
   - `useSiteId` finds the saved site, so the AI visibility view can show the whole `Visibility` tool (embedded).
   - Star feature **Ask Pagelyt** (`?view=assistant`, owner only) renders `Assistant`; a floating Ask button (`.asst-fab`) opens it from other views.
 - Star feature **Google data** (`?view=google`, owner only, paid badge): `google-data.tsx` `GoogleData` (connect card, property picker, totals with sparkline, issues ranked by traffic, near page one, seen but not clicked, pages that lost clicks, indexing check, footer with Refresh now / Change property; `?google=<status>` after the consent screen shows a notice). `use-google.ts` `useGoogle` loads the status once per report and refreshes stale data; the dashboard passes its `traffic` map to `Findings` (a "Google clicks" badge, `.trf`), `FindingsExplorer` ("Most Google clicks" sort) and Top fixes (`byTraffic`). Styles in the "Google data" block at the end of globals.css. The account page shows the connection and Disconnect.
+- Google data has two tabs (`.gd-tabs`; `gTab` state in the dashboard, `?gtab=analytics` opens the second): Search Console (`GscTab`) and Analytics (`analytics-data.tsx` `AnalyticsTab`: connect card, GA4 property picker, `AiPanel` with Analyse with AI, `Ga4View` with totals, channels, issues ranked by visitors, drop detective and pages that don't hold visitors). `AiOverviewCard` shows the top 3 AI insights on the Overview. The dashboard passes `visitsMap` to `Findings` / `FindingsExplorer` ("N visits" badge, `.trf.vis`). `useGoogle` also returns `ga4`, `ai`, `analyse` and `printPass` (the PDF fallback's `?g=` pass).
 - `assistant.tsx`: `Assistant`, the chat: header with site and score, grouped starter questions from this report, streamed answers with a small safe markdown renderer (only `/` and `https:` links), source chips, Copy, follow-up suggestions, auto-growing input, Stop and New chat, and a jump-to-newest button. The conversation is kept in sessionStorage per report. `mini` (with `onExpand`/`onClose`) is the small widget the dashboard's floating Ask button opens (`.asst-pop`: a bottom-right panel, a sheet on phones); it shares the conversation with the full view. Styles in the "Pagelyt Assistant" block of globals.css.
 - `panels.tsx`: `FindingsExplorer`, `ExportTiles` (PDF, checklist, CSV and JSON tiles for the Export modal; every export has every issue, most important first, with a summary and where each was found), `VitalsPanel` (plain-English summary, loading timeline, metric cards with a scale and a "what this means" panel), `useInView`, `CrawlWhyPanel` (pages crawled, why it stopped, how to find more), `CrawlPanel`, `ImagesPanel`, `QuickWins`, `ChangePanel`, `ComparePanel`, `DomainPanel`, `TechPanel`, `HowScores`, `useHistory`.
 - `action-modal.tsx`: `ActionModal` (a `<dialog>` with title and tile grid; a bottom sheet on phones) and `Tile`.
@@ -194,9 +199,9 @@ Search Console now; Analytics and Ads come next. Setup and design notes in DEPLO
 - `r/[token]`: the white-label shared report.
 - `r/report-view.tsx`: presentational part of the report. Lists every issue with a summary; with `showDetails`, the fix and affected pages (`Evidence`). In print, a footer on every page (a `<tfoot>` that repeats) shows "Website report by Pagelyt · pagelyt.dev" and the scanned site's link, white-label included.
 - `r/demo`: public sample.
-- `print/[id]`: print layout used for the PDF ("Prepared for"). `?auto=1` opens the print window (`auto-print.tsx`); the dashboard's free "Save as PDF" uses it.
+- `print/[id]`: print layout used for the PDF ("Prepared for"). With a valid `?g=` print pass (owner only) it adds the Analytics section (`r/report-analytics.tsx` `ReportAnalytics`: totals, channels, drops, AI insights) before the findings. `?auto=1` opens the print window (`auto-print.tsx`); the dashboard's free "Save as PDF" uses it.
 - `compare/[id]`: comparison page.
-- `findings.tsx`: plain-language findings list. A finding with `pages` shows them in a table under Technical details (first 10, then "Show all" in a 400px scroll box); older reports show the short evidence text.
+- `findings.tsx`: plain-language findings list. `traffic` / `visits` maps add "Google clicks" and "N visits" badges. A finding with `pages` shows them in a table under Technical details (first 10, then "Show all" in a 400px scroll box); older reports show the short evidence text.
 
 **Account:**
 - `account/`: plan and account details.
@@ -265,8 +270,9 @@ Search Console now; Analytics and Ads come next. Setup and design notes in DEPLO
 | 0008 | `requests` |
 | 0009 | `site_owners`, `site_claims` |
 | 0010 | `google_connections`, `google_links`, `google_cache` |
+| 0011 | `google_links.ga4_property`, `ga4_name`; cache sources `ga4`, `ga4_ai`, `ads` |
 
 ## Dev mocks (`scripts/`)
 
-- `dev-mock.mjs`: starts Next against the mock and sets the environment, including `RESEND_API_URL` and the `GOOGLE_*` values for the fake Google. Setting `EMAILS_ON=1` switches mock emails on.
-- `mock-supabase.mjs`: fake Auth, PostgREST, `POST /emails` and a fake Google under `/google/<host>/…` (consent, tokens, Search Console; `MOCK_GOOGLE=deny|noscope|empty`). `GET /__state` shows the data, including `log.emails`.
+- `dev-mock.mjs`: starts Next against the mock and sets the environment, including `RESEND_API_URL` and the `GOOGLE_*` values for the fake Google (plus `OPENAI_MOCK_URL` when there's no `OPENAI_API_KEY`). Setting `EMAILS_ON=1` switches mock emails on.
+- `mock-supabase.mjs`: fake Auth, PostgREST, `POST /emails` and a fake Google under `/google/<host>/…` (consent, tokens, Search Console, GA4 Admin and Data APIs; `MOCK_GOOGLE=deny|noscope|empty`) and a fake OpenAI `POST /v1/responses` for Analytics AI insights. `GET /__state` shows the data, including `log.emails`.

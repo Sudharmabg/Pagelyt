@@ -3,6 +3,8 @@ import { NoBrowser, renderPdf } from "@/lib/pdf";
 import { isPaid } from "@/lib/scan/agency";
 import { getShare } from "@/lib/scan/store-ext";
 import { getScanRow, live, rateLimit } from "@/lib/scan/store";
+import { signPrint } from "@/lib/google/crypto";
+import { googleOn } from "@/lib/google/oauth";
 
 /* Server-rendered branded PDF of a report (paid plans).
    - { scanId }: the signed-in owner downloads their own report.
@@ -33,7 +35,8 @@ export async function POST(req: Request) {
     const scan = await getScanRow(String(body.scanId || ""));
     if (!scan || scan.status !== "done") return Response.json({ error: "Report not found." }, { status: 404 });
     if (scan.user_id !== user.id) return Response.json({ error: "Only the report's owner can download it." }, { status: 403 });
-    path = `/print/${encodeURIComponent(scan.id)}`;
+    // The owner's own PDF may carry their Google Analytics section; shared links never do.
+    path = `/print/${encodeURIComponent(scan.id)}${googleOn() ? `?g=${encodeURIComponent(await signPrint(scan.id))}` : ""}`;
     ownerId = user.id;
     host = scan.host;
   }

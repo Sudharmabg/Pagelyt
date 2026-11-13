@@ -31,4 +31,5 @@ export async function downloadPdf(body: { scanId?: string; token?: string }, acc
 }
 
 /** The full report, laid out for print, that opens the print window by itself. */
-export const fullReportPrintUrl = (scanId: string) => `/print/${encodeURIComponent(scanId)}?auto=1`;
+/** `g`: the owner's signed pass that adds their Google Analytics section (from /api/google/status). */
+export const fullReportPrintUrl = (scanId: string, g?: string) => `/print/${encodeURIComponent(scanId)}?auto=1${g ? `&g=${encodeURIComponent(g)}` : ""}`;

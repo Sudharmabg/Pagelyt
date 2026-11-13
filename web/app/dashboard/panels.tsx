@@ -9,6 +9,7 @@ import type { StoredScan } from "@/lib/scan/store";
 import { Tile } from "./action-modal";
 import { crawlWhy, type CrawlFix } from "@/lib/scan/crawl-why";
 import type { Traffic } from "@/lib/google/gsc-insights";
+import type { Visits } from "@/lib/google/ga4-insights";
 
 /* ------------------------------------------------------------------ */
 /* Explorer: search + severity filter over every finding               */
@@ -21,7 +22,7 @@ const SEV: { key: Severity | "all"; label: string }[] = [
   { key: "low", label: "Minor" },
 ];
 
-export function FindingsExplorer({ findings, fixed, onToggleFixed, gains, traffic }: { findings: Finding[]; fixed: Set<string>; onToggleFixed?: (k: string) => void; gains?: Map<string, number>; traffic?: Map<string, Traffic> }) {
+export function FindingsExplorer({ findings, fixed, onToggleFixed, gains, traffic, visits }: { findings: Finding[]; fixed: Set<string>; onToggleFixed?: (k: string) => void; gains?: Map<string, number>; traffic?: Map<string, Traffic>; visits?: Map<string, Visits> }) {
   const [bySize, setBySize] = useState(false);
   const [byClicks, setByClicks] = useState(false);
   const [sev, setSev] = useState<Severity | "all">("all");
@@ -96,7 +97,7 @@ export function FindingsExplorer({ findings, fixed, onToggleFixed, gains, traffi
         Showing {shown.length} of {findings.length}
       </p>
       {shown.length ? (
-        <Findings findings={shown} title="All findings" fixed={fixed} onToggleFixed={onToggleFixed} gains={gains} traffic={traffic} />
+        <Findings findings={shown} title="All findings" fixed={fixed} onToggleFixed={onToggleFixed} gains={gains} traffic={traffic} visits={visits} />
       ) : (
         <p className="fnd-empty">Nothing matches. Try clearing the search or filters.</p>
       )}

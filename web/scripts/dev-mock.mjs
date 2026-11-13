@@ -21,6 +21,8 @@ const env = {
   GOOGLE_CLIENT_ID: "mock-client.apps.googleusercontent.com",
   GOOGLE_CLIENT_SECRET: "mock-client-secret",
   GOOGLE_TOKEN_KEY: "mock-google-token-key-not-secret-0123456789",
+  // Without a real OPENAI_API_KEY, the Analytics "Analyse with AI" button uses the mock's fake OpenAI.
+  ...(process.env.OPENAI_API_KEY ? {} : { OPENAI_MOCK_URL: `http://localhost:${MOCK_PORT}` }),
 };
 // The human check would need real Cloudflare keys, so it stays off in this mode.
 delete env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;

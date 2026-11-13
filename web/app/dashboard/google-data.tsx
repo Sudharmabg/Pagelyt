@@ -7,9 +7,10 @@ import { findingKey } from "@/lib/scan/score";
 import { MODULE_NAMES, type Finding, type ModuleKey } from "@/lib/scan/types";
 import { byTraffic, change, drops, findingsOn, lowCtr, notIndexed, strikingDistance, trafficMap, type GscData, type Traffic } from "@/lib/google/gsc-insights";
 import type { GoogleState } from "./use-google";
+import { AnalyticsTab } from "./analytics-data";
 
-/* The ★ Google data view: Connect Google, pick the Search Console property, then real search numbers for this site
-   joined to this report's findings. Only the owner sees it. */
+/* The ★ Google data view, in two tabs. Search Console: Connect Google, pick the property, then real search numbers
+   for this site joined to this report's findings. Analytics: see analytics-data.tsx. Only the owner sees it. */
 
 const n0 = (n: number) => Math.round(n).toLocaleString("en-GB");
 const pct = (n: number) => `${(n * 100).toFixed(n < 0.1 ? 1 : 0)}%`;
@@ -34,24 +35,22 @@ const NOTICE: Record<string, { text: string; bad?: boolean }> = {
   failed: { text: "Google couldn't be connected just now. Please try again.", bad: true },
 };
 
-export function GoogleData({ g, scan, siteId, findings, onSave, onOpenArea }: { g: GoogleState; scan: { id: string; url: string; host: string }; siteId: string | null; findings: Finding[]; onSave: () => void; onOpenArea: (m: ModuleKey) => void }) {
+export type GoogleTab = "gsc" | "ga4";
+
+/** `tab`: kept by the dashboard (from ?gtab=analytics on arrival), so the Overview's AI card can open Analytics. */
+export function GoogleData({ g, scan, siteId, findings, onSave, onOpenArea, tab, onTab }: { g: GoogleState; scan: { id: string; url: string; host: string }; siteId: string | null; findings: Finding[]; onSave: () => void; onOpenArea: (m: ModuleKey) => void; tab: GoogleTab; onTab: (t: GoogleTab) => void }) {
   const params = useSearchParams();
   const [notice] = useState(() => params.get("google"));
-  // Drop ?google= from the address so a refresh doesn't show the notice again.
+  const setTab = onTab;
+  // Drop ?google= and ?gtab= from the address so a refresh doesn't show the notice again.
   useEffect(() => {
-    if (!notice) return;
+    if (!notice && !params.get("gtab")) return;
     const q = new URLSearchParams(window.location.search);
     q.delete("google");
+    q.delete("gtab");
     window.history.replaceState(null, "", `${window.location.pathname}?${q}`);
-  }, [notice]);
-  const { status: s, busy, error } = g;
-  const note = notice && NOTICE[notice];
-  const head = (
-    <>
-      {note && <p className={`panel gd-note${note.bad ? " bad" : ""}`} role="status">{note.text}</p>}
-      {error && <p className="panel gd-note bad" role="alert">{error}</p>}
-    </>
-  );
+  }, [notice, params]);
+  const { status: s, error } = g;
 
   if (!siteId)
     return (
@@ -60,9 +59,37 @@ export function GoogleData({ g, scan, siteId, findings, onSave, onOpenArea }: { 
         <button type="button" className="dash-btn primary" onClick={onSave}>Save this site</button>
       </div>
     );
-  if (!s) return error ? head : <p className="panel sec-empty">Loading your Google connection…</p>;
+  if (!s) return error ? <p className="panel gd-note bad" role="alert">{error}</p> : <p className="panel sec-empty">Loading your Google connection…</p>;
   if (!s.configured) return <p className="panel sec-empty">Google isn&rsquo;t set up on this server yet (see DEPLOY.md, Google integrations).</p>;
   if (!s.allowed) return <p className="panel sec-empty">Google data comes with the Professional and Business plans.</p>;
+
+  const gaNotice = notice?.startsWith("ga4") ? notice.slice(3) : null;
+  return (
+    <>
+      <div className="gd-tabs" role="tablist" aria-label="Google data">
+        <button type="button" role="tab" aria-selected={tab === "gsc"} className={tab === "gsc" ? "on" : ""} onClick={() => setTab("gsc")}>Search Console</button>
+        <button type="button" role="tab" aria-selected={tab === "ga4"} className={tab === "ga4" ? "on" : ""} onClick={() => setTab("ga4")}>Analytics</button>
+      </div>
+      {tab === "gsc" ? (
+        <GscTab g={g} scan={scan} findings={findings} onOpenArea={onOpenArea} notice={gaNotice ? null : notice} />
+      ) : (
+        <AnalyticsTab g={g} scan={scan} findings={findings} onOpenArea={onOpenArea} notice={gaNotice} />
+      )}
+    </>
+  );
+}
+
+function GscTab({ g, scan, findings, onOpenArea, notice }: { g: GoogleState; scan: { id: string; url: string; host: string }; findings: Finding[]; onOpenArea: (m: ModuleKey) => void; notice: string | null }) {
+  const { status, busy, error } = g;
+  const s = status!;
+  const note = notice && NOTICE[notice];
+  const head = (
+    <>
+      {note && <p className={`panel gd-note${note.bad ? " bad" : ""}`} role="status">{note.text}</p>}
+      {error && <p className="panel gd-note bad" role="alert">{error}</p>}
+    </>
+  );
+
 
   if (!s.connected || !s.gsc)
     return (
@@ -151,7 +178,7 @@ function Footer({ g, property, fetchedAt }: { g: GoogleState; property: string; 
   );
 }
 
-function Delta({ now, before, invert }: { now: number; before: number; invert?: boolean }) {
+export function Delta({ now, before, invert }: { now: number; before: number; invert?: boolean }) {
   const d = change(now, before);
   if (d == null || d === 0) return null;
   const good = invert ? d < 0 : d > 0;
@@ -293,7 +320,7 @@ function GscView({ d, scanUrl, findings, onOpenArea }: { d: GscData; scanUrl: st
 export const coverLabel = (x: Traffic) => (x.scope === "site" ? "whole site" : x.scope === "homepage" ? "homepage" : `${x.pages} page${x.pages === 1 ? "" : "s"}`);
 
 /* Google's "G", in brand colours as the sign-in guidelines ask. */
-function GoogleMark() {
+export function GoogleMark() {
   return (
     <svg className="gd-g" width="18" height="18" viewBox="0 0 48 48" aria-hidden="true">
       <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.8 2.4 30.3 0 24 0 14.6 0 6.6 5.4 2.6 13.2l7.9 6.1C12.4 13.7 17.7 9.5 24 9.5z" />

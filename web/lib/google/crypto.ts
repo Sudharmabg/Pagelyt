@@ -39,7 +39,27 @@ async function sign(data: string) {
   return b64u(await crypto.subtle.sign("HMAC", await hmacKey(), enc.encode(data)));
 }
 
-export type OAuthState = { u: string; s: string; r: string; p: "gsc"; n: string; x: number };
+export type OAuthState = { u: string; s: string; r: string; p: "gsc" | "ga4"; n: string; x: number };
+
+/** A short-lived (15 minutes) pass that lets the print page show this scan's Google Analytics section. The print page
+    is private by link only, so Google data appears there only when the owner's PDF request signed for it. */
+export async function signPrint(scanId: string): Promise<string> {
+  const body = b64u(enc.encode(JSON.stringify({ k: "print", s: scanId, x: Date.now() + 15 * 60_000 })));
+  return `${body}.${await sign(body)}`;
+}
+
+export async function readPrint(token: string, scanId: string): Promise<boolean> {
+  const [body, sig] = token.split(".");
+  if (!body || !sig) return false;
+  const ok = await crypto.subtle.verify("HMAC", await hmacKey(), unb64u(sig), enc.encode(body)).catch(() => false);
+  if (!ok) return false;
+  try {
+    const p = JSON.parse(dec.decode(unb64u(body))) as { k?: string; s?: string; x?: number };
+    return p.k === "print" && p.s === scanId && typeof p.x === "number" && p.x > Date.now();
+  } catch {
+    return false;
+  }
+}
 
 /** Signed, short-lived (15 minutes) state for the consent round trip. */
 export async function makeState(o: Omit<OAuthState, "n" | "x">): Promise<{ state: string; verifier: string }> {
@@ -55,7 +75,7 @@ export async function readState(state: string): Promise<(OAuthState & { verifier
   if (!ok) return null;
   try {
     const st = JSON.parse(dec.decode(unb64u(body))) as OAuthState;
-    if (typeof st.x !== "number" || st.x < Date.now()) return null;
+    if (typeof st.x !== "number" || st.x < Date.now() || (st.p !== "gsc" && st.p !== "ga4") || typeof st.u !== "string") return null;
     return { ...st, verifier: await pkceVerifier(st.n) };
   } catch {
     return null;

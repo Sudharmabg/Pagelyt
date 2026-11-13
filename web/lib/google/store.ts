@@ -7,6 +7,8 @@ import { featuresOpen, getPlan } from "../scan/store-ext";
 import { openToken, sealToken } from "./crypto";
 import { GoogleError, refreshAccess, revoke, SCOPES, type Product } from "./oauth";
 import { fetchGsc } from "./gsc";
+import { fetchGa4 } from "./ga4";
+import type { Ga4Data } from "./ga4-insights";
 import type { GscData } from "./gsc-insights";
 
 /** Google data comes with the Professional and Business plans (open to everyone while billing is off). */
@@ -15,7 +17,8 @@ export async function canUseGoogle(userId: string) {
 }
 
 export type Connection = { user_id: string; google_email: string | null; scopes: string[]; refresh_token_enc: string; created_at: string; updated_at: string };
-export type Link = { site_id: string; user_id: string; gsc_property: string | null };
+export type Link = { site_id: string; user_id: string; gsc_property: string | null; ga4_property: string | null; ga4_name: string | null };
+export type Source = "gsc" | "ga4" | "ga4_ai";
 export type CacheRow<T> = { site_id: string; source: string; data: T | null; error: string | null; fetched_at: string };
 export type Site = { id: string; user_id: string; host: string; url: string; last_scan_id: string | null };
 
@@ -72,7 +75,7 @@ export async function siteForHost(host: string, userId: string): Promise<Site | 
 }
 
 export async function getLink(siteId: string): Promise<Link | null> {
-  return (await rest<Link[]>(`google_links?site_id=eq.${q(siteId)}&select=site_id,user_id,gsc_property&limit=1`))[0] ?? null;
+  return (await rest<Link[]>(`google_links?site_id=eq.${q(siteId)}&select=site_id,user_id,gsc_property,ga4_property,ga4_name&limit=1`))[0] ?? null;
 }
 
 export async function setGscProperty(siteId: string, userId: string, property: string | null) {
@@ -82,11 +85,17 @@ export async function setGscProperty(siteId: string, userId: string, property: s
   await rest(`google_cache?site_id=eq.${q(siteId)}&source=eq.gsc`, { method: "DELETE" });
 }
 
-export async function getCache<T>(siteId: string, source: "gsc"): Promise<CacheRow<T> | null> {
+export async function setGa4Property(siteId: string, userId: string, property: string | null, name: string | null) {
+  const row = { site_id: siteId, user_id: userId, ga4_property: property, ga4_name: name, updated_at: new Date().toISOString() };
+  await rest("google_links?on_conflict=site_id", { method: "POST", body: JSON.stringify(row), prefer: "resolution=merge-duplicates,return=minimal" });
+  await rest(`google_cache?site_id=eq.${q(siteId)}&source=in.(ga4,ga4_ai)`, { method: "DELETE" });
+}
+
+export async function getCache<T>(siteId: string, source: Source): Promise<CacheRow<T> | null> {
   return (await rest<CacheRow<T>[]>(`google_cache?site_id=eq.${q(siteId)}&source=eq.${source}&select=*&limit=1`))[0] ?? null;
 }
 
-async function putCache(siteId: string, source: "gsc", data: unknown, error: string | null) {
+export async function putCache(siteId: string, source: Source, data: unknown, error: string | null) {
   // After a failure the row counts as stale again an hour later, so the next dashboard open after that retries.
   const at = error ? Date.now() - STALE_MS + 60 * 60 * 1000 : Date.now();
   const row = { site_id: siteId, source, data, error, fetched_at: new Date(at).toISOString() };
@@ -112,4 +121,20 @@ export async function refreshGsc(site: Site, conn: Connection, property: string)
     await putCache(site.id, "gsc", old?.data ?? null, msg);
   }
   return (await getCache<GscData>(site.id, "gsc"))!;
+}
+
+/** Fetches Google Analytics for a site and caches it. On a Google error the old data is kept and the error stored. */
+export async function refreshGa4(site: Site, conn: Connection, link: Link): Promise<CacheRow<Ga4Data> | { revoked: true }> {
+  const access = await accessFor(conn);
+  if (!access) return { revoked: true };
+  try {
+    const data = await fetchGa4(access, link.ga4_property!, link.ga4_name);
+    await putCache(site.id, "ga4", data, null);
+  } catch (e) {
+    const old = await getCache<Ga4Data>(site.id, "ga4");
+    const msg = e instanceof GoogleError && e.kind === "denied" ? "This Google account can no longer read that Analytics property." : "Google didn't answer just now. Try again in a few minutes.";
+    console.error("ga4 refresh", e instanceof Error ? e.message : e);
+    await putCache(site.id, "ga4", old?.data ?? null, msg);
+  }
+  return (await getCache<Ga4Data>(site.id, "ga4"))!;
 }

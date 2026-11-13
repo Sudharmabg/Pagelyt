@@ -14,9 +14,11 @@ import { RescanButton } from "./rescan";
 import { ActionModal, Tile } from "./action-modal";
 import { AGENCY_UPSELL, AgencyModal, useAccount } from "./agency-modal";
 import { Assistant } from "./assistant";
-import { GoogleData } from "./google-data";
+import { GoogleData, type GoogleTab } from "./google-data";
+import { AiOverviewCard } from "./analytics-data";
 import { useGoogle } from "./use-google";
 import { byTraffic, trafficMap } from "@/lib/google/gsc-insights";
+import { visitsMap } from "@/lib/google/ga4-insights";
 import { Visibility } from "../account/visibility/[siteId]/visibility";
 import { CompareButton } from "./compare-button";
 import { downloadPdf, fullReportPrintUrl } from "@/lib/download-pdf";
@@ -216,7 +218,7 @@ const INSIGHTS: Section[] = [
 const STAR: Section[] = [
   { id: "assistant", label: "Ask Pagelyt", icon: "chat", text: "Ask anything about improving this site. Answers come from this report, our fix guides and our blog." },
   { id: "monitor", label: "Save & monitor", icon: "monitor", text: "Keep this report in your account, rescan on a schedule and get uptime checks and email alerts." },
-  { id: "google", label: "Google data", icon: "google", text: "Connect Search Console to see the real clicks behind each issue, searches close to page one and pages Google hasn't indexed." },
+  { id: "google", label: "Google data", icon: "google", text: "Connect Search Console and Analytics to see the real clicks and visitors behind each issue, pages losing traffic and AI insights from your numbers." },
   { id: "ai", label: "AI visibility", icon: "ai", text: "See whether ChatGPT mentions and cites this site when people ask about its field." },
   { id: "compare", label: "Compare competitors", icon: "compare", text: "Scan up to three competitors and line them up against this report, area by area." },
   { id: "share", label: "Brand & share", icon: "share", text: "Send your client a report with your logo and colours, by link or straight to their inbox." },
@@ -325,6 +327,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const [chat, setChat] = useState(false); // the small Ask Pagelyt widget, bottom right
   const siteId = useSiteId(scan.host, access === "owner");
   const google = useGoogle(siteId, access === "owner");
+  const [gTab, setGTab] = useState<GoogleTab>(() => (params.get("gtab") === "analytics" ? "ga4" : "gsc"));
 
   // Show the compact score bar once the hero has scrolled out of view.
   const watchHero = useCallback((el: HTMLElement | null) => {
@@ -372,6 +375,9 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   // Real Google traffic per open finding, once Search Console is connected for this site.
   const gsc = google.gsc;
   const traffic = useMemo(() => (gsc ? trafficMap(remaining, gsc, scan.url, findingKey) : undefined), [gsc, remaining, scan.url]);
+  // Google Analytics visits per open finding, once Analytics is connected.
+  const ga4 = google.ga4;
+  const visits = useMemo(() => (ga4 ? visitsMap(remaining, ga4, findingKey) : undefined), [ga4, remaining]);
   const topFixes = useMemo(() => (traffic ? byTraffic(remaining, traffic, findingKey) : remaining).slice(0, 5), [remaining, traffic]);
   const topArea = useMemo(() => [...modules].sort((a, b) => a.score - b.score)[0], [modules]);
 
@@ -448,7 +454,8 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   // Both include every issue: the print fallback opens the full report layout, not the section on screen.
   const pdf = async () => {
     if (access !== "owner" || !acct?.paid) {
-      const url = fullReportPrintUrl(scan.id);
+      // The owner's own print can carry their Analytics section (a short-lived pass from the server).
+      const url = fullReportPrintUrl(scan.id, access === "owner" ? await google.printPass(scan.id) : undefined);
       if (!window.open(url, "_blank")) window.location.assign(url);
       return;
     }
@@ -527,7 +534,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
             <p>Search, filter by priority and tick things off as you fix them.</p>
           </div>
         </section>
-        <FindingsExplorer findings={scan.findings} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} />
+        <FindingsExplorer findings={scan.findings} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} visits={visits} />
       </>
     );
   } else if (view === "overview") {
@@ -609,8 +616,9 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
         </ul>
 
         {remaining.length > 0 && (
-          <Findings findings={topFixes} title={traffic ? "Top fixes · by Google traffic" : "Top fixes"} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} />
+          <Findings findings={topFixes} title={traffic ? "Top fixes · by Google traffic" : "Top fixes"} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} visits={visits} />
         )}
+        {google.ai?.insights.length ? <AiOverviewCard ai={google.ai} onOpen={() => { setGTab("ga4"); setView("google"); }} /> : null}
         <QuickWins findings={remaining} gains={gains} onOpen={(f) => setView(f.module)} />
         {remaining.length > 5 && (
           <p className="dash-more">
@@ -683,7 +691,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
             </p>
           </div>
         </section>
-        {inModule.length > 0 && <Findings findings={inModule} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} grouped />}
+        {inModule.length > 0 && <Findings findings={inModule} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} visits={visits} grouped />}
       </>
     );
   } else if (tool && toolCtx) {
@@ -741,7 +749,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     else if (s.id === "assistant") content = access === "owner" ? <Assistant key={scan.id} scan={scan} paid={!!acct?.paid} /> : empty("The assistant needs accounts, which aren't switched on here.");
     else if (s.id === "google")
       content = access === "owner" ? (
-        <GoogleData g={google} scan={scan} siteId={siteId} findings={remaining} onSave={() => setView("monitor")} onOpenArea={setView} />
+        <GoogleData g={google} scan={scan} siteId={siteId} findings={remaining} onSave={() => setView("monitor")} onOpenArea={setView} tab={gTab} onTab={setGTab} />
       ) : empty("Google data needs accounts, which aren't switched on here.");
     else if (s.id === "monitor") content = access === "local" ? empty("Saving sites needs accounts, which aren't switched on here.") : <SaveSite scanId={scan.id} host={scan.host} />;
     else if (s.id === "ai")

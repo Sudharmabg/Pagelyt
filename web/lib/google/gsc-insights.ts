@@ -44,7 +44,7 @@ export function pageIndex(d: GscData): Map<string, GscPage> {
 }
 
 /** Areas whose problems hit the whole site rather than one page. */
-const SITEWIDE = new Set<ModuleKey>(["health", "security", "domain", "privacy"]);
+export const SITEWIDE = new Set<ModuleKey>(["health", "security", "domain", "privacy"]);
 
 export type Traffic = { clicks: number; impressions: number; scope: "pages" | "homepage" | "site"; pages: number };
 

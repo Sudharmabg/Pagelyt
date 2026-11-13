@@ -7,6 +7,7 @@ import { findingKey } from "@/lib/scan/score";
 import { EFFORT_LABEL, effortOf } from "@/lib/scan/effort";
 import { evidenceText, MODULE_NAMES, type Finding, type PageTable, type Severity } from "@/lib/scan/types";
 import type { Traffic } from "@/lib/google/gsc-insights";
+import type { Visits } from "@/lib/google/ga4-insights";
 
 const FIRST_ROWS = 10;
 
@@ -79,6 +80,7 @@ function Item({
   index,
   gain,
   traffic,
+  visits,
 }: {
   f: Finding;
   fixed: boolean;
@@ -88,6 +90,8 @@ function Item({
   gain?: number;
   /** Google clicks and impressions on the pages this finding affects (Search Console connected). */
   traffic?: Traffic;
+  /** Google Analytics visits on the pages this finding affects (Analytics connected). */
+  visits?: Visits;
 }) {
   const [tech, setTech] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -121,6 +125,11 @@ function Item({
             {traffic && traffic.impressions > 0 && (
               <span className="trf" title={`Google Search, last 28 days, on ${traffic.scope === "site" ? "the whole site" : traffic.scope === "homepage" ? "the homepage" : `the ${traffic.pages} affected page${traffic.pages === 1 ? "" : "s"}`}: ${traffic.clicks.toLocaleString("en-GB")} clicks, ${traffic.impressions.toLocaleString("en-GB")} impressions`}>
                 {compact(traffic.clicks)} Google clicks{traffic.scope === "site" ? " · site-wide" : ""}
+              </span>
+            )}
+            {visits && visits.sessions > 0 && (
+              <span className="trf vis" title={`Google Analytics, last 28 days, on ${visits.scope === "site" ? "the whole site" : visits.scope === "homepage" ? "the homepage" : `the ${visits.pages} affected page${visits.pages === 1 ? "" : "s"}`}: ${visits.sessions.toLocaleString("en-GB")} visits, ${Math.round((visits.engaged / visits.sessions) * 100)}% engaged`}>
+                {compact(visits.sessions)} visits{visits.scope === "site" ? " · site-wide" : ""}
               </span>
             )}
           </div>
@@ -164,6 +173,7 @@ export function Findings({
   grouped = false,
   gains,
   traffic,
+  visits,
 }: {
   findings: Finding[];
   title?: string;
@@ -171,11 +181,12 @@ export function Findings({
   onToggleFixed?: (key: string) => void;
   gains?: Map<string, number>;
   traffic?: Map<string, Traffic>;
+  visits?: Map<string, Visits>;
   /** Group by priority with plain-English headings (used on single-area views). */
   grouped?: boolean;
 }) {
   const item = (f: Finding, i: number, showModule: boolean) => (
-    <Item key={findingKey(f)} f={f} index={i} fixed={!!fixed?.has(findingKey(f))} onToggleFixed={onToggleFixed} showModule={showModule} gain={fixed?.has(findingKey(f)) ? undefined : gains?.get(findingKey(f))} traffic={traffic?.get(findingKey(f))} />
+    <Item key={findingKey(f)} f={f} index={i} fixed={!!fixed?.has(findingKey(f))} onToggleFixed={onToggleFixed} showModule={showModule} gain={fixed?.has(findingKey(f)) ? undefined : gains?.get(findingKey(f))} traffic={traffic?.get(findingKey(f))} visits={visits?.get(findingKey(f))} />
   );
 
   if (!grouped) {

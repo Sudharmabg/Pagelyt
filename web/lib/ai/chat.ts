@@ -45,7 +45,7 @@ HOW TO ANSWER.
 - British English spelling.`;
 
 /** The instructions for one question: rules, the report brief, an index of every source and the full text of the best matches. */
-/** `google`: the owner's Search Console numbers in a few lines (gscBrief), when Google is connected for the site. */
+/** `google`: the owner's Search Console and Analytics numbers in a few lines (gscBrief, ga4Brief), when connected. */
 export function buildInstructions(res: ScanResult, turns: Turn[], fixed: string[] = [], google?: string): { instructions: string; sources: { title: string; url: string }[] } {
   const all = docs();
   const recent = turns.filter((t) => t.role === "user").slice(-2).map((t) => t.content).join(" ");
@@ -65,7 +65,7 @@ export function buildInstructions(res: ScanResult, turns: Turn[], fixed: string[
   const instructions = [
     RULES,
     `REPORT\n${reportBrief(res, fixed)}`,
-    google && `GOOGLE SEARCH CONSOLE (real numbers from the owner's own account; use them to say which fixes matter most)\n${google}`,
+    google && `GOOGLE DATA (real Search Console and Analytics numbers from the owner's own account; use them to say which fixes matter most)\n${google}`,
     topGuides && `GUIDES FOR THE TOP ISSUES\n${topGuides}`,
     `SOURCE INDEX\n${index}`,
     full && `SOURCES MOST RELEVANT TO THIS QUESTION\n${full}`,

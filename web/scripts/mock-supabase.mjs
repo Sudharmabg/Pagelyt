@@ -99,6 +99,8 @@ http
 
     // ---- Google (dev-mock sets GOOGLE_MOCK_URL, so every Google call lands here) ----
     if (p.startsWith("/google/")) return mockGoogle(req, res, url, body);
+    // ---- OpenAI stand-in for the Analytics AI insights (dev-mock sets OPENAI_MOCK_URL when no real key is set) ----
+    if (p === "/v1/responses" && req.method === "POST") return mockOpenAI(res, body);
 
     // ---- GoTrue ----
     // Admin API (service key only): the admin panel lists accounts for owner emails and analytics.
@@ -211,9 +213,10 @@ http
   })
   .listen(PORT, () => console.log(`[mock supabase] listening on ${PORT} (email confirmation ${CONFIRM_EMAIL ? "ON" : "off"}); data is kept in memory only`));
 
-/* ---------- fake Google: consent, tokens, Search Console ----------
-   MOCK_GOOGLE=deny makes the consent screen decline; MOCK_GOOGLE=noscope grants sign-in but not Search Console;
-   MOCK_GOOGLE=empty gives an account with no Search Console properties. The numbers are made up but stable. */
+/* ---------- fake Google: consent, tokens, Search Console, Analytics ----------
+   MOCK_GOOGLE=deny makes the consent screen decline; MOCK_GOOGLE=noscope grants sign-in but not Search Console or
+   Analytics; MOCK_GOOGLE=empty gives an account with no Search Console or Analytics properties. The numbers are made
+   up but stable. */
 const MOCK_GOOGLE = process.env.MOCK_GOOGLE || "";
 const gCodes = new Map(); // code -> scope
 function hashN(str) { let h = 2166136261; for (const ch of str) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0) / 2 ** 32; }
@@ -227,7 +230,7 @@ function mockGoogle(req, res, url, body) {
     if (MOCK_GOOGLE === "deny") back.searchParams.set("error", "access_denied");
     else {
       const code = `mock-${crypto.randomUUID()}`;
-      const scope = (url.searchParams.get("scope") || "").split(" ").filter((x) => MOCK_GOOGLE !== "noscope" || !x.includes("webmasters")).join(" ");
+      const scope = (url.searchParams.get("scope") || "").split(" ").filter((x) => MOCK_GOOGLE !== "noscope" || !(x.includes("webmasters") || x.includes("analytics"))).join(" ");
       gCodes.set(code, scope);
       back.searchParams.set("code", code);
     }
@@ -270,5 +273,65 @@ function mockGoogle(req, res, url, body) {
     const bad = hashN(u + "idx") < 0.25;
     return send(res, 200, { inspectionResult: { indexStatusResult: { verdict: bad ? "NEUTRAL" : "PASS", coverageState: bad ? "Crawled - currently not indexed" : "Submitted and indexed", lastCrawlTime: new Date(Date.now() - hashN(u) * 20 * 86400000).toISOString(), googleCanonical: u, userCanonical: u } } });
   }
+  // Google Analytics: one account with a GA4 property per saved site (its web stream is the site), plus one other.
+  const gaHosts = () => (MOCK_GOOGLE === "empty" ? [] : [...new Set(tables.sites.map((x) => x.host.replace(/^www\./, "")))]);
+  const gaId = (h) => String(100000000 + Math.floor(hashN(h) * 800000000));
+  if (host === "analyticsadmin.googleapis.com" && path === "/v1beta/accountSummaries") {
+    const hs = gaHosts();
+    return send(res, 200, { accountSummaries: hs.length ? [{ account: "accounts/1", displayName: "Mock account", propertySummaries: [...hs.map((h) => ({ property: `properties/${gaId(h)}`, displayName: `${h} – GA4` })), { property: "properties/999", displayName: "Another site – GA4" }] }] : [] });
+  }
+  const ds = path.match(/^\/v1beta\/properties\/(\d+)\/dataStreams$/);
+  if (host === "analyticsadmin.googleapis.com" && ds) {
+    const h = gaHosts().find((x) => gaId(x) === ds[1]);
+    return send(res, 200, { dataStreams: [{ type: "WEB_DATA_STREAM", webStreamData: { defaultUri: `https://${h ?? "another-site.example"}` } }] });
+  }
+  const br = path.match(/^\/v1beta\/properties\/(\d+):batchRunReports$/);
+  if (host === "analyticsdata.googleapis.com" && br) {
+    const h = gaHosts().find((x) => gaId(x) === br[1]) ?? "another-site.example";
+    const scan = [...tables.scans].reverse().find((x) => x.result && x.host.replace(/^www\./, "") === h);
+    const paths = [...new Set([scan?.result?.url, ...(scan?.result?.crawl?.list ?? []).map((x) => x.url)].filter(Boolean).map((u) => { try { return new URL(u).pathname; } catch { return "/"; } }))];
+    if (!paths.length) paths.push("/");
+    const CH = ["Organic Search", "Direct", "Referral", "Organic Social", "Email"];
+    // Each page's visits now and before; the second-busiest page drops by about half, mostly from Organic Search.
+    const visits = (pth, prev, ch) => { const base = Math.round((pth === "/" ? 2400 : 120) + hashN(pth) * 900); const share = ch == null ? 1 : [0.55, 0.22, 0.1, 0.08, 0.05][CH.indexOf(ch)]; const drop = !prev && pth === paths[1] ? (ch == null || ch === "Organic Search" ? 0.45 : 0.9) : 1; return Math.max(0, Math.round(base * share * (prev ? 0.9 + hashN(pth + "p") * 0.25 : drop))); };
+    const engagedShare = (pth) => (hashN(pth + "e") < 0.25 ? 0.28 : 0.55 + hashN(pth + "e") * 0.25);
+    const report = (q) => {
+      const ranges = (q.dateRanges || []).map((r, i) => r.name || `date_range_${i}`);
+      const dims = (q.dimensions || []).map((x) => x.name);
+      const mets = (q.metrics || []).map((x) => x.name);
+      const two = ranges.length > 1;
+      const dh = [...dims, ...(two ? ["dateRange"] : [])].map((name) => ({ name }));
+      const rows = [];
+      for (const rn of ranges) {
+        const prev = rn === "prev";
+        const val = (m, pth, ch, scale = 1) => { const sess = pth == null ? paths.reduce((a, x) => a + visits(x, prev, ch), 0) : visits(pth, prev, ch); const eng = pth == null ? 0.58 : engagedShare(pth); const v = { sessions: sess, engagedSessions: Math.round(sess * eng), activeUsers: Math.round(sess * 0.78), newUsers: Math.round(sess * 0.52), screenPageViews: Math.round(sess * 1.9), averageSessionDuration: 95 + hashN(String(pth) + rn) * 60, keyEvents: Math.round(sess * 0.021) }[m] ?? 0; return String(Math.round(v * scale * 100) / 100); };
+        const row = (dv, mv) => rows.push({ dimensionValues: [...dv, ...(two ? [rn] : [])].map((value) => ({ value })), metricValues: mv.map((value) => ({ value })) });
+        if (!dims.length) row([], mets.map((m) => val(m, null, null)));
+        else if (dims[0] === "date") { const d0 = new Date(q.dateRanges[0].startDate); for (let k = 0; k < 28; k++) { const d = new Date(d0.getTime() + k * 86400000).toISOString().slice(0, 10); row([d.replaceAll("-", "")], mets.map((m) => val(m, null, null, (0.8 + hashN(d) * 0.4) / 28))); } }
+        else if (dims[0] === "sessionDefaultChannelGroup") for (const ch of CH) row([ch], mets.map((m) => String(paths.reduce((a, x) => a + Number(val(m, x, ch)), 0))));
+        else if (dims.length === 2) for (const pth of paths) for (const ch of CH) row([pth, ch], mets.map((m) => val(m, pth, ch)));
+        else for (const pth of paths) row([pth], mets.map((m) => val(m, pth, null)));
+      }
+      return { dimensionHeaders: dh, metricHeaders: mets.map((name) => ({ name, type: "TYPE_INTEGER" })), rows, rowCount: rows.length };
+    };
+    return send(res, 200, { reports: (body.requests || []).map(report) });
+  }
   return send(res, 404, { error: { code: 404, message: `mock Google has no ${host}${path}` } });
+}
+
+/* Fake OpenAI Responses API for the Analytics AI insights: builds 4 insights from the pages and issue ids in the
+   prompt, as structured JSON in output_text, like the real API with a json_schema format. */
+function mockOpenAI(res, body) {
+  const input = String(body.input || "");
+  const pages = [...input.matchAll(/^(\/[^ |]*) \| visits (\d+) \(before (\d+)\)/gm)].map((m) => ({ path: m[1], now: +m[2], before: +m[3] }));
+  const ids = [...new Set([...input.matchAll(/^- \[([\w-]+)\]/gm)].map((m) => m[1]))];
+  const drop = pages.find((p) => p.before >= 20 && p.now < p.before * 0.7) ?? pages[1] ?? pages[0];
+  const top = pages[0];
+  const insights = [
+    drop && { title: `${drop.path} lost ${Math.round((1 - drop.now / Math.max(1, drop.before)) * 100)}% of its visits, mostly from Organic Search`, detail: `${drop.path} fell from ${drop.before} to ${drop.now} visits. The page has issues in this report that can cost rankings, so fixing them is the first thing to try.`, action: `Fix the issues listed on ${drop.path}, then check its search ranking in Search Console next week.`, priority: "high", pages: [drop.path], findings: ids.slice(0, 2) },
+    top && { title: `${top.path} brings in most of your visits`, detail: `${top.path} had ${top.now} visits in 28 days, more than any other page, so problems there reach the most people.`, action: "Fix the important issues on your homepage before anything else.", priority: "medium", pages: [top.path], findings: ids.slice(2, 3) },
+    { title: "Organic Search is your biggest channel", detail: "Over half of all visits come from Google Search, which makes SEO fixes the best-value work on this site.", action: "Work through the SEO issues in this report in order of the visits they reach.", priority: "medium", pages: [], findings: [] },
+    { title: "Key events are steady but low", detail: "About 2% of visits end in a key event. Small improvements on your busiest pages would move this most.", action: "Add one clear call to action above the fold on your top two pages.", priority: "low", pages: [], findings: [] },
+  ].filter(Boolean);
+  return send(res, 200, { id: `resp_${crypto.randomUUID()}`, object: "response", status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify({ insights }) }] }] });
 }

@@ -165,23 +165,25 @@ Security behaviour worth knowing:
 - Each question sends the report summary, an index of every guide and post, and the full text of the 3 that match best (not the whole library, which is about 32k tokens).
 - When the site has Google Search Console connected, the cached numbers (clicks per issue, near-page-one searches, drops, pages not indexed) go in too, from `gscBrief`.
 
-## Google integrations (Search Console now; Analytics and Ads next)
+## Google integrations (Search Console and Analytics now; Ads next)
 
 What it does: dashboard star feature **Google data** (`?view=google`, owner only, saved sites only). One **Connect Google** button; Pagelyt asks Google only for the permission the product needs (Search Console first: `webmasters.readonly`, plus `openid email` to show which account is connected). Then: real clicks and impressions on every finding, Top fixes ordered by Google traffic, searches at positions 8–20, page-one results with a low click rate, pages that lost clicks, URL Inspection for up to 15 key pages, and the same numbers in Ask Pagelyt. Data is cached in `google_cache` and refetched when the dashboard opens and it is older than 24 hours (Refresh now forces it; 6 an hour per site). Plan gate: Professional and Business (open to everyone while `BILLING_ON` is false).
 
+**Analytics tab** (the second tab in Google data, its own Connect button, which asks for `analytics.readonly` on top): the site is matched to its GA4 property through its web stream URL (picker otherwise). It shows visitors and engagement per issue (the "N visits" badges on findings), a traffic-drop detective (pages down 30% or more with the channel that lost most and the issues on them) and the 28-day report (totals, channels, pages that don't hold visitors). One `batchRunReports` call per refresh, cached 24 hours like Search Console. **Analyse with AI** sends the Analytics numbers, the open findings and the Search Console summary to OpenAI (`OPENAI_CHAT_MODEL`) and caches up to 6 insights for 24 hours (source `ga4_ai`); it doesn't use the chat quota but is capped at 4 runs a day per site and 20 per account. The top 3 show on the Overview, and the owner's PDF export includes an Analytics section (the print page only shows it with a signed 15-minute pass, so shared links never do).
+
 ### 1. Database
 
-Run `supabase/migrations/0010_google.sql` in the Supabase SQL editor before deploying.
+Run `supabase/migrations/0010_google.sql`, then `0011_google_analytics.sql`, in the Supabase SQL editor before deploying.
 
 ### 2. Google Cloud project (one time, about 20 minutes)
 
 1. Go to <https://console.cloud.google.com/>, sign in with the Google account that should own the app (a company account, not a personal one), and **create a project** called `Pagelyt`.
-2. **APIs & Services → Library**: enable **Google Search Console API**. (For the next phases also enable **Google Analytics Data API**, **Google Analytics Admin API** and **Google Ads API**; enabling them now costs nothing.)
+2. **APIs & Services → Library**: enable **Google Search Console API**, **Google Analytics Data API** and **Google Analytics Admin API**. (For phase 3 also enable **Google Ads API**; enabling it now costs nothing.)
 3. **APIs & Services → OAuth consent screen** (now called **Google Auth Platform**):
    - App name `Pagelyt`, support email, logo (120×120), app home page `https://pagelyt.dev`, privacy policy `https://pagelyt.dev/privacy`, terms `https://pagelyt.dev/terms`.
    - Authorised domain: `pagelyt.dev`. Developer contact email.
    - Audience: **External**.
-   - **Data access → Add scopes**: `openid`, `.../auth/userinfo.email`, `.../auth/webmasters.readonly`. (Later phases add `.../auth/analytics.readonly` and `.../auth/adwords`.)
+   - **Data access → Add scopes**: `openid`, `.../auth/userinfo.email`, `.../auth/webmasters.readonly`, `.../auth/analytics.readonly`. (Phase 3 adds `.../auth/adwords`.)
    - **Test users**: add your own Google address and anyone testing before verification (up to 100).
 4. **Clients → Create client → Web application**, name `Pagelyt web`:
    - Authorised JavaScript origins: `https://pagelyt.dev` (and `http://localhost:3000` for local tests).
@@ -201,7 +203,7 @@ Optional: `GOOGLE_REDIRECT_URI` if the callback URL isn't `<site origin>/api/goo
 ### 4. Testing mode vs verification
 
 - While the consent screen's publishing status is **Testing**, only the test users can connect, Google shows an "unverified app" warning, and **their connection expires after 7 days** (they connect again from the Google data view).
-- To open it to everyone: **Publish app**, then submit for **verification**. Search Console, Analytics and Ads read-only scopes are *sensitive* (not restricted), so there is no security assessment, but Google wants: a verified domain in Search Console for `pagelyt.dev`, the privacy policy saying what Google data is used for and that it isn't sold or used for ads (Google's Limited Use rules), and a short **YouTube video** showing the consent screen and where the data appears in Pagelyt. Allow 1–4 weeks. Add the Analytics and Ads scopes to the same submission once those phases ship, or verify again then.
+- To open it to everyone: **Publish app**, then submit for **verification**. Search Console, Analytics and Ads read-only scopes are *sensitive* (not restricted), so there is no security assessment, but Google wants: a verified domain in Search Console for `pagelyt.dev`, the privacy policy saying what Google data is used for and that it isn't sold or used for ads (Google's Limited Use rules), and a short **YouTube video** showing the consent screen and where the data appears in Pagelyt. Allow 1–4 weeks. Include the Analytics scope in the submission (the video should show the Analytics tab and that the AI insights are made from the owner's own numbers); add the Ads scope when phase 3 ships, or verify again then.
 
 ### 5. Google Ads (phase 3, start now because approval takes time)
 
@@ -212,13 +214,17 @@ Optional: `GOOGLE_REDIRECT_URI` if the callback URL isn't `<site origin>/api/goo
 
 ### Local testing
 
-`npm run dev:mock` points every Google call at the mock server's fake Google (consent, tokens, Search Console with made-up but stable numbers), so the whole flow works with no Google project. `MOCK_GOOGLE=deny`, `noscope` or `empty` try a declined consent, an unticked Search Console permission and an account with no properties.
+`npm run dev:mock` points every Google call at the mock server's fake Google (consent, tokens, Search Console and Analytics with made-up but stable numbers; one page loses half its visits so the drop detective has something to show), so the whole flow works with no Google project. Without `OPENAI_API_KEY` it also fakes OpenAI for **Analyse with AI** (`OPENAI_MOCK_URL`). `MOCK_GOOGLE=deny`, `noscope` or `empty` try a declined consent, an unticked permission and an account with no properties.
+
+Unit tests for the Google and AI helpers: `node --import ./scripts/test-resolve.mjs --experimental-strip-types --test "lib/**/*.test.ts"`.
 
 ### How it is built
 
 - Tokens: the refresh token is encrypted with AES-GCM (key from `GOOGLE_TOKEN_KEY`) in `google_connections`; access tokens are fetched per request and never stored. Disconnect (account page) revokes the token at Google and deletes the connection, links and cache. A token Google rejects as revoked removes the connection.
 - Consent round trip: `/api/google/connect` returns Google's URL with a signed 15-minute `state` (account, site, report) and PKCE; `/api/google/callback` checks the state, swaps the code, stores the token and matches the site to its Search Console property (`sc-domain:` first, then URL-prefix). If nothing matches, the view shows a property picker.
 - Each refresh makes about 22 Google requests (6 Search Analytics queries and up to 15 URL inspections), inside a Worker's subrequest budget. URL Inspection allows 2,000 a day per property.
+- Analytics: the callback lists the account's GA4 properties (Admin API) and reads up to 25 properties' web streams to find the one whose URL matches the site. Each refresh is one Data API `batchRunReports` call (5 reports: totals, daily, pages, channels, page × channel) for the last 28 days ending yesterday and the 28 days before.
+- AI insights: OpenAI Responses API with a strict JSON schema; the reply is checked again so only real page paths and finding ids are kept.
 
 ## Commands
 
