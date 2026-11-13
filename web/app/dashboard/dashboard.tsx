@@ -21,9 +21,10 @@ import { AuthLink } from "../auth-link";
 import { CommandPalette, ShortcutHelp, useShortcuts, type Cmd } from "./extras";
 import { ComparePanel, DomainPanel, ExportTiles, FindingsExplorer, CrawlPanel, ChangePanel, HowScores, ImagesPanel, QuickWins, TechPanel, VitalsPanel, useHistory, type Snap } from "./panels";
 import type { StoredScan } from "@/lib/scan/store";
-import { TOOL_FIXES, toolContext, type ToolId } from "@/lib/scan/tools-context";
-import { DashTools } from "../tools/dash-tools";
-import { TOOL_LIST } from "../tools/catalog";
+import { toolContext } from "@/lib/scan/tools-context";
+import { DashTool, DashToolGrid, fixableCount, toolsByNeed } from "../tools/dash-tools";
+import { TOOL_LIST, TOOLS_BY_SLUG, type ToolSlug } from "../tools/catalog";
+import { ToolIcon } from "../tools/icons";
 
 /* One plain-English line per area, shown at the top of its breakdown. */
 const BLURB: Record<ModuleKey, string> = {
@@ -188,9 +189,11 @@ function useLocalFixed(scanId: string) {
   return { fixed, toggle };
 }
 
-/* The dashboard's sections beyond the areas: insights from the scan, and the tools that build on it. */
+/* The dashboard's sections beyond the areas: the star features, the tools, and insights from the scan.
+   Each tool is a view of its own (?view=<tool slug>); "tools" is the grid of all of them. */
 type Extra = "speed" | "pages" | "images" | "tech" | "changes" | "monitor" | "ai" | "compare" | "share" | "tools";
-type View = "overview" | "all" | ModuleKey | Extra;
+type View = "overview" | "all" | ModuleKey | Extra | ToolSlug;
+const isTool = (v: string): v is ToolSlug => TOOLS_BY_SLUG.has(v as ToolSlug);
 type Section = { id: Extra; label: string; icon: IconKey; text: string };
 
 const INSIGHTS: Section[] = [
@@ -201,21 +204,20 @@ const INSIGHTS: Section[] = [
   { id: "changes", label: "Changes & history", icon: "history", text: "How this scan compares with earlier ones, and whether the homepage changed since last time." },
 ];
 
-const GROW: Section[] = [
+/* Pagelyt's star features: highlighted in the sidebar and as the strip under the score on Overview. */
+const STAR: Section[] = [
   { id: "monitor", label: "Save & monitor", icon: "monitor", text: "Keep this report in your account, rescan on a schedule and get uptime checks and email alerts." },
   { id: "ai", label: "AI visibility", icon: "ai", text: "See whether ChatGPT, Claude and Perplexity mention and cite this site when people ask about its field." },
   { id: "compare", label: "Compare competitors", icon: "compare", text: "Scan up to three competitors and line them up against this report, area by area." },
   { id: "share", label: "Brand & share", icon: "share", text: "Send your client a report with your logo and colours, by link or straight to their inbox." },
-  { id: "tools", label: "Free tools", icon: "tools", text: `All ${TOOL_LIST.length} free checkers and generators, pre-filled for this site. The ones that fix this scan's findings come first.` },
 ];
+const ALL_TOOLS: Section = { id: "tools", label: "All tools", icon: "tools", text: `All ${TOOL_LIST.length} free checkers and generators, pre-filled for this site. The ones that fix this scan's findings come first.` };
 
-const SECTIONS = new Map<string, Section>([...INSIGHTS, ...GROW].map((s) => [s.id, s]));
+const SECTIONS = new Map<string, Section>([...INSIGHTS, ...STAR, ALL_TOOLS].map((s) => [s.id, s]));
 const PAID_ONLY = new Set<Extra>(["ai", "compare", "share"]);
 const OWNER_ONLY = new Set<Extra>(["monitor", "ai", "compare", "share"]);
 
-const TOOL_NAMES: Record<ToolId, string> = { llms: "llms.txt", robots: "robots.txt", schema: "structured data", serp: "search snippets", headers: "security headers" };
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-const andList = (xs: string[]) => (xs.length < 2 ? xs.join("") : `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}`);
 
 /* "Do more" rows written for this report: a headline from its own numbers, a short line, a verb for the button,
    and how relevant it is right now (most relevant first). */
@@ -235,13 +237,6 @@ function pitchFor(id: Extra, r: { open: Finding[]; high: number; overall: number
       return { hook: `You score ${r.overall}. How do rivals do?`, text: "Line up three competitors, area by area.", cta: "Compare now", weight: 2 };
     case "share":
       return { hook: r.open.length ? `${plural(r.open.length, "open finding")} to hand over` : "A clean report to show off", text: "Your logo, by link or straight to their inbox.", cta: "Send report", weight: 1 };
-    case "tools": {
-      const ids = new Set(r.open.map((f) => f.id));
-      const tools = (Object.keys(TOOL_FIXES) as ToolId[]).filter((t) => TOOL_FIXES[t].some((x) => ids.has(x)));
-      const n = r.open.filter((f) => tools.some((t) => TOOL_FIXES[t].includes(f.id))).length;
-      if (n) return { hook: `${plural(n, "finding")} ${n === 1 ? "has" : "have"} a free fix`, text: `Ready-made ${andList(tools.map((t) => TOOL_NAMES[t]))}.`, cta: "Generate fixes", weight: 2 + n };
-      return { hook: "Free generators", text: "llms.txt, robots.txt, schema and more.", cta: "Open tools", weight: 0.5 };
-    }
     default:
       return { hook: "", text: "", cta: "Open", weight: 0 };
   }
@@ -356,51 +351,33 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const highGain = useMemo(() => overallScore(scoreModules(remaining.filter((f) => f.severity !== "high"))) - potential, [remaining, potential]);
   const topArea = useMemo(() => [...modules].sort((a, b) => a.score - b.score)[0], [modules]);
 
-  // The sections this visitor can open, in sidebar order (which is also the Previous / Next order).
+  // The sections this visitor can open, in sidebar order (also the order the ← / → keys step through). Areas are
+  // not in the sidebar: they open from the Overview tiles and search, so they come last.
   const owner = canEdit; // the owner, or local development
-  const grow = useMemo(() => GROW.filter((g) => owner || !OWNER_ONLY.has(g.id)), [owner]);
-  const order: View[] = useMemo(() => ["overview", "all", ...modules.map((m) => m.key), ...INSIGHTS.map((s) => s.id), ...grow.map((s) => s.id)], [modules, grow]);
+  const star = useMemo(() => STAR.filter((g) => owner || !OWNER_ONLY.has(g.id)), [owner]);
+  const tools = useMemo(() => toolsByNeed(remaining), [remaining]);
+  const order: View[] = useMemo(
+    () => ["overview", "all", ...star.map((s) => s.id), "tools", ...tools.map((x) => x.t.slug), ...INSIGHTS.map((s) => s.id), ...modules.map((m) => m.key)],
+    [modules, star, tools]
+  );
 
   // The open section lives in the address (?view=seo), so Back, refresh and shared links all land on it.
-  const asked = params.get("view") ?? "overview";
+  // Older links opened a tool with ?view=tools&tool=<slug>.
+  const legacyTool = params.get("view") === "tools" ? params.get("tool") : null;
+  const asked = legacyTool && isTool(legacyTool) ? legacyTool : (params.get("view") ?? "overview");
   const view: View = order.includes(asked as View) ? (asked as View) : "overview";
   const setView = useCallback((v: View) => {
     const q = new URLSearchParams(window.location.search);
+    q.delete("tool");
     if (v === "overview") q.delete("view");
     else q.set("view", v);
     const s = q.toString();
     window.history.pushState(null, "", `${window.location.pathname}${s ? `?${s}` : ""}`);
     window.scrollTo({ top: 0 });
   }, []);
-  const labelOf = (v: View) => (v === "overview" ? "Overview" : v === "all" ? "All findings" : v in MODULE_NAMES ? MODULE_NAMES[v as ModuleKey] : SECTIONS.get(v)!.label);
   const at = order.indexOf(view);
-  const prevView = at > 0 ? order[at - 1] : null;
-  const nextView = at < order.length - 1 ? order[at + 1] : null;
-  const groupOf = (v: View) => (v === "overview" ? "Start" : v === "all" ? "Findings" : v in MODULE_NAMES ? "Areas" : INSIGHTS.some((s) => s.id === v) ? "Insights" : "Grow");
-
-  const iconOf = (v: View): IconKey => (v === "overview" ? "overview" : v === "all" ? "list" : v in MODULE_NAMES ? (v as IconKey) : SECTIONS.get(v)!.icon);
-  const hintOf = (v: View) => {
-    if (v === "overview") return "Your score, top issues and what to do next";
-    if (v === "all") return `Every finding in one list (${scan.findings.length})`;
-    if (v in MODULE_NAMES) {
-      const m = modules.find((x) => x.key === v);
-      const n = scan.findings.filter((f) => f.module === v).length;
-      return `${m ? `${m.score}/100 · ` : ""}${n === 0 ? "No issues" : `${n} issue${n === 1 ? "" : "s"}`}`;
-    }
-    return SECTIONS.get(v)!.text;
-  };
-  // A Previous / Next card: the section's icon, its group, name and a one-line hint of what's inside.
-  const pnCard = (v: View, dir: "prev" | "next", end = false) => (
-    <button type="button" className={`dpn-card ${dir}${end ? " end" : ""}`} onClick={() => setView(v)} aria-label={end ? "You've reached the end. Back to overview" : `${dir === "prev" ? "Previous" : "Next"}: ${labelOf(v)}`}>
-      <span className="dpn-arrow" aria-hidden="true">{dir === "prev" ? "←" : end ? "↺" : "→"}</span>
-      <span className="dpn-ico" aria-hidden="true"><AreaIcon k={iconOf(v)} size={20} /></span>
-      <span className="dpn-txt">
-        <small>{end ? "You've seen it all" : `${dir === "prev" ? "Previous" : "Next"} · ${groupOf(v)}`}</small>
-        <b>{end ? "Back to overview" : labelOf(v)}</b>
-        <span className="dpn-hint">{hintOf(v)}</span>
-      </span>
-    </button>
-  );
+  const groupOf = (v: View) =>
+    v === "overview" ? "Start" : v === "all" ? "Findings" : v in MODULE_NAMES ? "Areas" : INSIGHTS.some((s) => s.id === v) ? "Insights" : STAR.some((s) => s.id === v) ? "Star features" : "Tools";
 
   const onToggle = (key: string) => {
     if (!canEdit) return; // viewers cannot change a report
@@ -412,13 +389,14 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     toggle(key);
   };
 
-  useShortcuts({ openPalette: () => setPalette(true), openHelp: () => setHelp(true), views: order, setView: (v) => setView(v as View), toggleKey: onToggle, step: (d) => { const v = d < 0 ? prevView : nextView; if (v) setView(v); } });
+  useShortcuts({ openPalette: () => setPalette(true), openHelp: () => setHelp(true), views: order, setView: (v) => setView(v as View), toggleKey: onToggle, step: (d) => { const v = order[at + d]; if (v) setView(v); } });
 
   const cmds: Cmd[] = [
     { id: "v-overview", label: "Overview", group: "Go to", icon: "health", run: () => setView("overview") },
     { id: "v-all", label: "All findings", group: "Go to", icon: "seo", run: () => setView("all") },
     ...modules.map((m): Cmd => ({ id: "v-" + m.key, label: m.name, hint: String(m.score), group: "Go to", icon: m.key, run: () => setView(m.key) })),
-    ...[...INSIGHTS, ...grow].map((s): Cmd => ({ id: "v-" + s.id, label: s.label, group: "Go to", run: () => setView(s.id) })),
+    ...[...star, ...INSIGHTS].map((s): Cmd => ({ id: "v-" + s.id, label: s.label, group: "Go to", run: () => setView(s.id) })),
+    ...tools.map(({ t, n }): Cmd => ({ id: "v-" + t.slug, label: t.name, hint: n ? `${n} missing` : undefined, group: "Tools", run: () => setView(t.slug) })),
     { id: "a-print", label: "Print or save as PDF", group: "Actions", run: () => window.print() },
     { id: "a-help", label: "Keyboard shortcuts", group: "Actions", run: () => setHelp(true) },
     { id: "a-new", label: "Scan another site", group: "Actions", run: () => router.push("/") },
@@ -430,12 +408,13 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const inModule = isArea ? scan.findings.filter((f) => f.module === view) : [];
   const mod = isArea ? modules.find((m) => m.key === view)! : null;
   const section = SECTIONS.get(view) ?? null;
-  const toolCtx = view === "tools" ? toolContext(scan.id, scan) : null;
+  const tool = isTool(view) ? TOOLS_BY_SLUG.get(view)! : null;
+  const toolCtx = tool ? toolContext(scan.id, scan) : null;
   const needsPlan = (id: Extra) => PAID_ONLY.has(id) && access === "owner" && !!acct && !acct.paid;
-  // Most relevant first; a card the visitor's plan doesn't include yet is never the featured one if another fits.
-  const pitches = grow
-    .map((g) => ({ g, p: pitchFor(g.id, { open: remaining, high, overall: potential, modules, saved: !!siteId, prev: !!prev }) }))
-    .sort((a, b) => b.p.weight - (needsPlan(b.g.id) ? 2 : 0) - (a.p.weight - (needsPlan(a.g.id) ? 2 : 0)));
+  // The star features with a reason from this report each, in their fixed sidebar order.
+  const pitches = star.map((g) => ({ g, p: pitchFor(g.id, { open: remaining, high, overall: potential, modules, saved: !!siteId, prev: !!prev }) }));
+  const toolMissing = fixableCount(remaining);
+  const topTool = tools[0]?.n ? tools[0].t : null;
 
   const [pdfBusy, setPdfBusy] = useState(false);
   // Paid owners get the server-rendered branded PDF; everyone else (and any failure) uses print-to-PDF.
@@ -473,9 +452,9 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   };
   const nativeShare = () => void navigator.share?.({ title: `Website report for ${scan.host}`, text: `${scan.host} scores ${scan.overall}/100`, url: reportUrl }).catch(() => {});
 
-  const navBtn = (v: View, icon: IconKey, label: string, badge?: React.ReactNode) => (
-    <button key={v} type="button" aria-current={view === v} onClick={() => setView(v)}>
-      <span className="nv"><AreaIcon k={icon} />{label}</span>
+  const navBtn = (v: View, icon: IconKey | React.ReactNode, label: string, badge?: React.ReactNode, cls?: string) => (
+    <button key={v} type="button" className={cls} aria-current={view === v} onClick={() => setView(v)}>
+      <span className="nv">{typeof icon === "string" ? <AreaIcon k={icon as IconKey} /> : icon}{label}</span>
       {badge}
     </button>
   );
@@ -563,6 +542,35 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           </div>
         </section>
 
+        {pitches.length > 0 && (
+          <section className="star-strip" aria-labelledby="star-h">
+            <h2 id="star-h"><span className="star-ic" aria-hidden="true">★</span>Do more with this report</h2>
+            <ul>
+              {pitches.map(({ g, p }, i) => (
+                <li key={g.id} style={{ ["--i" as string]: i }}>
+                  <button type="button" onClick={() => setView(g.id)}>
+                    <span className="ss-top">
+                      <span className="ss-ico"><AreaIcon k={g.icon} size={20} /></span>
+                      <span className="ss-name">{g.label}</span>
+                      {needsPlan(g.id) && <span className="plan-badge">Paid plans</span>}
+                    </span>
+                    <b className="ss-hook">{p.hook}</b>
+                    <span className="ss-text">{p.text}</span>
+                    <span className="ss-cta">{p.cta} <span aria-hidden="true">→</span></span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            {topTool && (
+              <button type="button" className="ss-tools" onClick={() => setView(topTool.slug)}>
+                <span className="ss-tools-ic"><AreaIcon k="tools" size={18} /></span>
+                <span><b>{toolMissing} missing item{toolMissing === 1 ? "" : "s"} have a free fix.</b> Start with the {topTool.name}, pre-filled for {scan.host}.</span>
+                <span className="ss-cta">Open tool <span aria-hidden="true">→</span></span>
+              </button>
+            )}
+          </section>
+        )}
+
         <ul className="dash-cards" aria-label="Scores by area">
           {modules.map((m, i) => (
             <li key={m.key} style={{ ["--i" as string]: i }}>
@@ -591,24 +599,6 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
             .
           </p>
         )}
-
-        <section className="do-more" aria-labelledby="do-more-h">
-          <h2 id="do-more-h">Do more with this report</h2>
-          <ul>
-            {pitches.map(({ g, p }, i) => (
-              <li key={g.id} style={{ ["--i" as string]: i }}>
-                <button type="button" onClick={() => setView(g.id)}>
-                  <span className={`dm-ico dm-${g.id}`}><AreaIcon k={g.icon} size={20} /></span>
-                  <span className="dm-txt">
-                    <b className="dm-hook">{p.hook}{needsPlan(g.id) && <span className="plan-badge">Paid plans</span>}</b>
-                    <span className="dm-text">{p.text}</span>
-                  </span>
-                  <span className="dm-cta">{p.cta} <span aria-hidden="true">→</span></span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
 
         <section className="insights" aria-labelledby="ins-h">
           <h2 id="ins-h">From this scan</h2>
@@ -661,6 +651,20 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
         {inModule.length > 0 && <Findings findings={inModule} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} grouped />}
       </>
     );
+  } else if (tool && toolCtx) {
+    body = (
+      <>
+        <section className="dash-hero sec-hero" aria-label={tool.name}>
+          <span className="sec-ico"><ToolIcon slug={tool.slug} size={28} /></span>
+          <div className="dash-hero-txt">
+            <p className="dash-eyebrow">Tools · {tool.category}{tool.paid && <span className="plan-badge">Paid plans</span>}</p>
+            <h1>{tool.name}</h1>
+            <p>{tool.lead}</p>
+          </div>
+        </section>
+        <DashTool slug={tool.slug} ctx={toolCtx} findings={remaining} />
+      </>
+    );
   } else if (section) {
     const s = section;
     let content: React.ReactNode = null;
@@ -683,7 +687,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           {scan.change ? <ChangePanel scan={scan} shots={shots} /> : empty("This is the first scan we have of this site, so there is nothing to compare the homepage with yet. Rescan later to see what changed.")}
         </>
       );
-    else if (s.id === "tools") content = toolCtx && <DashTools ctx={toolCtx} />;
+    else if (s.id === "tools") content = <DashToolGrid findings={remaining} onOpen={setView} />;
     else if (!owner) content = signInNote;
     else if (s.id === "monitor") content = access === "local" ? empty("Saving sites needs accounts, which aren't switched on here.") : <SaveSite scanId={scan.id} host={scan.host} />;
     else if (s.id === "ai")
@@ -811,35 +815,22 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
       <div className="dash-body">
         <nav className="dash-nav" aria-label="Report sections">
           {navBtn("overview", "overview", "Overview", <b>{remaining.length}</b>)}
-          <p className="nav-h">Findings</p>
           {navBtn("all", "list", "All findings", <b>{scan.findings.length}</b>)}
-          <p className="nav-h">Areas</p>
-          {modules.map((m) => navBtn(m.key, m.key, m.name, <b className={`t-${tone(m.score)}`}>{m.score}</b>))}
+          {star.length > 0 && (
+            <div className="nav-star">
+              <p className="nav-h"><span aria-hidden="true">★</span> Star features</p>
+              {star.map((s) => navBtn(s.id, s.icon, s.label, needsPlan(s.id) ? <span className="plan-dot" title="Paid plans">Paid</span> : undefined))}
+            </div>
+          )}
+          <p className="nav-h">Tools</p>
+          {navBtn("tools", "tools", "All tools", <b>{TOOL_LIST.length}</b>)}
+          {tools.map(({ t, n }) => navBtn(t.slug, <ToolIcon slug={t.slug} size={16} />, t.name, n ? <b className="nav-miss" title={`${n} missing`}>{n}</b> : undefined, "nav-tool"))}
           <p className="nav-h">Insights</p>
           {INSIGHTS.map((s) => navBtn(s.id, s.icon, s.label))}
-          <p className="nav-h">Grow</p>
-          {grow.map((s) => navBtn(s.id, s.icon, s.label, needsPlan(s.id) ? <span className="plan-dot" title="Paid plans">Paid</span> : undefined))}
         </nav>
 
         <main className="dash-main">
-          {view !== "overview" && (
-            <div className="dash-back">
-              <button type="button" className="back-btn" onClick={() => setView("overview")}>
-                <span aria-hidden="true">←</span> Back to overview
-              </button>
-              <span className="dash-crumb">{groupOf(view)} <span aria-hidden="true">›</span> {labelOf(view)}</span>
-            </div>
-          )}
           {body}
-          <nav className="dash-pn" aria-label="Previous and next section">
-            {prevView ? pnCard(prevView, "prev") : <span className="dpn-gap" />}
-            <div className="dpn-mid" aria-hidden="true">
-              <span className="dpn-count">{at + 1} <small>of {order.length}</small></span>
-              <span className="dpn-bar"><i style={{ width: `${((at + 1) / order.length) * 100}%` }} /></span>
-              <span className="dpn-keys"><kbd>←</kbd><kbd>→</kbd> keys</span>
-            </div>
-            {nextView ? pnCard(nextView, "next") : pnCard("overview", "next", true)}
-          </nav>
         </main>
       </div>
     </div>

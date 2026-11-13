@@ -64,6 +64,11 @@ export const LIMITS = {
     { key: `render:u:${user}`, limit: 20, windowSec: 3600 },
     { key: `render:ip:${ip}`, limit: 30, windowSec: 3600 },
   ],
+  /** Sitemap pages loaded in a real browser: five pages a batch. */
+  renderBatch: (ip: string, user: string): Rule[] => [
+    { key: `rendb:u:${user}`, limit: 60, windowSec: 3600 },
+    { key: `rendb:ip:${ip}`, limit: 80, windowSec: 3600 },
+  ],
   resend: (ip: string, email: string): Rule[] => [
     { key: `resend:em:min:${email}`, limit: 1, windowSec: 60 },
     { key: `resend:em:hr:${email}`, limit: 5, windowSec: 3600 },

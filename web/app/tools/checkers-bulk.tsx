@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRef, useState } from "react";
 import type { SchemaPage } from "@/lib/tools/bulk-schema";
-import { BULK_SCHEMA, SITEMAP } from "@/lib/tools/limits";
+import { BULK_SCHEMA, SITEMAP, SITEMAP_RENDER } from "@/lib/tools/limits";
 import type { RenderReport } from "@/lib/tools/rendered";
 import type { CrawledPage } from "@/lib/tools/sitemap";
 import { sitemapXml } from "@/lib/tools/sitemap-xml";
@@ -13,7 +13,7 @@ import { Field, Output, type Ctx } from "./tools";
 /* Phase 2 tools: bulk schema checker, sitemap generator and raw vs rendered HTML.
    The first two send work to /api/tools in small batches and show progress as each batch comes back. */
 
-type Plan = { paid: boolean; schema: number; sitemap: number };
+type Plan = { paid: boolean; schema: number; sitemap: number; rendered: number };
 type Found = { home: string; host: string; sitemaps: string[]; urls: string[] };
 
 const getPlan = () => callTool<Plan>({ tool: "plan" });
@@ -179,6 +179,8 @@ export function SitemapGenerator({ ctx }: { ctx: Ctx }) {
   const [err, setErr] = useState<Problem | null>(null);
   const [pages, setPages] = useState<CrawledPage[] | null>(null);
   const [state, setState] = useState<{ queued: number; max: number; paid: boolean; found: Found | null }>({ queued: 0, max: 0, paid: false, found: null });
+  // "js": the raw HTML had no links, so pages were loaded in a real browser; "js-off": that wasn't possible.
+  const [mode, setMode] = useState<"raw" | "js" | "js-off">("raw");
   const stop = useRef(false);
 
   const run = async (e: React.FormEvent) => {
@@ -187,6 +189,7 @@ export function SitemapGenerator({ ctx }: { ctx: Ctx }) {
     setBusy(true);
     setErr(null);
     setPages(null);
+    setMode("raw");
     const plan = await getPlan();
     if (isProblem(plan)) {
       setErr(plan);
@@ -220,6 +223,39 @@ export function SitemapGenerator({ ctx }: { ctx: Ctx }) {
       setPages([...done]);
       setState((s) => ({ ...s, queued: queue.length }));
     }
+
+    // Built with JavaScript? No sitemap, and the raw HTML led nowhere beyond a page or so: load the pages that
+    // were found in a real browser, which runs the site's JavaScript and so sees its menu and links.
+    const kept = done.filter((p) => p.include);
+    if (!stop.current && !queue.length && !found.urls.length && kept.length <= 1) {
+      const max = plan.rendered;
+      const again = kept.length ? kept.map((p) => p.url) : [found.home];
+      const rest = done.filter((p) => !p.include);
+      const out: CrawledPage[] = [];
+      const todo = [...again];
+      setMode("js");
+      setState((s) => ({ ...s, max, queued: todo.length }));
+      while (todo.length && out.length < max && !stop.current) {
+        const batch = todo.splice(0, Math.min(SITEMAP_RENDER.batch, max - out.length));
+        const r = await callTool<{ pages: CrawledPage[]; links: string[] }>({ tool: "sitemap-render", host: found.host, urls: batch });
+        if (isProblem(r)) {
+          // Rendering is off or failed: keep what the plain crawl found and say why it is short.
+          if (!out.length) setMode("js-off");
+          else setErr(r);
+          break;
+        }
+        out.push(...r.pages);
+        for (const l of r.links) {
+          if (seen.has(key(l))) continue;
+          seen.add(key(l));
+          todo.push(l);
+        }
+        setPages([...rest, ...out]);
+        setState((s) => ({ ...s, queued: todo.length }));
+      }
+      if (!out.length) setPages([...done]);
+      setState((s) => ({ ...s, queued: todo.length }));
+    }
     setBusy(false);
   };
 
@@ -237,7 +273,7 @@ export function SitemapGenerator({ ctx }: { ctx: Ctx }) {
           <button className="btn" type="submit">Generate sitemap</button>
         )}
       </form>
-      <p className="tnote">Free accounts crawl up to {SITEMAP.free} pages; paid plans {SITEMAP.paid.toLocaleString("en-GB")}.</p>
+      <p className="tnote">Free accounts crawl up to {SITEMAP.free} pages; paid plans {SITEMAP.paid.toLocaleString("en-GB")}. Sites built with JavaScript are loaded in a real browser instead: up to {SITEMAP_RENDER.free} pages free, {SITEMAP_RENDER.paid} on paid plans.</p>
       <ErrorNote p={err} />
       {pages && (
         <section className="tres" aria-label="Sitemap results" aria-live="polite">
@@ -261,6 +297,8 @@ export function SitemapGenerator({ ctx }: { ctx: Ctx }) {
               <li key={label}><Chip tone="warn">{n}</Chip> {label}</li>
             ))}
           </ul>
+          {mode === "js" && <p className="tnote tjs">This site builds its links with JavaScript, so its raw HTML links nowhere. We loaded each page in a real browser to find them.</p>}
+          {mode === "js-off" && !busy && <p className="terr" role="alert">This site builds its links with JavaScript, so its raw HTML links nowhere, and we couldn&rsquo;t load it in a real browser just now. Please try again in a few minutes. Meanwhile, the page{pages.length === 1 ? "" : "s"} below {pages.length === 1 ? "is" : "are"} all we could find.</p>}
           {capped && <p className="tnote">Stopped at your limit of {state.max.toLocaleString("en-GB")} pages with {state.queued} more links waiting.{!state.paid && ` Paid plans crawl up to ${SITEMAP.paid.toLocaleString("en-GB")}.`}</p>}
           {!busy && included.length > 0 && <Output text={sitemapXml(included)} filename="sitemap.xml" />}
           {!busy && included.length === 0 && <p className="terr" role="alert">No indexable pages found. Check the reasons below.</p>}

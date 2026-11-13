@@ -9,9 +9,9 @@ import { checkAiBots } from "@/lib/tools/ai-bots";
 import { checkSchemaPage } from "@/lib/tools/bulk-schema";
 import { cleanDomain, domainAge } from "@/lib/tools/domain-age";
 import { checkHreflang } from "@/lib/tools/hreflang";
-import { BULK_SCHEMA, SITEMAP } from "@/lib/tools/limits";
+import { BULK_SCHEMA, SITEMAP, SITEMAP_RENDER } from "@/lib/tools/limits";
 import { compareRendered } from "@/lib/tools/rendered-live";
-import { crawlPages, existingSitemap } from "@/lib/tools/sitemap";
+import { crawlPages, existingSitemap, renderPages } from "@/lib/tools/sitemap";
 
 /* The free tools that need our server to fetch another site. Signed-in visitors only (open in local development
    without Supabase), rate-limited per account and per IP. Body: { tool, url?, urls?, domains?, host? }.
@@ -35,12 +35,12 @@ export async function POST(req: Request) {
   const paid = async () => (user ? await isPaid(user.id).catch(() => false) : true);
   if (tool === "plan") {
     const p = await paid();
-    return reply({ paid: p, schema: p ? BULK_SCHEMA.paid : BULK_SCHEMA.free, sitemap: p ? SITEMAP.paid : SITEMAP.free });
+    return reply({ paid: p, schema: p ? BULK_SCHEMA.paid : BULK_SCHEMA.free, sitemap: p ? SITEMAP.paid : SITEMAP.free, rendered: p ? SITEMAP_RENDER.paid : SITEMAP_RENDER.free });
   }
 
   const ip = clientIp(req);
   const who = user?.id ?? "anon";
-  const limited = await guard(tool === "rendered" ? LIMITS.render(ip, who) : BATCHED.has(tool) ? LIMITS.toolBatch(ip, who) : LIMITS.tool(ip, who));
+  const limited = await guard(tool === "rendered" ? LIMITS.render(ip, who) : tool === "sitemap-render" ? LIMITS.renderBatch(ip, who) : BATCHED.has(tool) ? LIMITS.toolBatch(ip, who) : LIMITS.tool(ip, who));
   if (limited) return limited;
 
   const url = () => {
@@ -89,6 +89,13 @@ export async function POST(req: Request) {
         const urls = list(SITEMAP.batch).filter((x) => normaliseUrl(x)?.hostname.toLowerCase().replace(/^www\./, "") === host);
         if (!host || !urls.length) return reply({ error: "Nothing to crawl." }, 400);
         return reply(await crawlPages(urls, host));
+      }
+      case "sitemap-render": {
+        // Sites built with JavaScript: the same check, with each page loaded in a real browser.
+        const host = String(body.host ?? "").toLowerCase().replace(/^www\./, "");
+        const urls = list(SITEMAP_RENDER.batch).filter((x) => normaliseUrl(x)?.hostname.toLowerCase().replace(/^www\./, "") === host);
+        if (!host || !urls.length) return reply({ error: "Nothing to crawl." }, 400);
+        return reply(await renderPages(urls, host));
       }
       case "rendered": {
         if (!(await paid())) return reply({ error: "Raw vs rendered HTML comes with any paid plan.", upgrade: true }, 403);

@@ -1,6 +1,7 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
+import { ModalX, onBackdrop } from "../modal-close";
 import type { ToolContext } from "@/lib/scan/tools-context";
 
 /* Five free, fully client-side generators. Nothing typed here leaves the browser. */
@@ -18,7 +19,8 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
   );
 }
 
-export function Output({ text, filename }: { text: string; filename: string }) {
+/** The generated file with Copy and Download. `scroll`: long lines scroll sideways instead of wrapping. */
+export function Output({ text, filename, scroll }: { text: string; filename: string; scroll?: boolean }) {
   const [done, setDone] = useState("");
   const flash = (m: string) => {
     setDone(m);
@@ -43,7 +45,7 @@ export function Output({ text, filename }: { text: string; filename: string }) {
     window.setTimeout(() => URL.revokeObjectURL(url), 1000);
   };
   return (
-    <div className="tout">
+    <div className={`tout${scroll ? " tout-scroll" : ""}`}>
       <div className="tout-bar">
         <span className="tout-file">
           <span className="tout-dots" aria-hidden="true"><i /><i /><i /></span>
@@ -71,8 +73,9 @@ export function Llms({ ctx }: { ctx: Ctx }) {
   const lines = pages.split("\n").map((l) => l.split("|").map((x) => x.trim())).filter((p) => p[0] && p[1]);
   const out = [`# ${name || "Your site"}`, "", `> ${about || "A short description of your site."}`, "", "## Key pages", "", ...lines.map((p) => `- [${p[0]}](${p[1]})${p[2] ? `: ${p[2]}` : ""}`), ""].join("\n");
   return (
-    <div className="tgrid">
+    <div className="tgrid even">
       <div className="tform">
+        <p className="tintro">Enter a <b>one-paragraph summary</b> of what you do and list your <b>key pages</b>. Your llms.txt builds on the right as you type.</p>
         <Field label="Site or business name">{(id) => <input id={id} value={name} onChange={(e) => setName(e.target.value)} />}</Field>
         <Field label="One-paragraph summary" hint="Plain facts: what you do, where, for whom.">{(id) => <textarea id={id} rows={3} value={about} onChange={(e) => setAbout(e.target.value)} />}</Field>
         <Field label="Key pages" hint="One per line: Title | URL | short description">{(id) => <textarea id={id} rows={5} value={pages} onChange={(e) => setPages(e.target.value)} />}</Field>
@@ -134,6 +137,17 @@ export function Robots({ ctx }: { ctx: Ctx }) {
 }
 
 /* ---------------- JSON-LD ---------------- */
+const SCHEMA_TYPES = {
+  Organization: "Your business as a whole: name, website, logo and phone.",
+  LocalBusiness: "A business with a place customers visit, or an area it serves.",
+  FAQPage: "Questions and answers that are shown on one page.",
+} as const;
+/** Which pages each type belongs on. */
+const SCHEMA_WHERE: Record<keyof typeof SCHEMA_TYPES, { tag: string; text: string }> = {
+  Organization: { tag: "Homepage only", text: "It describes the business as a whole, so one copy on the homepage is enough. It doesn't need to go on every page: adding it site-wide does no harm, but it adds nothing." },
+  LocalBusiness: { tag: "Homepage or contact page", text: "Put it on the homepage, or on the contact or location page. With several branches, add one to each branch's own page, with that branch's address and phone." },
+  FAQPage: { tag: "Only the FAQ page", text: "Only on the page where these exact questions and answers are visible. Never add it to every page: Google ignores FAQ markup for questions the page doesn't show." },
+};
 export function Schema({ ctx }: { ctx: Ctx }) {
   const [type, setType] = useState<"Organization" | "LocalBusiness" | "FAQPage">("Organization");
   const [name, setName] = useState(ctx?.name ?? "Acme Plumbing");
@@ -154,10 +168,11 @@ export function Schema({ ctx }: { ctx: Ctx }) {
   }
   // "<" is escaped so text like "</script>" in a field can't end the script block early.
   const out = `<script type="application/ld+json">\n${JSON.stringify(data, null, 2).replace(/</g, "\\u003c")}\n</script>`;
+  const where = SCHEMA_WHERE[type];
   return (
     <div className="tgrid">
-      <div className="tform">
-        <Field label="Type">
+      <div className="tform tform-schema">
+        <Field label="Type" hint={SCHEMA_TYPES[type]}>
           {(id) => (
             <select id={id} value={type} onChange={(e) => setType(e.target.value as typeof type)}>
               <option value="Organization">Organization</option>
@@ -169,15 +184,25 @@ export function Schema({ ctx }: { ctx: Ctx }) {
         {type === "FAQPage" ? (
           <Field label="Questions" hint="One per line: Question | Answer">{(id) => <textarea id={id} rows={6} value={faq} onChange={(e) => setFaq(e.target.value)} />}</Field>
         ) : (
-          <>
+          <div className="tpair">
             <Field label="Name">{(id) => <input id={id} value={name} onChange={(e) => setName(e.target.value)} />}</Field>
             <Field label="Website">{(id) => <input id={id} value={url} onChange={(e) => setUrl(e.target.value)} />}</Field>
             <Field label="Logo URL">{(id) => <input id={id} value={logo} onChange={(e) => setLogo(e.target.value)} />}</Field>
             <Field label="Phone">{(id) => <input id={id} value={phone} onChange={(e) => setPhone(e.target.value)} />}</Field>
-            {type === "LocalBusiness" && <Field label="Street address">{(id) => <input id={id} value={address} onChange={(e) => setAddress(e.target.value)} />}</Field>}
-          </>
+            {type === "LocalBusiness" && <div className="tpair-full"><Field label="Street address">{(id) => <input id={id} value={address} onChange={(e) => setAddress(e.target.value)} />}</Field></div>}
+          </div>
         )}
-        <p className="tnote">Paste inside the <code>&lt;head&gt;</code> of the page it describes.</p>
+        <div className="tplace">
+          <p className="tplace-h">Where to put it</p>
+          <ol>
+            <li><b>Copy the code</b> on the right.</li>
+            <li>
+              <b>Paste it inside the page&rsquo;s <code>&lt;head&gt;</code>.</b> That&rsquo;s the hidden part of the page&rsquo;s code, between <code>&lt;head&gt;</code> and <code>&lt;/head&gt;</code>: visitors never see it, but search engines read it. In WordPress, use your SEO plugin or a &ldquo;header code&rdquo; plugin; in Shopify, edit <code>theme.liquid</code>; in Wix or Squarespace, use the custom code setting for the head.
+            </li>
+            <li><b>Test it</b> with Google&rsquo;s Rich Results Test once it&rsquo;s live.</li>
+          </ol>
+          <p className="tplace-pages"><span className="tplace-tag">{where.tag}</span>{where.text}</p>
+        </div>
       </div>
       <Output text={out} filename="schema.html" />
     </div>
@@ -235,6 +260,16 @@ function Meter({ n, max, tone }: { n: number; max: number; tone: string }) {
 }
 
 /* ---------------- Security headers ---------------- */
+/* What each header does, in more depth, for the "Learn about every header" modal. */
+const HDR_INFO: Record<string, { what: string; careful: string }> = {
+  "Strict-Transport-Security": { what: "Tells browsers to always use HTTPS for your site, even when someone types http:// or follows an old link. This stops attackers on public Wi-Fi from downgrading the connection.", careful: "Browsers remember it for the max-age (here, one year). Only turn it on once every page and subdomain works on HTTPS." },
+  "X-Content-Type-Options": { what: "Makes browsers trust the file type your server declares instead of guessing. This stops a file that looks like an image from being run as a script.", careful: "Safe to turn on for almost every site." },
+  "X-Frame-Options": { what: "Stops other websites showing your pages inside a frame. This blocks “clickjacking”, where a hidden copy of your page tricks people into clicking its buttons.", careful: "If you embed your own pages in an iframe on another domain, use Content-Security-Policy frame-ancestors instead." },
+  "Referrer-Policy": { what: "Controls how much of your page address is passed on when a visitor clicks a link to another site. This setting sends only your domain, not the full path.", careful: "Safe for almost every site. Analytics still sees which site sent the visit." },
+  "Permissions-Policy": { what: "Switches off browser features your site doesn't use, such as the camera, microphone and location. A script that sneaks onto the page can't then ask for them.", careful: "If a page needs one of these (a store finder that uses location, say), remove it from the list." },
+  "Content-Security-Policy": { what: "Lists where scripts, images and other content may load from. If an attacker injects a script, the browser refuses to run it because it isn't on the list.", careful: "The strongest header, and the easiest to break things with. Add every outside service you use (analytics, fonts, chat widgets), and try it first as Content-Security-Policy-Report-Only." },
+};
+
 const HDRS: [string, string, string][] = [
   ["Strict-Transport-Security", "max-age=31536000; includeSubDomains", "Forces HTTPS (only enable once your whole site works on HTTPS)"],
   ["X-Content-Type-Options", "nosniff", "Stops browsers guessing file types"],
@@ -248,6 +283,7 @@ type Host = "netlify" | "nginx" | "apache" | "vercel";
 export function Headers({ ctx }: { ctx: Ctx }) {
   const [host, setHost] = useState<Host>(ctx?.hostKind ?? "netlify");
   const [on, setOn] = useState<Set<number>>(new Set([0, 1, 2, 3, 4]));
+  const [learn, setLearn] = useState(false);
   const sel = HDRS.filter((_, i) => on.has(i));
   const toggle = (i: number) =>
     setOn((s) => {
@@ -263,8 +299,11 @@ export function Headers({ ctx }: { ctx: Ctx }) {
     : JSON.stringify({ headers: [{ source: "/(.*)", headers: sel.map(([key, value]) => ({ key, value })) }] }, null, 2) + "\n";
   const file = { netlify: "_headers", nginx: "nginx-headers.conf", apache: ".htaccess", vercel: "vercel.json" }[host];
   return (
-    <div className="tgrid">
+    <div className="tgrid even">
       <div className="tform">
+        <p className="tintro">
+          Pick your host and the headers to send. <button type="button" className="tlearn" onClick={() => setLearn(true)}>Learn about every header</button>
+        </p>
         <Field label="Your host">
           {(id) => (
             <select id={id} value={host} onChange={(e) => setHost(e.target.value as Host)}>
@@ -276,16 +315,52 @@ export function Headers({ ctx }: { ctx: Ctx }) {
           )}
         </Field>
         <fieldset className="tchecks">
-          <legend>Headers to add</legend>
-          {HDRS.map(([k, , d], i) => (
-            <label key={k}>
-              <input type="checkbox" checked={on.has(i)} onChange={() => toggle(i)} />
-              <span><b>{k}</b> <small>{d}</small></span>
-            </label>
-          ))}
+          <legend>Headers to add <small>{sel.length} of {HDRS.length} selected</small></legend>
+          <div className="tscroll" tabIndex={0} role="group" aria-label="Headers to add">
+            {HDRS.map(([k, , d], i) => (
+              <label key={k}>
+                <input type="checkbox" checked={on.has(i)} onChange={() => toggle(i)} />
+                <span><b>{k}</b> <small>{d}</small></span>
+              </label>
+            ))}
+          </div>
         </fieldset>
       </div>
-      <Output text={out} filename={file} />
+      <Output text={out} filename={file} scroll />
+      <HeaderGuide open={learn} onClose={() => setLearn(false)} />
     </div>
+  );
+}
+
+/* "Learn about every header": what each one does, the value we suggest, and what to watch out for.
+   Closes with the ×, Esc or a click outside. */
+function HeaderGuide({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+  return (
+    <dialog ref={ref} className="thg" aria-labelledby="thg-h" onClose={onClose} onClick={(e) => onBackdrop(e, onClose)}>
+      <div className="thg-head">
+        <div>
+          <h2 id="thg-h">Every security header, explained</h2>
+          <p>Headers are short instructions your server sends with each page. Browsers follow them to keep your visitors safe.</p>
+        </div>
+        <ModalX onClick={onClose} />
+      </div>
+      <ol className="thg-list">
+        {HDRS.map(([k, v]) => (
+          <li key={k}>
+            <h3>{k}</h3>
+            <p>{HDR_INFO[k].what}</p>
+            <p className="thg-val"><span>Suggested value</span><code>{v}</code></p>
+            <p className="thg-care"><b>Watch out:</b> {HDR_INFO[k].careful}</p>
+          </li>
+        ))}
+      </ol>
+    </dialog>
   );
 }

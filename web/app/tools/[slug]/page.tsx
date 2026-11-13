@@ -9,8 +9,6 @@ import { TONE, ToolIcon } from "../icons";
 import { ToolView } from "../tool-view";
 import { ToolSample } from "../samples";
 import { ToolSteps } from "../tool-steps";
-import { AllToolsBanner, ToolCard } from "../tool-card";
-import { Arrow } from "../../arrow";
 
 const STEPS: Record<"checker" | "generator", [string, string][]> = {
   checker: [
@@ -62,7 +60,6 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function ToolPage({ params }: { params: Promise<{ slug: string }> }) {
   const t = TOOLS_BY_SLUG.get((await params).slug as ToolSlug);
   if (!t) notFound();
-  const related = TOOL_LIST.filter((x) => x.category === t.category && x.slug !== t.slug).concat(TOOL_LIST.filter((x) => x.category !== t.category)).slice(0, 3);
   const tone = TONE[t.category];
   return (
     <>
@@ -141,17 +138,6 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
                 ))}
               </div>
             </div>
-          </div>
-          <div className="container">
-            <h2 className="trel-h">More free tools</h2>
-            <ul className="tf-feat trel-feat">
-              {related.map((r, i) => (
-                <li key={r.slug} style={{ ["--i" as string]: i }}>
-                  <ToolCard t={r} />
-                </li>
-              ))}
-            </ul>
-            <AllToolsBanner />
           </div>
         </section>
         <CtaBand title="Want the full picture?" text="This tool checks one thing. A free Pagelyt scan checks speed, SEO, AI readiness, security and more, and tells you what to fix first." />

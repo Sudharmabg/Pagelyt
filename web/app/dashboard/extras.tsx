@@ -9,7 +9,7 @@ import type { Finding, ModuleKey } from "@/lib/scan/types";
 /* Command palette + keyboard shortcuts                                 */
 /* ------------------------------------------------------------------ */
 
-export type Cmd = { id: string; label: string; hint?: string; group: "Go to" | "Actions" | "Findings"; icon?: ModuleKey; run: () => void };
+export type Cmd = { id: string; label: string; hint?: string; group: "Go to" | "Tools" | "Actions" | "Findings"; icon?: ModuleKey; run: () => void };
 
 export function CommandPalette({ open, onClose, cmds }: { open: boolean; onClose: () => void; cmds: Cmd[] }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -128,8 +128,8 @@ export function ShortcutHelp({ open, onClose }: { open: boolean; onClose: () => 
   }, [open]);
   const rows: [string, string][] = [
     ["Ctrl / ⌘ K  or  /", "Open the command palette"],
-    ["1 – 9", "Switch between Overview, All findings and each area"],
-    ["← / →", "Previous / next section"],
+    ["1 – 9", "Jump to the first nine sections in the sidebar"],
+    ["← / →", "Previous / next section in the sidebar"],
     ["J / K", "Move down / up through findings"],
     ["X", "Mark the highlighted finding as fixed"],
     ["?", "Show this help"],
