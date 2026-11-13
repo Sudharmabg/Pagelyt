@@ -7,6 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 import { checkEmail, checkLead, checkPassword } from "@/lib/validate";
 import { isDisposable } from "@/lib/disposable";
 import { CodeForm } from "./code-form";
+import { ModalX, onBackdrop } from "./modal-close";
 
 export type LeadInput = { name: string; email: string };
 
@@ -508,7 +509,8 @@ export function LeadModal({
   }
 
   return (
-    <dialog ref={ref} className="lead-modal" aria-labelledby="lead-h" onClose={onClose} onCancel={(e) => busy && e.preventDefault()}>
+    <dialog ref={ref} className="lead-modal" aria-labelledby="lead-h" onClose={onClose} onCancel={(e) => busy && e.preventDefault()} onClick={(e) => !busy && onBackdrop(e, onClose)}>
+      <ModalX onClick={onClose} disabled={busy} />
       {content}
     </dialog>
   );

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { ModalX, onBackdrop } from "../modal-close";
 
 type Brand = { id: string; name: string; logo_url: string | null; color: string; footer: string | null };
 type Made = { link: string; sentTo: string | null; mailFailed: boolean };
@@ -13,7 +14,7 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 /* "Share branded report": a modal that creates a client-facing link with your brand and none of ours,
    with a preview of the branded cover and (when emails are on) an optional email to the client.
    Only the signed-in owner sees it. The last link stays on screen until "Make another". */
-export function ShareReport({ scanId, host, score, canEmail }: { scanId: string; host: string; score: number; canEmail: boolean }) {
+export function ShareReport({ scanId, host, score, canEmail, onMade }: { scanId: string; host: string; score: number; canEmail: boolean; onMade?: () => void }) {
   const sb = supabaseBrowser();
   const ref = useRef<HTMLDialogElement>(null);
   const [signedIn, setSignedIn] = useState<boolean | undefined>(undefined);
@@ -74,6 +75,7 @@ export function ShareReport({ scanId, host, score, canEmail }: { scanId: string;
       const j = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(j.error || "Could not create the link.");
       setMade({ link: `${window.location.origin}${j.path}`, sentTo: j.sentTo ?? null, mailFailed: sending && !j.emailed });
+      onMade?.();
       setCopied(false);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not create the link.");
@@ -107,12 +109,12 @@ export function ShareReport({ scanId, host, score, canEmail }: { scanId: string;
         ref={ref}
         className="lead-modal share-modal"
         aria-labelledby="share-h"
-        onClick={(e) => e.target === e.currentTarget && ref.current?.close()} // a click on the backdrop closes it
+        onClick={(e) => onBackdrop(e, () => ref.current?.close())}
       >
         <div className="lm-body">
           <div className="sm-top">
             <h2 id="share-h">Share branded report</h2>
-            <button type="button" className="sm-x" onClick={() => ref.current?.close()} aria-label="Close">×</button>
+            <ModalX onClick={() => ref.current?.close()} />
           </div>
 
           <div className="sm-grid">

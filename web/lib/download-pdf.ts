@@ -1,6 +1,7 @@
 /* Client helper: ask the server for a branded PDF and save it. When server PDFs are unavailable (free plan,
-   Browser Rendering not configured, or an error), fall back to the browser's own print dialog. */
-export async function downloadPdf(body: { scanId?: string; token?: string }, accessToken?: string): Promise<void> {
+   Browser Rendering not configured, or an error), fall back to the browser's own print dialog (of `printUrl`
+   when given). */
+export async function downloadPdf(body: { scanId?: string; token?: string }, accessToken?: string, printUrl?: string): Promise<void> {
   try {
     const r = await fetch("/api/report/pdf", {
       method: "POST",
@@ -21,5 +22,13 @@ export async function downloadPdf(body: { scanId?: string; token?: string }, acc
   } catch {
     /* fall through to print */
   }
+  // From the dashboard, print the full report page rather than whatever section is on screen.
+  if (printUrl) {
+    if (!window.open(printUrl, "_blank")) window.location.assign(printUrl);
+    return;
+  }
   window.print();
 }
+
+/** The full report, laid out for print, that opens the print window by itself. */
+export const fullReportPrintUrl = (scanId: string) => `/print/${encodeURIComponent(scanId)}?auto=1`;

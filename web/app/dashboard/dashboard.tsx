@@ -14,7 +14,7 @@ import { RescanButton } from "./rescan";
 import { ActionModal, Tile } from "./action-modal";
 import { AGENCY_UPSELL, AgencyModal, useAccount } from "./agency-modal";
 import { CompareButton } from "./compare-button";
-import { downloadPdf } from "@/lib/download-pdf";
+import { downloadPdf, fullReportPrintUrl } from "@/lib/download-pdf";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { firstName, useSignedInUser } from "@/lib/use-signed-in";
 import { AuthLink } from "../auth-link";
@@ -376,7 +376,31 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const at = order.indexOf(view);
   const prevView = at > 0 ? order[at - 1] : null;
   const nextView = at < order.length - 1 ? order[at + 1] : null;
-  const groupOf = (v: View) => (v === "all" ? "Findings" : v in MODULE_NAMES ? "Areas" : INSIGHTS.some((s) => s.id === v) ? "Insights" : "Grow");
+  const groupOf = (v: View) => (v === "overview" ? "Start" : v === "all" ? "Findings" : v in MODULE_NAMES ? "Areas" : INSIGHTS.some((s) => s.id === v) ? "Insights" : "Grow");
+
+  const iconOf = (v: View): IconKey => (v === "overview" ? "overview" : v === "all" ? "list" : v in MODULE_NAMES ? (v as IconKey) : SECTIONS.get(v)!.icon);
+  const hintOf = (v: View) => {
+    if (v === "overview") return "Your score, top issues and what to do next";
+    if (v === "all") return `Every finding in one list (${scan.findings.length})`;
+    if (v in MODULE_NAMES) {
+      const m = modules.find((x) => x.key === v);
+      const n = scan.findings.filter((f) => f.module === v).length;
+      return `${m ? `${m.score}/100 · ` : ""}${n === 0 ? "No issues" : `${n} issue${n === 1 ? "" : "s"}`}`;
+    }
+    return SECTIONS.get(v)!.text;
+  };
+  // A Previous / Next card: the section's icon, its group, name and a one-line hint of what's inside.
+  const pnCard = (v: View, dir: "prev" | "next", end = false) => (
+    <button type="button" className={`dpn-card ${dir}${end ? " end" : ""}`} onClick={() => setView(v)} aria-label={end ? "You've reached the end. Back to overview" : `${dir === "prev" ? "Previous" : "Next"}: ${labelOf(v)}`}>
+      <span className="dpn-arrow" aria-hidden="true">{dir === "prev" ? "←" : end ? "↺" : "→"}</span>
+      <span className="dpn-ico" aria-hidden="true"><AreaIcon k={iconOf(v)} size={20} /></span>
+      <span className="dpn-txt">
+        <small>{end ? "You've seen it all" : `${dir === "prev" ? "Previous" : "Next"} · ${groupOf(v)}`}</small>
+        <b>{end ? "Back to overview" : labelOf(v)}</b>
+        <span className="dpn-hint">{hintOf(v)}</span>
+      </span>
+    </button>
+  );
 
   const onToggle = (key: string) => {
     if (!canEdit) return; // viewers cannot change a report
@@ -388,7 +412,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     toggle(key);
   };
 
-  useShortcuts({ openPalette: () => setPalette(true), openHelp: () => setHelp(true), views: order, setView: (v) => setView(v as View), toggleKey: onToggle });
+  useShortcuts({ openPalette: () => setPalette(true), openHelp: () => setHelp(true), views: order, setView: (v) => setView(v as View), toggleKey: onToggle, step: (d) => { const v = d < 0 ? prevView : nextView; if (v) setView(v); } });
 
   const cmds: Cmd[] = [
     { id: "v-overview", label: "Overview", group: "Go to", icon: "health", run: () => setView("overview") },
@@ -415,11 +439,16 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
 
   const [pdfBusy, setPdfBusy] = useState(false);
   // Paid owners get the server-rendered branded PDF; everyone else (and any failure) uses print-to-PDF.
+  // Both include every issue: the print fallback opens the full report layout, not the section on screen.
   const pdf = async () => {
-    if (access !== "owner" || !acct?.paid) return window.print();
+    if (access !== "owner" || !acct?.paid) {
+      const url = fullReportPrintUrl(scan.id);
+      if (!window.open(url, "_blank")) window.location.assign(url);
+      return;
+    }
     setPdfBusy(true);
     const t = (await supabaseBrowser()?.auth.getSession())?.data.session?.access_token;
-    await downloadPdf({ scanId: scan.id }, t);
+    await downloadPdf({ scanId: scan.id }, t, fullReportPrintUrl(scan.id));
     setPdfBusy(false);
   };
 
@@ -656,7 +685,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
       );
     else if (s.id === "tools") content = toolCtx && <DashTools ctx={toolCtx} />;
     else if (!owner) content = signInNote;
-    else if (s.id === "monitor") content = access === "local" ? empty("Saving sites needs accounts, which aren't switched on here.") : <SaveSite scanId={scan.id} inline />;
+    else if (s.id === "monitor") content = access === "local" ? empty("Saving sites needs accounts, which aren't switched on here.") : <SaveSite scanId={scan.id} host={scan.host} />;
     else if (s.id === "ai")
       content = (
         <div className="panel sec-cta">
@@ -676,10 +705,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
       );
     else if (s.id === "compare")
       content = (
-        <div className="panel sec-cta">
-          <p>Each competitor is scanned like any other site (about a minute each) and counts towards your scan limit.</p>
-          {access === "owner" ? <CompareButton scanId={scan.id} host={scan.host} paid={!!acct?.paid} /> : empty("Comparisons need accounts, which aren't switched on here.")}
-        </div>
+        access === "owner" ? <CompareButton scanId={scan.id} host={scan.host} paid={!!acct?.paid} overall={scan.overall} modules={modules} /> : empty("Comparisons need accounts, which aren't switched on here.")
       );
     else if (s.id === "share") content = <BrandShare scanId={scan.id} host={scan.host} score={scan.overall} canEmail={!!canEmail} owner={access === "owner"} />;
     body = (
@@ -719,7 +745,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           fixed={fixed}
           pdfBusy={pdfBusy}
           pdfLabel={pdfBusy ? "Preparing PDF…" : access === "owner" && acct?.paid ? "Download PDF" : "Save as PDF"}
-          pdfText={access === "owner" && acct?.paid ? "A branded PDF of the whole report, made on our servers." : "Opens your browser's print window; choose Save as PDF."}
+          pdfText={access === "owner" && acct?.paid ? "A branded PDF of the whole report, made on our servers." : "The full report with every issue. Your browser's print window opens; choose Save as PDF."}
           onPdf={() => {
             setModal(null);
             void pdf();
@@ -806,18 +832,13 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           )}
           {body}
           <nav className="dash-pn" aria-label="Previous and next section">
-            {prevView ? (
-              <button type="button" onClick={() => setView(prevView)}>
-                <small>← Previous</small>
-                {labelOf(prevView)}
-              </button>
-            ) : <span />}
-            {nextView && (
-              <button type="button" className="next" onClick={() => setView(nextView)}>
-                <small>Next →</small>
-                {labelOf(nextView)}
-              </button>
-            )}
+            {prevView ? pnCard(prevView, "prev") : <span className="dpn-gap" />}
+            <div className="dpn-mid" aria-hidden="true">
+              <span className="dpn-count">{at + 1} <small>of {order.length}</small></span>
+              <span className="dpn-bar"><i style={{ width: `${((at + 1) / order.length) * 100}%` }} /></span>
+              <span className="dpn-keys"><kbd>←</kbd><kbd>→</kbd> keys</span>
+            </div>
+            {nextView ? pnCard(nextView, "next") : pnCard("overview", "next", true)}
           </nav>
         </main>
       </div>

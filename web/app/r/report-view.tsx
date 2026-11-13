@@ -21,6 +21,9 @@ export function ReportView({ brand, res, ai, showDetails, pdfToken }: { brand: R
   const name = brand?.name ?? "Website report";
   const when = new Date(res.scannedAt).toLocaleDateString("en-GB", { dateStyle: "long", timeZone: "UTC" });
   const high = res.findings.filter((f) => f.severity === "high").length;
+  const medium = res.findings.filter((f) => f.severity === "medium").length;
+  const low = res.findings.length - high - medium;
+  const site = httpUrl(res.url) ?? `https://${res.host}`;
   const item = (f: Finding) => (
     <li key={f.module + f.id + f.title} className={`br-f sev-${f.severity}`}>
       <div className="br-f-top">
@@ -32,11 +35,27 @@ export function ReportView({ brand, res, ai, showDetails, pdfToken }: { brand: R
       {showDetails && (
         <p className="br-fix"><strong>How to fix:</strong> {f.fix}</p>
       )}
+      {showDetails && <Evidence f={f} />}
     </li>
   );
 
   return (
     <div className="br" style={{ ["--brand" as string]: color }}>
+      {/* The table only matters in print: its footer repeats at the bottom of every PDF page. */}
+      <table className="br-pt" role="presentation">
+      <tfoot>
+        <tr>
+          <td>
+            <div className="br-made">
+              <span>Website report by <b>Pagelyt</b> · <a href="https://pagelyt.dev">pagelyt.dev</a></span>
+              <span>{res.host} · <a href={site}>{site.replace(/^https?:\/\//, "").replace(/\/$/, "")}</a></span>
+            </div>
+          </td>
+        </tr>
+      </tfoot>
+      <tbody>
+      <tr>
+      <td>
       <header className="br-head">
         {brand?.logo_url ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -51,11 +70,12 @@ export function ReportView({ brand, res, ai, showDetails, pdfToken }: { brand: R
         <section className="br-hero" aria-labelledby="br-h1">
           <p className="br-kicker">Website report · {when}</p>
           <h1 id="br-h1">{res.host}</h1>
+          <p className="br-site"><a href={site}>{site.replace(/\/$/, "")}</a></p>
           <div className="br-score">
             <Ring v={res.overall} size={150} stroke={14} />
             <div>
               <p className={`br-verdict t-${tone(res.overall)}`}>{res.overall >= 80 ? "In great shape" : res.overall >= 65 ? "In good shape" : "Room to grow"}</p>
-              <p>{res.findings.length === 0 ? "No issues found." : `${res.findings.length} findings${high ? `, ${high} important` : ""}. Ordered by importance below.`}</p>
+              <p>{res.findings.length === 0 ? "No issues found." : `${res.findings.length} issue${res.findings.length === 1 ? "" : "s"}: ${high} important, ${medium} worth fixing, ${low} minor. All listed below, most important first.`}</p>
             </div>
           </div>
         </section>
@@ -109,6 +129,31 @@ export function ReportView({ brand, res, ai, showDetails, pdfToken }: { brand: R
         </div>
         {brand?.show_powered_by && <span className="br-powered">Powered by Pagelyt</span>}
       </footer>
+      </td>
+      </tr>
+      </tbody>
+      </table>
     </div>
   );
+}
+
+/* Where the issue was found: every affected page (up to 50 in print, the rest counted; the CSV has them all),
+   or the short evidence text on older reports. */
+const PAGES_SHOWN = 50;
+function Evidence({ f }: { f: Finding }) {
+  const rows = f.pages?.rows ?? [];
+  if (rows.length) {
+    return (
+      <div className="br-ev">
+        <strong>Affected pages ({rows.length})</strong>
+        <ul>
+          {rows.slice(0, PAGES_SHOWN).map((r, i) => (
+            <li key={r.url + i}><span>{r.url}</span>{r.cells.filter(Boolean).length > 0 && <small>{r.cells.filter(Boolean).join(" · ")}</small>}</li>
+          ))}
+        </ul>
+        {rows.length > PAGES_SHOWN && <p>and {rows.length - PAGES_SHOWN} more (every page is in the CSV export).</p>}
+      </div>
+    );
+  }
+  return f.evidence ? <p className="br-ev-t"><strong>Evidence:</strong> {f.evidence}</p> : null;
 }

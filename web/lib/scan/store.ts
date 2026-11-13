@@ -222,13 +222,14 @@ export const nextRun = (cadence: Site["cadence"], from = Date.now()) =>
   cadence === "none" ? null : new Date(from + STEP[cadence] * 86_400_000).toISOString();
 
 /** Save (or update) a site for a user and attach the scan to it. Returns the site, or null in memory mode. */
-export async function saveSite(userId: string, scan: { id: string; host: string; url: string }, opts: { cadence?: Site["cadence"]; uptime?: boolean }): Promise<Site | null> {
+export async function saveSite(userId: string, scan: { id: string; host: string; url: string }, opts: { cadence?: Site["cadence"]; uptime?: boolean; alerts?: boolean }): Promise<Site | null> {
   if (!live()) return null;
   // Only send the schedule and uptime when the caller chose them. A plain "save this report" (after a signed-in
   // scan or a rescan) must keep an existing site's settings; a new site gets the table defaults (none, off).
   const settings = {
     ...(opts.cadence !== undefined ? { cadence: opts.cadence, next_run_at: nextRun(opts.cadence) } : {}),
     ...(opts.uptime !== undefined ? { uptime: opts.uptime } : {}),
+    ...(opts.alerts !== undefined ? { alerts: opts.alerts } : {}),
   };
   const rows = await rest<Site[]>("sites?on_conflict=user_id,host", {
     method: "POST",

@@ -59,16 +59,7 @@ export function BrandShare({ scanId, host, score, canEmail, owner }: { scanId: s
       </div>
 
       <div id="bs-panel" role="tabpanel" aria-labelledby={`bs-tab-${tab}`} className="bs-panel" key={tab}>
-        {tab === "share" && (
-          <div className="panel sec-cta">
-            <p>Your client sees your logo, colours and contact details, and nothing of Pagelyt. Set up your brand once, then share any report in a click.</p>
-            <div className="sec-row">
-              {owner && <ShareReport scanId={scanId} host={host} score={score} canEmail={canEmail} />}
-              <button type="button" className="dash-btn" onClick={() => pick("brand")}>Brand settings</button>
-              <button type="button" className="dash-btn" onClick={() => pick("sample")}>See a sample</button>
-            </div>
-          </div>
-        )}
+        {tab === "share" && <ShareTab scanId={scanId} host={host} score={score} canEmail={canEmail} owner={owner} onBrand={() => pick("brand")} onSample={() => pick("sample")} />}
         {tab === "brand" && (
           <div className="bs-brand">
             <BrandEditor embedded />
@@ -122,6 +113,114 @@ function Sample({ onBrand, onShare }: { onBrand: () => void; onShare: () => void
         <div className={`bs-frame${loaded ? " in" : ""}`}>
           {!loaded && <span className="bs-skel" aria-hidden="true" />}
           <iframe title="Sample white-label report" src={src} loading="lazy" onLoad={() => setLoaded(true)} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+type Link_ = { token: string; created_at: string; revoked: boolean; expires_at: string | null };
+type BrandRow = { name: string; color: string; logo_url: string | null };
+const HEX = /^#[0-9a-fA-F]{6}$/;
+const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+
+/* Share report tab: the share button with how it works, a live preview of the brand the client will see, and the
+   links already made for this report (copy or withdraw each one). */
+function ShareTab({ scanId, host, score, canEmail, owner, onBrand, onSample }: { scanId: string; host: string; score: number; canEmail: boolean; owner: boolean; onBrand: () => void; onSample: () => void }) {
+  const [brand, setBrand] = useState<BrandRow | null | undefined>(() => (supabaseBrowser() ? undefined : null));
+  const [links, setLinks] = useState<Link_[]>([]);
+  const [copied, setCopied] = useState("");
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    const sb = supabaseBrowser();
+    if (!sb) return;
+    let live = true;
+    sb.from("brands").select("name,color,logo_url").order("created_at").limit(1)
+      .then(({ data }) => live && setBrand(((data as BrandRow[] | null) ?? [])[0] ?? null), () => live && setBrand(null));
+    if (owner)
+      sb.from("shared_reports").select("token,created_at,revoked,expires_at").eq("scan_id", scanId).order("created_at", { ascending: false }).limit(10)
+        .then(({ data }) => live && setLinks((data as Link_[] | null) ?? []));
+    return () => { live = false; };
+  }, [scanId, owner, tick]);
+
+  const url = (t: string) => `${window.location.origin}/r/${t}`;
+  const copy = async (t: string) => {
+    try {
+      await navigator.clipboard.writeText(url(t));
+      setCopied(t);
+      window.setTimeout(() => setCopied(""), 1800);
+    } catch { /* the link is still on screen to copy by hand */ }
+  };
+  const withdraw = async (t: string) => {
+    const { error } = (await supabaseBrowser()?.from("shared_reports").update({ revoked: true }).eq("token", t)) ?? {};
+    if (!error) setLinks((x) => x.map((l) => (l.token === t ? { ...l, revoked: true } : l)));
+  };
+  const color = brand && HEX.test(brand.color) ? brand.color : "#14202b";
+  const expired = (l: Link_) => !!l.expires_at && new Date(l.expires_at) < new Date();
+
+  return (
+    <div className="bs-share">
+      <div className="panel bs-share-main">
+        <h3>Send {host} to your client</h3>
+        <ol className="bs-how">
+          <li><b>Pick a brand</b><small>Your logo, colour and contact details. Nothing of Pagelyt.</small></li>
+          <li><b>Choose what to include</b><small>How-to-fix steps, AI visibility, and when the link expires.</small></li>
+          <li><b>Send it</b><small>Copy the link, or email it to your client with a note.</small></li>
+        </ol>
+        <div className="sec-row">
+          {owner && <ShareReport scanId={scanId} host={host} score={score} canEmail={canEmail} onMade={() => setTick((n) => n + 1)} />}
+          <button type="button" className="dash-btn" onClick={onSample}>See a sample</button>
+        </div>
+      </div>
+
+      <figure className="panel bs-live" aria-label="Preview of your brand">
+        <div className="brand-preview" style={{ ["--brand" as string]: color }}>
+          <div className="bp-head">
+            {brand?.logo_url?.startsWith("https://") ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={brand.logo_url} alt="" height={28} />
+            ) : (
+              <b>{brand?.name || "Your brand"}</b>
+            )}
+            <span className="bp-btn">Download PDF</span>
+          </div>
+          <div className="bp-body">
+            <small>Website report</small>
+            <strong>{host}</strong>
+            <p className="sm-score"><b>{score}</b> / 100</p>
+            <div className="bp-bar"><i style={{ width: `${Math.max(4, Math.min(100, score))}%` }} /></div>
+          </div>
+        </div>
+        <figcaption>
+          {brand ? <>Shown with your <b>{brand.name}</b> brand. </> : brand === null ? "No brand yet. " : "Loading your brand… "}
+          <button type="button" className="fnd-link" onClick={onBrand}>{brand ? "Edit brand" : "Set up your brand"}</button>
+        </figcaption>
+      </figure>
+
+      {owner && links.length > 0 && (
+        <div className="panel bs-links">
+          <h3>Links you&rsquo;ve shared for this report</h3>
+          <ul>
+            {links.map((l) => {
+              const off = l.revoked || expired(l);
+              return (
+                <li key={l.token} className={off ? "off" : ""}>
+                  <span className="bs-l-main">
+                    <code>/r/{l.token.slice(0, 10)}…</code>
+                    <small>Made {day(l.created_at)} · {l.revoked ? "Withdrawn" : expired(l) ? "Expired" : l.expires_at ? `Expires ${day(l.expires_at)}` : "Never expires"}</small>
+                  </span>
+                  {!off && (
+                    <span className="bs-l-act">
+                      <a className="dash-btn" href={url(l.token)} target="_blank" rel="noopener noreferrer">Open</a>
+                      <button type="button" className="dash-btn" onClick={() => void copy(l.token)}>{copied === l.token ? "Copied" : "Copy"}</button>
+                      <button type="button" className="fnd-link" onClick={() => void withdraw(l.token)}>Withdraw</button>
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
         </div>
       )}
     </div>

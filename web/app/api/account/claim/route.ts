@@ -8,7 +8,7 @@ export async function POST(req: Request) {
   if (!user) return Response.json({ error: "Please sign in first." }, { status: 401 });
   if (storeMode() !== "supabase") return Response.json({ error: "Accounts need Supabase to be configured." }, { status: 501 });
 
-  let body: { scanId?: string; cadence?: Site["cadence"]; uptime?: boolean };
+  let body: { scanId?: string; cadence?: Site["cadence"]; uptime?: boolean; alerts?: boolean };
   try {
     body = await req.json();
   } catch {
@@ -22,7 +22,7 @@ export async function POST(req: Request) {
   if (scan.user_id && scan.user_id !== user.id) return Response.json({ error: "This report belongs to another account." }, { status: 403 });
 
   try {
-    const site = await saveSite(user.id, { id: scan.id, host: scan.host, url: scan.url }, { cadence: body.cadence || undefined, uptime: typeof body.uptime === "boolean" ? body.uptime : undefined });
+    const site = await saveSite(user.id, { id: scan.id, host: scan.host, url: scan.url }, { cadence: body.cadence || undefined, uptime: typeof body.uptime === "boolean" ? body.uptime : undefined, alerts: typeof body.alerts === "boolean" ? body.alerts : undefined });
     return Response.json({ site });
   } catch {
     return Response.json({ error: "Could not save the site. Please try again." }, { status: 500 });

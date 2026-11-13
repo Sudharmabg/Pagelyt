@@ -103,7 +103,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `email.ts` | `emailsOn`, `sendEmail`, `headerName`, `escapeHtml` | Resend; on only when `EMAILS_ON=1` and `RESEND_API_KEY` are set |
 | `requests.ts` | `checkRequest`, `saveRequest`, `listRequests`, `setRequestStatus` | Consultation and contact requests |
 | `pdf.ts` | `renderPdf`, `withBrowser`, `NoBrowser` | Server PDF through Cloudflare Browser Rendering (opens `/print/[id]`). `withBrowser` opens and always closes a browser session (also used by raw vs rendered) |
-| `download-pdf.ts` | `downloadPdf` | Client: fetch the PDF, or fall back to the browser's print |
+| `download-pdf.ts` | `downloadPdf`, `fullReportPrintUrl` | Client: fetch the PDF, or fall back to printing (`printUrl`: the dashboard opens `/print/[id]?auto=1`, so every issue is in it) |
 | `run-scan.ts` | `beginScan` (start only; `fresh` skips the 10-min cache), `runScan`, `stepScan` (callback gets `StepInfo` with `areas`) | Starts scans and drives their stages from the browser |
 
 ## API routes (`app/api/`)
@@ -116,7 +116,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `auth/signup`, `auth/login`, `auth/verify`, `auth/resend`, `auth/forgot` | Sign-up, password sign-in, 6-digit code check, resend the code, reset link |
 | `auth/site` POST | Asks whether a site is already registered (a known site forces login) |
 | `sites/claim` POST | Ownership proof for a site registered to another account |
-| `account/claim` | Save a report to the account and make it the saved site's latest scan. Changes the schedule and uptime only when `cadence` / `uptime` are sent |
+| `account/claim` | Save a report to the account and make it the saved site's latest scan. Changes the schedule, uptime and email alerts only when `cadence` / `uptime` / `alerts` are sent |
 | `account/claim-leads` | After confirmation, attach earlier scans made with that email |
 | `account/sites` | Agency overview data |
 | `account/type` | Plan, and the "are you an agency?" answer |
@@ -148,28 +148,29 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 - `dashboard.tsx` (`Dashboard`): the main report.
   - The open section is `?view=` in the URL, via `history.pushState` and `useSearchParams`. Values: `overview`, `all`, the area keys, the insights (`speed`, `pages`, `images`, `tech`, `changes`) and the Grow sections (`monitor`, `ai`, `compare`, `share`, `tools`).
   - `INSIGHTS` and `GROW` define the sections. The sidebar is grouped as Findings, Areas, Insights and Grow.
-  - Every section except the overview has a sticky "← Back to overview" button (`.back-btn`) and Previous / Next links (`.dash-pn`).
+  - Every section except the overview has a sticky "← Back to overview" button (`.back-btn`). Every section ends with Previous / Next cards (`pnCard`, `.dash-pn` / `.dpn-*`): icon, group, name and a hint, a "4 of 20" progress bar, and "Back to overview" after the last section. ← / → keys move between sections (`useShortcuts` `step`).
   - Header: Search, Rescan, Share, Export, More. Share, Export and More each open an `ActionModal` (`action-modal.tsx`) of option tiles; Share also shows the report link with a Copy button.
-  - Dashboard CTAs use the site's "Analyse My Website" lilac (`--cta`, `--cta-h` in the "Dashboard CTAs" block of globals.css): primary buttons at rest, every button on hover.
+  - Dashboard CTAs use the site's "Analyse My Website" lilac (`--cta`, `--cta-h` in the "Dashboard CTAs" block of globals.css): primary buttons at rest, every button on hover. The same lilac is the main colour for fills (`--d-main`, `--d-main-tint`, `--d-grad` in the "Main colour" block): active nav item, tabs, badges, icon tiles, always with dark ink. Small text keeps the deeper `--d-accent`.
   - The Overview has a "From this scan" card per insight section (five cards, laid out 3 + 2) (headline number from `sectionStats`) and a "Do more with this report" list of action rows (`.do-more`). `pitchFor` writes each row's headline, short line and button verb from this report and ranks them. Insight and area headers show `sectionStats` as a stat row, with Why it matters folded (`WhyItMatters`). Colours come from the `--d-*` tokens on `.dash` (redefined for `.dash.dark`), in the "Dashboard refresh" block at the end of globals.css.
   - `useSiteId` finds the saved site, for the AI visibility link.
-- `panels.tsx`: `FindingsExplorer`, `ExportTiles` (PDF, checklist, CSV and JSON tiles for the Export modal), `VitalsPanel` (plain-English summary, loading timeline, metric cards with a scale and a "what this means" panel), `useInView`, `CrawlPanel`, `ImagesPanel`, `QuickWins`, `ChangePanel`, `ComparePanel`, `DomainPanel`, `TechPanel`, `HowScores`, `useHistory`.
+- `panels.tsx`: `FindingsExplorer`, `ExportTiles` (PDF, checklist, CSV and JSON tiles for the Export modal; every export has every issue, most important first, with a summary and where each was found), `VitalsPanel` (plain-English summary, loading timeline, metric cards with a scale and a "what this means" panel), `useInView`, `CrawlPanel`, `ImagesPanel`, `QuickWins`, `ChangePanel`, `ComparePanel`, `DomainPanel`, `TechPanel`, `HowScores`, `useHistory`.
 - `action-modal.tsx`: `ActionModal` (a `<dialog>` with title and tile grid; a bottom sheet on phones) and `Tile`.
+- `../modal-close.tsx`: `ModalX` (the × every modal uses) and `onBackdrop` (close on a click outside the dialog's box). Every modal closes with ×, Esc or a click outside, except while busy and the email-code lock in `pending.tsx`.
 - `extras.tsx`: `CommandPalette`, `useShortcuts`, `ShortcutHelp`.
 - `icons.tsx`: `AreaIcon` and `IconKey`, covering the areas plus the section icons.
 - Used inside the sections:
   - `share-report.tsx`: the share modal, with a brand preview and an optional email to the client.
-  - `save-site.tsx`: save the site with a schedule and alerts. `inline` shows it as a form instead of a drop-down.
-  - `compare-button.tsx`: scan competitors.
+  - `save-site.tsx`: `SaveSite`, the Save & monitor section: rescan cadence cards, uptime and email-alert switches, and a "what happens next" list; loads the saved site's settings when there is one.
+  - `compare-button.tsx`: `CompareButton`, the Compare competitors section on the page (no modal): up to three competitor URLs with progress for each scan, plus a preview of the comparison (`.rv-*` styles).
   - `rescan.tsx`: `RescanButton` runs a fresh scan in the background while the current report stays up (button reads "Scanning…"), saves it to the account, then opens the new report. Also runs a scan the home page started (`?scan=<id>`; `/api/scan` returns `prevId`, from `latestScanForHost` in `lib/scan/store.ts`).
-- `brand-share.tsx`: `BrandShare`, the Brand & share section: sub-tabs Share report, Brand settings (`BrandEditor embedded`) and Sample report (`/r/demo` in a frame with the owner's first brand). The tab is `?tab=` in the URL.
+- `brand-share.tsx`: `BrandShare`, the Brand & share section: sub-tabs Share report (`ShareTab`: how it works, the share button, a live preview of the first brand, and this report's share links to copy or withdraw), Brand settings (`BrandEditor embedded`) and Sample report (`/r/demo` in a frame with the owner's first brand). The tab is `?tab=` in the URL.
 - `agency-modal.tsx`: the "are you an agency?" question, plus `useAccount` (plan and paid status).
 
 **Reports:**
 - `r/[token]`: the white-label shared report.
-- `r/report-view.tsx`: presentational part of the report.
+- `r/report-view.tsx`: presentational part of the report. Lists every issue with a summary; with `showDetails`, the fix and affected pages (`Evidence`). In print, a footer on every page (a `<tfoot>` that repeats) shows "Website report by Pagelyt · pagelyt.dev" and the scanned site's link, white-label included.
 - `r/demo`: public sample.
-- `print/[id]`: print layout used for the PDF ("Prepared for").
+- `print/[id]`: print layout used for the PDF ("Prepared for"). `?auto=1` opens the print window (`auto-print.tsx`); the dashboard's free "Save as PDF" uses it.
 - `compare/[id]`: comparison page.
 - `findings.tsx`: plain-language findings list. A finding with `pages` shows them in a table under Technical details (first 10, then "Show all" in a 400px scroll box); older reports show the short evidence text.
 

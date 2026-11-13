@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { AreaIcon, type IconKey } from "./icons";
+import { ModalX } from "../modal-close";
 
 /* The modal behind the dashboard's Share, Export and More buttons: a title, an optional top slot (Share puts the
    report link there) and a grid of large option tiles. Built on <dialog>, so Escape, the backdrop and focus
@@ -23,7 +24,7 @@ export function ActionModal({ open, onClose, title, sub, icon, top, children }: 
       onClose={onClose}
       // A click on the backdrop (the dialog element itself, outside the card) closes it.
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) e.currentTarget.close();
       }}
     >
       <div className="am-card">
@@ -33,7 +34,7 @@ export function ActionModal({ open, onClose, title, sub, icon, top, children }: 
             <h2 id={`am-${icon}`}>{title}</h2>
             {sub && <p>{sub}</p>}
           </div>
-          <button type="button" className="am-x" aria-label="Close" onClick={onClose}>×</button>
+          <ModalX onClick={onClose} />
         </header>
         {top}
         <ul className="am-grid">{children}</ul>

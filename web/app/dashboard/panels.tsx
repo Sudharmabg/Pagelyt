@@ -120,12 +120,29 @@ export function ExportTiles({ scan, findings, fixed, pdfLabel, pdfText, onPdf, p
     window.setTimeout(() => setDone(""), 2200);
   };
   const open = findings.filter((f) => !fixed.has(findingKey(f))).length;
+  // Every issue, most important first, in every export.
+  const rank: Record<string, number> = { high: 0, medium: 1, low: 2 };
+  const all = [...findings].sort((a, b) => (rank[a.severity] ?? 3) - (rank[b.severity] ?? 3));
+  const count = (s: string) => findings.filter((f) => f.severity === s).length;
+  const summary = `${findings.length} issue${findings.length === 1 ? "" : "s"}: ${count("high")} important, ${count("medium")} worth fixing, ${count("low")} minor (${open} still open)`;
+  const sevName = (s: string) => (s === "high" ? "Important" : s === "medium" ? "Worth fixing" : "Minor");
   const checklist = () =>
     [
       `# Website fixes for ${scan.host}`,
-      `Score ${scan.overall}/100 · scanned ${scan.scannedAt.slice(0, 10)}`,
+      `${scan.url} · Score ${scan.overall}/100 · scanned ${scan.scannedAt.slice(0, 10)}`,
+      summary,
       "",
-      ...findings.map((f) => `- [${fixed.has(findingKey(f)) ? "x" : " "}] **${f.title}** (${f.severity}, ${MODULE_NAMES[f.module]})\n  - Why: ${f.why}\n  - Fix: ${f.fix}`),
+      ...all.map((f, i) => {
+        const ev = evidenceText(f);
+        return [
+          `- [${fixed.has(findingKey(f)) ? "x" : " "}] ${i + 1}. **${f.title}** (${sevName(f.severity)}, ${MODULE_NAMES[f.module]})`,
+          `  - Why: ${f.why}`,
+          `  - Fix: ${f.fix}`,
+          ...(ev ? [`  - Where: ${ev.split("\n").join("; ")}`] : []),
+        ].join("\n");
+      }),
+      "",
+      "Made with Pagelyt · https://pagelyt.dev",
     ].join("\n");
   const base = `pagelyt-${scan.host}-${scan.scannedAt.slice(0, 10)}`;
 
@@ -138,11 +155,12 @@ export function ExportTiles({ scan, findings, fixed, pdfLabel, pdfText, onPdf, p
         flash("copy-fail");
       }
     } else if (kind === "csv") {
-      const rows = [["Priority", "Area", "Issue", "Why it matters", "How to fix", "Evidence", "Fixed"], ...findings.map((f) => [f.severity, MODULE_NAMES[f.module], f.title, f.why, f.fix, evidenceText(f), fixed.has(findingKey(f)) ? "yes" : "no"])];
+      const rows = [["#", "Priority", "Area", "Issue", "Why it matters", "How to fix", "Affected pages", "Evidence", "Fixed"], ...all.map((f, i) => [String(i + 1), sevName(f.severity), MODULE_NAMES[f.module], f.title, f.why, f.fix, String(f.pages?.rows.length ?? ""), evidenceText(f), fixed.has(findingKey(f)) ? "yes" : "no"])];
       download(`${base}.csv`, "text/csv", rows.map((r) => r.map(csvCell).join(",")).join("\n"));
       flash("csv");
     } else {
-      download(`${base}.json`, "application/json", JSON.stringify(scan, null, 2));
+      const report = { generatedBy: "Pagelyt (https://pagelyt.dev)", site: scan.url, summary: { issues: findings.length, important: count("high"), worthFixing: count("medium"), minor: count("low"), open }, ...scan, findings: all.map((f) => ({ ...f, fixed: fixed.has(findingKey(f)) })) };
+      download(`${base}.json`, "application/json", JSON.stringify(report, null, 2));
       flash("json");
     }
   };
@@ -150,9 +168,9 @@ export function ExportTiles({ scan, findings, fixed, pdfLabel, pdfText, onPdf, p
   return (
     <>
       <Tile icon="pdf" title={pdfLabel} text={pdfText} onClick={onPdf} busy={pdfBusy} tone="accent" />
-      <Tile icon="check" title="Copy fix checklist" text={`${open} open fix${open === 1 ? "" : "es"} as a to-do list, ready to paste into Notion, Trello or an email.`} onClick={() => void run("copy")} done={done === "copy" ? "Copied to your clipboard" : done === "copy-fail" ? "Your browser blocked copying" : undefined} />
-      <Tile icon="table" title="Download CSV" text="Every finding with priority, fix and evidence, for Excel or Google Sheets." onClick={() => void run("csv")} done={done === "csv" ? "Downloaded" : undefined} />
-      <Tile icon="code" title="Download JSON" text="The full raw report, for developers and your own tools." onClick={() => void run("json")} done={done === "json" ? "Downloaded" : undefined} />
+      <Tile icon="check" title="Copy fix checklist" text={`All ${findings.length} issues (${open} still open) as a to-do list with where each was found, ready for Notion, Trello or an email.`} onClick={() => void run("copy")} done={done === "copy" ? "Copied to your clipboard" : done === "copy-fail" ? "Your browser blocked copying" : undefined} />
+      <Tile icon="table" title="Download CSV" text={`All ${findings.length} issues with priority, fix and every affected page, for Excel or Google Sheets.`} onClick={() => void run("csv")} done={done === "csv" ? "Downloaded" : undefined} />
+      <Tile icon="code" title="Download JSON" text={`The full raw report with all ${findings.length} issues and a summary, for developers and your own tools.`} onClick={() => void run("json")} done={done === "json" ? "Downloaded" : undefined} />
     </>
   );
 }

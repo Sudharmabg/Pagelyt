@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { ModalX, onBackdrop } from "../modal-close";
 
 /* Asked once, to the signed-in owner of a finished report: are you an agency?
    Agencies on a paid plan go to the agency dashboard; agencies on the free plan go to a consultation
@@ -62,8 +63,9 @@ export function AgencyModal({ onAnswered }: { onAnswered: (a: AccountInfo) => vo
   };
 
   return (
-    // Closing with Esc counts as "ask me later": nothing is saved, so the question comes back next time.
-    <dialog ref={ref} className="lead-modal agency-modal" aria-labelledby="agency-h">
+    // Closing (×, Esc or a click outside) counts as "ask me later": nothing is saved, so the question comes back next time.
+    <dialog ref={ref} className="lead-modal agency-modal" aria-labelledby="agency-h" onCancel={(e) => busy && e.preventDefault()} onClick={(e) => !busy && onBackdrop(e, () => ref.current?.close())}>
+      <ModalX onClick={() => ref.current?.close()} disabled={busy} label="Ask me later" />
       <div className="lm-body">
       <h2 id="agency-h">One quick question</h2>
       <p className="lm-sub">Are you an agency or freelancer managing websites for clients?</p>

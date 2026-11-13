@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { AreaIcon } from "./icons";
+import { ModalX, onBackdrop } from "../modal-close";
 import type { Finding, ModuleKey } from "@/lib/scan/types";
 
 /* ------------------------------------------------------------------ */
@@ -34,7 +35,8 @@ export function CommandPalette({ open, onClose, cmds }: { open: boolean; onClose
   };
 
   return (
-    <dialog ref={ref} className="cmdk" aria-label="Command palette" onClose={() => { setQ(""); setIdx(0); onClose(); }}>
+    <dialog ref={ref} className="cmdk" aria-label="Command palette" onClose={() => { setQ(""); setIdx(0); onClose(); }} onClick={(e) => onBackdrop(e, onClose)}>
+      <ModalX onClick={onClose} />
       <input
         autoFocus
         className="cmdk-in"
@@ -72,7 +74,7 @@ const typing = (t: EventTarget | null) => {
 };
 
 /** Global keys: Ctrl/Cmd+K palette, ? help, J/K move through findings, X toggles fixed, 1-9 switch area. */
-export function useShortcuts(o: { openPalette: () => void; openHelp: () => void; views: string[]; setView: (v: string) => void; toggleKey: (key: string) => void }) {
+export function useShortcuts(o: { openPalette: () => void; openHelp: () => void; views: string[]; setView: (v: string) => void; toggleKey: (key: string) => void; step?: (d: 1 | -1) => void }) {
   const ref = useRef(o);
   useEffect(() => {
     ref.current = o;
@@ -91,6 +93,11 @@ export function useShortcuts(o: { openPalette: () => void; openHelp: () => void;
       if (e.key === "/") {
         e.preventDefault();
         return r.openPalette();
+      }
+      // ← / → move to the previous / next section, unless focus is somewhere arrows already mean something.
+      if ((e.key === "ArrowLeft" || e.key === "ArrowRight") && !e.shiftKey && r.step && !(e.target as HTMLElement | null)?.closest?.('[role="tablist"], [role="slider"], [role="listbox"], select, .chip-rail, [data-arrows]')) {
+        e.preventDefault();
+        return r.step(e.key === "ArrowLeft" ? -1 : 1);
       }
       if (/^[1-9]$/.test(e.key) && r.views[Number(e.key) - 1]) return r.setView(r.views[Number(e.key) - 1]);
       const items = [...document.querySelectorAll<HTMLElement>(".dash-main .fnd")];
@@ -122,12 +129,14 @@ export function ShortcutHelp({ open, onClose }: { open: boolean; onClose: () => 
   const rows: [string, string][] = [
     ["Ctrl / ⌘ K  or  /", "Open the command palette"],
     ["1 – 9", "Switch between Overview, All findings and each area"],
+    ["← / →", "Previous / next section"],
     ["J / K", "Move down / up through findings"],
     ["X", "Mark the highlighted finding as fixed"],
     ["?", "Show this help"],
   ];
   return (
-    <dialog ref={ref} className="cmdk help" aria-labelledby="sc-h" onClose={onClose}>
+    <dialog ref={ref} className="cmdk help" aria-labelledby="sc-h" onClose={onClose} onClick={(e) => onBackdrop(e, onClose)}>
+      <ModalX onClick={onClose} />
       <h2 id="sc-h">Keyboard shortcuts</h2>
       <dl>
         {rows.map(([k, d]) => (
