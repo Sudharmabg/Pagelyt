@@ -94,7 +94,7 @@ export function ReportView({ brand, res, ai, showDetails, pdfToken }: { brand: R
         {ai && (
           <section className="br-ai" aria-labelledby="br-ai-h">
             <h2 id="br-ai-h">AI search visibility</h2>
-            <p className="br-note">How often AI assistants named {res.host} in their answers to {ai.prompts} test question{ai.prompts === 1 ? "" : "s"}. A sample, not a ranking: results vary by assistant, wording and location.</p>
+            <p className="br-note">How often ChatGPT named {res.host} in its answers to {ai.prompts} test question{ai.prompts === 1 ? "" : "s"}. A sample, not a ranking: results vary by wording, location and time.</p>
             <div className="br-ai-row">
               <div className="br-ai-big"><b>{ai.score ?? "–"}%</b><span>mentioned overall</span></div>
               {ai.byProvider.map((p) => (

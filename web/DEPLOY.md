@@ -31,6 +31,7 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
    npx wrangler secret put TURNSTILE_SECRET_KEY
    npx wrangler secret put PAGESPEED_API_KEY
    npx wrangler secret put RESEND_API_KEY         # optional: alert and client report emails
+   npx wrangler secret put OPENAI_API_KEY         # AI visibility (ChatGPT) and Pagelyt Assistant
    ```
    Emails stay off until you also set the variable `EMAILS_ON=1` (do that once the Resend domain is
    verified). One switch covers score alerts (`ALERT_FROM`, default `Pagelyt <alerts@pagelyt.dev>`) and
@@ -149,11 +150,19 @@ Security behaviour worth knowing:
 
 ## AI visibility tracking
 
-- Per site (`/account/visibility/<siteId>`): add the questions people ask, optional brand names and competitors, run a check, and see how often each AI system names and cites the site, average position, share of voice and a trend. Automatic weekly checks are paused until the cron Worker is rebuilt (see Phase 2).
-- Systems: Perplexity, ChatGPT (OpenAI) and Claude (Anthropic), each switched on by its API key secret. Each call uses the provider's web search, so it costs money: 5 questions × 3 systems × weekly is about 60 calls a month per site. Keep an eye on provider spend.
-- Honest limits: answers vary by assistant, wording, location and time, and API answers can differ from the consumer apps. A failed call is stored as an error and is never counted as "not named".
-- Request and response shapes follow each provider's public docs; if a provider changes its format, runs will show errors rather than wrong numbers. Parsers are covered by `node --experimental-strip-types --test lib/ai/*.test.ts`.
+- Per site (`/account/visibility/<siteId>`): add the questions people ask, optional brand names and competitors, run a check, and see how often ChatGPT names and cites the site, average position, share of voice and a trend. Automatic weekly checks are paused until the cron Worker is rebuilt (see Phase 2).
+- System: ChatGPT only, through the OpenAI Responses API with web search, switched on by the `OPENAI_API_KEY` secret. Model: `OPENAI_MODEL` (default `gpt-4.1-mini`). Each call uses web search, so it costs money: 5 questions weekly is about 20 calls a month per site. Keep an eye on OpenAI spend and set a monthly limit in the OpenAI dashboard.
+- Runs saved earlier from Perplexity or Claude stay in `ai_runs` but are hidden everywhere (page, shared reports).
+- Honest limits: answers vary by wording, location and time, and API answers can differ from the ChatGPT app. A failed call is stored as an error and is never counted as "not named".
+- Request and response shapes follow OpenAI's public docs; if the format changes, runs will show errors rather than wrong numbers. Parsers are covered by `node --experimental-strip-types --test lib/ai/*.test.ts`.
 - Plan gate: Professional and Business (or `PAGELYT_OPEN_FEATURES=1`).
+
+## Pagelyt Assistant
+
+- Dashboard star feature **Ask Pagelyt** (`?view=assistant`, plus the floating Ask button), owner only. It answers website-optimisation questions about the open report, using the report, the fix guides (`lib/scan/guides.ts`) and the blog posts as sources; anything else gets a short, polite refusal.
+- Needs `OPENAI_API_KEY`. Model: `OPENAI_CHAT_MODEL` (default `gpt-5`, reasoning effort low). Change it to a newer or cheaper model without a code change.
+- Limits per account: 6 questions a minute; 10 a day on the free plan, 100 on paid plans (while `BILLING_ON` is false everyone counts as paid). Questions up to 1,000 characters, the last 10 turns sent, answers up to 2,500 output tokens.
+- Each question sends the report summary, an index of every guide and post, and the full text of the 3 that match best (not the whole library, which is about 32k tokens).
 
 ## Commands
 
@@ -200,7 +209,7 @@ for scheduled rescans.
 - [x] **Phase 0** foundations: edge-safe scanner, Supabase schema + RLS, Cloudflare config, security headers
 - [x] **Phase 1** staged scan with real progress, Turnstile, magic-link accounts, saved sites, report history
 - [ ] **Phase 2** scheduled rescans, uptime checks, down/recovered and score-drop alerts (cron Worker removed for now; the app-side endpoints in `app/api/internal` are kept)
-- [ ] **Phase 2b** AI explanations and assistant (needs an Anthropic API key held as a Worker secret and a cost cap)
+- [x] **Phase 2b** AI assistant in the dashboard (Pagelyt Assistant, OpenAI, daily caps)
 - [ ] **Phase 2c** server-rendered PDF reports (Cloudflare Browser Rendering)
 - [ ] **Phase 3** Razorpay plans and quotas, consultation booking, admin dashboard
 - [x] **Phase 4a** white-label reports (brands, shareable branded reports) and AI visibility tracking

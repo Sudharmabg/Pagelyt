@@ -43,5 +43,5 @@ export default async function Demo({ searchParams }: { searchParams: Promise<{ b
     footer: "Prepared for our clients. Questions? Reply to this email and we’ll walk you through it.",
     show_powered_by: false,
   };
-  return <ReportView brand={brand} res={SAMPLE} ai={{ score: 50, byProvider: [{ label: "ChatGPT", score: 60 }, { label: "Perplexity", score: 40 }], prompts: 5 }} showDetails />;
+  return <ReportView brand={brand} res={SAMPLE} ai={{ score: 60, byProvider: [{ label: "ChatGPT", score: 60 }], prompts: 5 }} showDetails />;
 }

@@ -68,6 +68,24 @@
       "port": 3300
     },
     {
+      "name": "pagelyt-chat-test",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:mock",
+        "--prefix",
+        "web"
+      ],
+      "env": {
+        "PORT": "3500",
+        "MOCK_PORT": "54325",
+        "NEXT_DIST_DIR": ".next-chat",
+        "MOCK_PLAN": "free",
+        "OPENAI_API_KEY": "sk-test-not-real"
+      },
+      "port": 3500
+    },
+    {
       "name": "pagelyt-share-test",
       "runtimeExecutable": "npm",
       "runtimeArgs": [

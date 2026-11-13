@@ -4,13 +4,13 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { visibilityScore } from "@/lib/ai/analyse";
+import { PROVIDER } from "@/lib/ai/providers";
 
 type Site = { id: string; host: string; brand_terms: string[]; competitors: string[]; ai_track: boolean };
 type Prompt = { id: string; prompt: string };
 type Run = { id: number; prompt_id: string; provider: string; at: string; mentioned: boolean; cited: boolean; position: number | null; competitor_counts: Record<string, number>; answer: string | null; citations: string[]; error: string | null };
 type Provider = { id: string; label: string };
 
-const LABELS: Record<string, string> = { perplexity: "Perplexity", openai: "ChatGPT", anthropic: "Claude" };
 const list = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 12);
 
 function Trend({ points }: { points: number[] }) {
@@ -45,7 +45,7 @@ export function Visibility({ siteId }: { siteId: string }) {
     const [s, p, r] = await Promise.all([
       sb.from("sites").select("id,host,brand_terms,competitors,ai_track").eq("id", siteId).maybeSingle(),
       sb.from("ai_prompts").select("id,prompt").eq("site_id", siteId).order("created_at"),
-      sb.from("ai_runs").select("id,prompt_id,provider,at,mentioned,cited,position,competitor_counts,answer,citations,error").eq("site_id", siteId).order("at", { ascending: false }).limit(300),
+      sb.from("ai_runs").select("id,prompt_id,provider,at,mentioned,cited,position,competitor_counts,answer,citations,error").eq("site_id", siteId).eq("provider", PROVIDER.id).order("at", { ascending: false }).limit(300),
     ]);
     const st = s.data as Site | null;
     setSite(st);
@@ -71,17 +71,15 @@ export function Visibility({ siteId }: { siteId: string }) {
     return () => sub.subscription.unsubscribe();
   }, [sb, load]);
 
-  /* latest result per prompt and system */
+  /* latest ChatGPT result per prompt */
   const latest = useMemo(() => {
     const m = new Map<string, Run>();
     for (const r of runs) if (!m.has(`${r.prompt_id}:${r.provider}`)) m.set(`${r.prompt_id}:${r.provider}`, r);
     return m;
   }, [runs]);
   const latestList = useMemo(() => [...latest.values()].filter((r) => prompts.some((p) => p.id === r.prompt_id)), [latest, prompts]);
-  const cols = useMemo(() => {
-    const ids = new Set([...providers.map((p) => p.id), ...latestList.map((r) => r.provider)]);
-    return [...ids].map((id) => ({ id, label: LABELS[id] ?? id }));
-  }, [providers, latestList]);
+  // ChatGPT is the only assistant we ask; older runs from other providers are filtered out in load().
+  const cols = [PROVIDER];
 
   const score = visibilityScore(latestList);
   const okRuns = latestList.filter((r) => !r.error);
@@ -174,14 +172,14 @@ export function Visibility({ siteId }: { siteId: string }) {
       <header className="acct-head">
         <div>
           <h1>AI visibility: {site.host}</h1>
-          <p className="panel-note">Do AI assistants name and cite this site when people ask about it? <Link className="fnd-link" href="/account">Back to your sites</Link></p>
+          <p className="panel-note">Does ChatGPT name and cite this site when people ask about it? <Link className="fnd-link" href="/account">Back to your sites</Link></p>
         </div>
         <button type="button" className="btn sm" onClick={runAll} disabled={!!busy || providers.length === 0}>{busy ? (busy === "run" ? "Starting…" : busy) : "Run check now"}</button>
       </header>
       <p className="acct-msg" role="status" aria-live="polite">{msg}</p>
 
       {providers.length === 0 && (
-        <div className="panel"><h2>No AI systems connected</h2><p className="panel-note">Set at least one of PERPLEXITY_API_KEY, OPENAI_API_KEY or ANTHROPIC_API_KEY as a server secret to run checks. See DEPLOY.md.</p></div>
+        <div className="panel"><h2>ChatGPT isn’t connected</h2><p className="panel-note">Set OPENAI_API_KEY as a server secret to run checks. See DEPLOY.md.</p></div>
       )}
 
       <section className="vis-tiles" aria-label="Summary">
@@ -242,7 +240,7 @@ export function Visibility({ siteId }: { siteId: string }) {
 
       {voice.total > 0 && (
         <section className="panel" aria-label="Share of voice">
-          <h2>Who the assistants name</h2>
+          <h2>Who ChatGPT names</h2>
           <p className="panel-note">Of {voice.total} answers, how many named each business.</p>
           <ul className="sov">
             {voice.rows.map((r) => (
@@ -264,7 +262,7 @@ export function Visibility({ siteId }: { siteId: string }) {
         <label className="as-f check"><input type="checkbox" checked={site.ai_track} onChange={(e) => toggleTrack(e.target.checked)} />Check automatically every week</label>
       </section>
 
-      <p className="panel-note vis-limits">AI answers vary by assistant, wording, location and time, and these checks use each provider’s API, which can differ from its consumer app. Treat results as samples and look at trends, not single runs. A failed call is shown as an error and never counted as “not named”.</p>
+      <p className="panel-note vis-limits">ChatGPT’s answers vary by wording, location and time, and these checks use the OpenAI API, which can differ from the ChatGPT app. Treat results as samples and look at trends, not single runs. A failed call is shown as an error and never counted as “not named”.</p>
     </div>
   );
 }

@@ -78,10 +78,12 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 
 | File | Purpose |
 |---|---|
-| `providers.ts` | `configuredProviders`, `askProvider`: OpenAI, Anthropic and Perplexity, each switched on by its API key |
-| `parse.ts` | Turns each provider's response into `{answer, citations}` |
+| `providers.ts` | `PROVIDER`, `isTracked`, `configuredProviders`, `askChatGpt`: AI visibility asks ChatGPT only (OpenAI Responses API with web search), on when `OPENAI_API_KEY` is set. Older runs from other providers are hidden |
+| `parse.ts` | `parseOpenAI`: turns the OpenAI response into `{answer, citations}` |
 | `analyse.ts` | `analyse`, `visibilityScore`: was the brand named or cited, and at what rank |
-| `run.ts` | `runPrompts`: asks every provider every prompt and stores the runs |
+| `run.ts` | `runPrompts`: asks ChatGPT every prompt and stores the runs |
+| `chat-knowledge.ts` | Pure: `rankDocs` (keyword match of guides and blog posts), `reportBrief` (report as text for the model), `cleanTurns`, `CHAT_LIMITS`. Tests in `chat-knowledge.test.ts` |
+| `chat.ts` | Pagelyt Assistant: `buildInstructions` (scope rules, report, source index, best-matching sources), `streamAnswer` (OpenAI streaming to plain text), `chatModel` (`OPENAI_CHAT_MODEL`, default `gpt-5`) |
 
 ## Auth, ownership, limits (`lib/`)
 
@@ -127,6 +129,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `report/pdf` POST | Branded PDF (paid plans) |
 | `compare` POST | Save a competitor comparison |
 | `ai/run` | List AI providers (GET) and run visibility prompts (POST) |
+| `chat` POST | Pagelyt Assistant: signed in, own report only; streams plain text, sources in the `x-chat-sources` header. 6 a minute; 10 a day free, 100 paid |
 | `request` POST | Consultation and contact forms |
 | `admin/*` | `ai`, `analytics`, `requests`, `scan`, `sites`, `uptime`; admin only (`admins` table) |
 | `internal/*` | `due`, `start`, `ai-due`, `ai-run`; for the cron Worker |
@@ -156,6 +159,8 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
   - Dashboard CTAs use the site's "Analyse My Website" lilac (`--cta`, `--cta-h` in the "Dashboard CTAs" block of globals.css): primary buttons at rest, every button on hover. The same lilac is the main colour for fills (`--d-main`, `--d-main-tint`, `--d-grad` in the "Main colour" block): active nav item, tabs, badges, icon tiles, always with dark ink. Small text keeps the deeper `--d-accent`.
   - The Overview has a "From this scan" card per insight section (five cards, laid out 3 + 2) (headline number from `sectionStats`). `pitchFor` writes each star card's headline, short line and button verb from this report. Insight and area headers show `sectionStats` as a stat row, with Why it matters folded (`WhyItMatters`). Colours come from the `--d-*` tokens on `.dash` (redefined for `.dash.dark`), in the "Dashboard refresh" block at the end of globals.css.
   - `useSiteId` finds the saved site, for the AI visibility link.
+  - Star feature **Ask Pagelyt** (`?view=assistant`, owner only) renders `Assistant`; a floating Ask button (`.asst-fab`) opens it from other views.
+- `assistant.tsx`: `Assistant`, the chat: starter questions from this report, streamed answers with a small safe markdown renderer (only `/` and `https:` links), sources, Stop and Clear; the conversation is kept in sessionStorage per report. Styles in the "Pagelyt Assistant" block at the end of globals.css.
 - `panels.tsx`: `FindingsExplorer`, `ExportTiles` (PDF, checklist, CSV and JSON tiles for the Export modal; every export has every issue, most important first, with a summary and where each was found), `VitalsPanel` (plain-English summary, loading timeline, metric cards with a scale and a "what this means" panel), `useInView`, `CrawlWhyPanel` (pages crawled, why it stopped, how to find more), `CrawlPanel`, `ImagesPanel`, `QuickWins`, `ChangePanel`, `ComparePanel`, `DomainPanel`, `TechPanel`, `HowScores`, `useHistory`.
 - `action-modal.tsx`: `ActionModal` (a `<dialog>` with title and tile grid; a bottom sheet on phones) and `Tile`.
 - `../modal-close.tsx`: `ModalX` (the × every modal uses) and `onBackdrop` (close on a click outside the dialog's box). Every modal closes with ×, Esc or a click outside, except while busy and the email-code lock in `pending.tsx`.

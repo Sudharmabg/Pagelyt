@@ -4,7 +4,7 @@ import { connection } from "next/server";
 import { ReportView } from "../report-view";
 import { loadSharedReport, getSiteAi, recentRuns } from "@/lib/scan/store-ext";
 import { visibilityScore } from "@/lib/ai/analyse";
-import { providerLabel } from "@/lib/ai/providers";
+import { isTracked, providerLabel } from "@/lib/ai/providers";
 
 /* The client-facing, white-label report. No Pagelyt navigation or footer; the agency's brand leads.
    Anyone with the link can open it, so it is noindex and the token is long and unguessable. */
@@ -31,7 +31,7 @@ export default async function SharedReport({ params }: { params: Promise<{ token
     if (site) {
       const runs = await recentRuns(site.id, 300);
       const latest = new Map<string, (typeof runs)[number]>();
-      for (const x of runs) if (!latest.has(`${x.prompt_id}:${x.provider}`)) latest.set(`${x.prompt_id}:${x.provider}`, x);
+      for (const x of runs) if (isTracked(x.provider) && !latest.has(`${x.prompt_id}:${x.provider}`)) latest.set(`${x.prompt_id}:${x.provider}`, x);
       const list = [...latest.values()];
       if (list.length) {
         const providers = [...new Set(list.map((x) => x.provider))];

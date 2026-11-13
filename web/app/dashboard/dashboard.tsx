@@ -13,6 +13,7 @@ import { BrandShare } from "./brand-share";
 import { RescanButton } from "./rescan";
 import { ActionModal, Tile } from "./action-modal";
 import { AGENCY_UPSELL, AgencyModal, useAccount } from "./agency-modal";
+import { Assistant } from "./assistant";
 import { CompareButton } from "./compare-button";
 import { downloadPdf, fullReportPrintUrl } from "@/lib/download-pdf";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -53,6 +54,7 @@ const WHY: Record<ModuleKey | Extra, string> = {
   images: "Images are usually the heaviest part of a page, and oversized ones are the most common reason pages load slowly on phones. Shrinking a few large files is often the quickest speed win available.",
   tech: "Your domain and email records keep you reachable and stop others sending mail in your name, and an expired domain can take everything offline at once. Knowing the technology behind a site also shows what can be updated or switched on.",
   changes: "Tracking scores over time shows whether fixes are working and catches new problems early. An unexpected change to the homepage can also be the first sign that a site has been hacked.",
+  assistant: "Reports list what is wrong; knowing what to do next is the hard part. Asking in plain words gets you steps for your own site, drawn from the same guides our checks are built on.",
   monitor: "Websites break without warning: a plugin update, an expired certificate or a host outage. Regular rescans and uptime checks tell you within minutes instead of when a customer complains.",
   ai: "People increasingly ask AI assistants which business to choose, and those answers don't show a list of ten links. If you aren't mentioned, you aren't considered, so it is worth knowing where you stand.",
   compare: "Your score means more next to the sites you compete with. Seeing where competitors are ahead shows which fixes will make the biggest difference to winning visitors from them.",
@@ -192,7 +194,7 @@ function useLocalFixed(scanId: string) {
 /* The dashboard's sections beyond the areas: the star features, the tools, and details from the scan (opened from
    their Overview cards, not the sidebar).
    Each tool is a view of its own (?view=<tool slug>); "tools" is the grid of all of them. */
-type Extra = "speed" | "pages" | "images" | "tech" | "changes" | "monitor" | "ai" | "compare" | "share" | "tools";
+type Extra = "speed" | "pages" | "images" | "tech" | "changes" | "assistant" | "monitor" | "ai" | "compare" | "share" | "tools";
 type View = "overview" | "all" | ModuleKey | Extra | ToolSlug;
 const isTool = (v: string): v is ToolSlug => TOOLS_BY_SLUG.has(v as ToolSlug);
 type Section = { id: Extra; label: string; icon: IconKey; text: string };
@@ -207,8 +209,9 @@ const INSIGHTS: Section[] = [
 
 /* Pagelyt's star features: highlighted in the sidebar and as the strip under the score on Overview. */
 const STAR: Section[] = [
+  { id: "assistant", label: "Ask Pagelyt", icon: "chat", text: "Ask anything about improving this site. Answers come from this report, our fix guides and our blog." },
   { id: "monitor", label: "Save & monitor", icon: "monitor", text: "Keep this report in your account, rescan on a schedule and get uptime checks and email alerts." },
-  { id: "ai", label: "AI visibility", icon: "ai", text: "See whether ChatGPT, Claude and Perplexity mention and cite this site when people ask about its field." },
+  { id: "ai", label: "AI visibility", icon: "ai", text: "See whether ChatGPT mentions and cites this site when people ask about its field." },
   { id: "compare", label: "Compare competitors", icon: "compare", text: "Scan up to three competitors and line them up against this report, area by area." },
   { id: "share", label: "Brand & share", icon: "share", text: "Send your client a report with your logo and colours, by link or straight to their inbox." },
 ];
@@ -219,7 +222,7 @@ const MAIN_TOOLS = 5;
 
 const SECTIONS = new Map<string, Section>([...INSIGHTS, ...STAR, ALL_TOOLS].map((s) => [s.id, s]));
 const PAID_ONLY = new Set<Extra>(["ai", "compare", "share"]);
-const OWNER_ONLY = new Set<Extra>(["monitor", "ai", "compare", "share"]);
+const OWNER_ONLY = new Set<Extra>(["assistant", "monitor", "ai", "compare", "share"]);
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
@@ -229,13 +232,15 @@ type Pitch = { hook: string; text: string; cta: string; weight: number };
 function pitchFor(id: Extra, r: { open: Finding[]; high: number; overall: number; modules: { key: ModuleKey; score: number }[]; saved: boolean; prev: boolean }): Pitch {
   const score = (k: ModuleKey) => r.modules.find((m) => m.key === k)?.score ?? 100;
   switch (id) {
+    case "assistant":
+      return { hook: r.high ? `${plural(r.high, "important issue")}, explained` : "Questions about this report?", text: "Ask what to fix first and how.", cta: "Ask Pagelyt", weight: r.high ? 3.5 : 2 };
     case "monitor":
       if (r.saved) return { hook: "This site is saved", text: "Pick a rescan schedule and alerts.", cta: "Set alerts", weight: 1 };
       if (r.high) return { hook: `${plural(r.high, "important issue")} to fix`, text: "Rescan weekly to confirm each fix lands.", cta: "Save & monitor", weight: 4 };
       return { hook: r.prev ? "Stop rescanning by hand" : "Know the moment something breaks", text: "Scheduled rescans, uptime checks, email alerts.", cta: "Save & monitor", weight: 3 };
     case "ai": {
       const g = score("geo");
-      return { hook: `AI readiness is ${g}/100`, text: g < 80 ? "Find out if ChatGPT mentions you." : "See whether AI assistants cite you.", cta: "Check AI answers", weight: g < 80 ? (80 - g) / 10 + 1 : 1.5 };
+      return { hook: `AI readiness is ${g}/100`, text: g < 80 ? "Find out if ChatGPT mentions you." : "See whether ChatGPT cites you.", cta: "Check AI answers", weight: g < 80 ? (80 - g) / 10 + 1 : 1.5 };
     }
     case "compare":
       return { hook: `You score ${r.overall}. How do rivals do?`, text: "Line up three competitors, area by area.", cta: "Compare now", weight: 2 };
@@ -609,7 +614,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
               <div className="bn-more-txt">
                 <p className="bn-kicker"><span aria-hidden="true">★</span> Star features</p>
                 <h2 id="star-h">Do more with this report</h2>
-                <p>Keep watch over {scan.host}, see what AI assistants say about it, line it up against rivals and send it to clients.</p>
+                <p>Keep watch over {scan.host}, see what ChatGPT says about it, line it up against rivals and send it to clients.</p>
               </div>
               <span className="bn-orbit" aria-hidden="true">
                 <span className="bn-orbit-core">★</span>
@@ -718,13 +723,14 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
       );
     else if (s.id === "tools") content = <DashToolGrid findings={remaining} onOpen={setView} />;
     else if (!owner) content = signInNote;
+    else if (s.id === "assistant") content = access === "owner" ? <Assistant key={scan.id} scan={scan} paid={!!acct?.paid} /> : empty("The assistant needs accounts, which aren't switched on here.");
     else if (s.id === "monitor") content = access === "local" ? empty("Saving sites needs accounts, which aren't switched on here.") : <SaveSite scanId={scan.id} host={scan.host} />;
     else if (s.id === "ai")
       content = (
         <div className="panel sec-cta">
           {siteId ? (
             <>
-              <p>Weekly checks of what AI assistants say about {scan.host}, with the prompts you choose.</p>
+              <p>Weekly checks of what ChatGPT says about {scan.host}, with the prompts you choose.</p>
               <Link className="dash-btn primary" href={`/account/visibility/${siteId}`}>Open AI visibility for {scan.host}</Link>
             </>
           ) : (
@@ -862,6 +868,12 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           {body}
         </main>
       </div>
+      {access === "owner" && view !== "assistant" && (
+        <button type="button" className="asst-fab" onClick={() => setView("assistant")} aria-label="Ask Pagelyt about this report">
+          <AreaIcon k="chat" size={20} />
+          <span>Ask</span>
+        </button>
+      )}
     </div>
   );
 }

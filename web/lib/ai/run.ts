@@ -1,22 +1,22 @@
 import { analyse } from "./analyse";
-import { askProvider, configuredProviders, type ProviderId } from "./providers";
+import { askChatGpt, configuredProviders } from "./providers";
 import { insertRuns, type Prompt, type SiteAi } from "@/lib/scan/store-ext";
 
-/* Ask every configured AI system every prompt, analyse the answers and store one row per
-   prompt and system. Each model call is one subrequest, so callers keep prompts × systems under ~40. */
+/* Ask ChatGPT every prompt, analyse the answers and store one row per prompt. Each model call
+   is one subrequest, so callers keep prompts per call small. */
 
 export const MAX_PROMPTS_PER_CALL = 8;
 
 export async function runPrompts(site: SiteAi, prompts: Prompt[]) {
   const providers = configuredProviders();
-  if (!providers.length) throw new Error("No AI providers are configured.");
+  if (!providers.length) throw new Error("ChatGPT is not connected. Set OPENAI_API_KEY.");
   const jobs = prompts.slice(0, MAX_PROMPTS_PER_CALL).flatMap((p) => providers.map((pr) => ({ p, pr })));
 
   const rows = await Promise.all(
     jobs.map(async ({ p, pr }) => {
       const base = { site_id: site.id, prompt_id: p.id, provider: pr.id };
       try {
-        const raw = await askProvider(pr.id as ProviderId, p.prompt);
+        const raw = await askChatGpt(p.prompt);
         const a = analyse({ answer: raw.answer, citations: raw.citations, host: site.host, terms: site.brand_terms, competitors: site.competitors });
         return { ...base, mentioned: a.mentioned, cited: a.cited, position: a.position, competitor_counts: a.competitorCounts, answer: raw.answer.slice(0, 4000), citations: raw.citations.slice(0, 12), error: null };
       } catch (e) {
