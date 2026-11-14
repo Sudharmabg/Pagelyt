@@ -12,7 +12,7 @@ import { SiteFooter, SiteNav } from "./site-chrome";
 import { Sources } from "./sources";
 import { GoogleSection } from "./home-google";
 import { WelcomeBack } from "./welcome-back";
-import { HeroCollage, ReportBento } from "./home-motion";
+import { ReportBento } from "./home-motion";
 import { GuidesCarousel, WorksWith, type GuideCard } from "./home-media";
 import { ScanPreview, type ModScore } from "./ui";
 import { LeadModal, type ScanProblem, type ScanStart } from "./lead-modal";
@@ -158,7 +158,6 @@ export default function Home({ guides = [] }: { guides?: GuideCard[] }) {
       {/* 1. HERO: ribbons behind, headline in front, big URL box, then the advantages */}
       <section className="hero hero-c" aria-labelledby="h1">
         <Arcs />
-        <HeroCollage />
         <div className="container hero-stack">
           <WelcomeBack />
           <HeroTitle />

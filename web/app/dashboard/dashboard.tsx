@@ -1047,11 +1047,10 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
 
       <div className="dash-body">
         <nav className="dash-nav" aria-label="Report sections">
+          {star.length > 0 && navGroup("star", <><span aria-hidden="true">★</span> Star features</>, star.map((s) => navBtn(s.id, s.icon, s.label, needsPlan(s.id) ? <span className="plan-dot" data-tip="Part of the paid plans">Paid</span> : undefined)), star.some((s) => s.id === view), "nav-star")}
           {navBtn("overview", "overview", "Overview", <b>{remaining.length}</b>)}
           {navBtn("all", "list", "All findings", <b>{scan.findings.length}</b>)}
-          {navGroup("areas", "Score areas", modules.map((m) => navBtn(m.key, m.key, m.name, <b className={`t-${tone(m.score)}`} data-tip={`${m.name} score: ${m.score} out of 100. ${countOf(m.key) === 0 ? "No open issues." : `${countOf(m.key)} open issue${countOf(m.key) === 1 ? "" : "s"}.`}`}>{m.score}</b>)), modules.some((m) => m.key === view))}
           {navGroup("scan", "From this scan", INSIGHTS.map((s) => navBtn(s.id, s.icon, s.label)), INSIGHTS.some((s) => s.id === view))}
-          {star.length > 0 && navGroup("star", <><span aria-hidden="true">★</span> Star features</>, star.map((s) => navBtn(s.id, s.icon, s.label, needsPlan(s.id) ? <span className="plan-dot" data-tip="Part of the paid plans">Paid</span> : undefined)), star.some((s) => s.id === view), "nav-star")}
           {navGroup(
             "tools",
             "Tools",
@@ -1129,7 +1128,7 @@ function useSiteId(host: string, enabled: boolean) {
 }
 
 /* Which sidebar groups are folded away, remembered on this device. "From this scan" starts folded. */
-type NavGroup = "areas" | "scan" | "star" | "tools";
+type NavGroup = "scan" | "star" | "tools";
 const NAV_KEY = "pagelyt-nav-shut";
 function useNavGroups() {
   const raw = useSyncExternalStore(

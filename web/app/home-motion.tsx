@@ -1,84 +1,10 @@
 "use client";
 
-/* Homepage motion pieces: the drifting collage of report tiles behind the hero, and the "Inside every report"
-   bento of small live demos. Everything here is decorative or illustrative sample data; it all settles to a
+/* Homepage motion pieces: the "Inside every report" bento of small live demos. Everything here is decorative or illustrative sample data; it all settles to a
    still, readable state under reduced motion. */
 
 import { useEffect, useRef, useState } from "react";
 import { RollNum } from "./roll-num";
-
-/* ---------- hero collage: two columns of mini report tiles on each side, drifting up or down forever ---------- */
-function Tile({ k }: { k: number }) {
-  switch (k % 6) {
-    case 0:
-      return (
-        <div className="hc-tile hc-ring" style={{ ["--s" as string]: 82 }}>
-          <svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" pathLength={100} /><circle cx="20" cy="20" r="16" pathLength={100} /></svg>
-          <b>82</b>
-          <small>Overall</small>
-        </div>
-      );
-    case 1:
-      return (
-        <div className="hc-tile hc-bars">
-          <small>Core Web Vitals</small>
-          {[78, 54, 91].map((v, i) => <i key={i} style={{ ["--v" as string]: v }} />)}
-        </div>
-      );
-    case 2:
-      return (
-        <div className="hc-tile hc-rows">
-          <small>Top fixes</small>
-          <span className="lv-high">Compress hero image</span>
-          <span className="lv-med">Add meta description</span>
-        </div>
-      );
-    case 3:
-      return (
-        <div className="hc-tile hc-chip">
-          <span>✓</span>
-          <small>Cited by ChatGPT</small>
-        </div>
-      );
-    case 4:
-      return (
-        <div className="hc-tile hc-spark">
-          <small>Clicks · 28 days</small>
-          <svg viewBox="0 0 100 30" preserveAspectRatio="none"><path d="M0 24 L14 20 L28 22 L42 14 L56 16 L70 9 L84 11 L100 4" /></svg>
-        </div>
-      );
-    default:
-      return (
-        <div className="hc-tile hc-ring hc-ring-ok" style={{ ["--s" as string]: 96 }}>
-          <svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="16" pathLength={100} /><circle cx="20" cy="20" r="16" pathLength={100} /></svg>
-          <b>96</b>
-          <small>Security</small>
-        </div>
-      );
-  }
-}
-
-const COLS = [
-  [0, 2, 4, 1],
-  [3, 5, 1, 2],
-  [1, 4, 0, 3],
-  [5, 2, 3, 0],
-];
-
-export function HeroCollage() {
-  return (
-    <div className="hero-collage" aria-hidden="true">
-      {COLS.map((col, c) => (
-        <div key={c} className={`hc-col hc-c${c}`}>
-          {/* the column is drawn twice so the loop is seamless */}
-          <div className="hc-track">
-            {[...col, ...col].map((k, i) => <Tile key={i} k={k} />)}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 /* ---------- "Inside every report": a bento of small live demos ---------- */
 const AREAS: [string, number][] = [

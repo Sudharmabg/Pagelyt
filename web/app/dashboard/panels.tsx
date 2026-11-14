@@ -436,40 +436,100 @@ function Scale({ k, v, on }: { k: MetricKey; v: number; on: boolean }) {
   );
 }
 
-function Metric({ k, v, field, on }: { k: MetricKey; v: number | null; field?: boolean; on: boolean }) {
+/* Jump to a metric's card in the "What these numbers mean" stack, and light it up briefly. */
+const goMeaning = (e: React.MouseEvent, k: MetricKey) => {
+  const mark = document.getElementById(`vmx-${k}`);
+  if (!mark) return;
+  e.preventDefault();
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  mark.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+  const card = mark.nextElementSibling as HTMLElement | null;
+  if (!card) return;
+  card.classList.remove("flash");
+  void card.offsetWidth;
+  card.classList.add("flash");
+  card.focus({ preventScroll: true });
+};
+
+function Metric({ k, v, on }: { k: MetricKey; v: number | null; on: boolean }) {
   const m = METRIC[k];
-  const [open, setOpen] = useState(false);
   const g = grade(v, m.good, m.poor);
   return (
-    <div className={`vm vm-${g ?? "na"}${open ? " open" : ""}`}>
-      <button type="button" className="vm-btn" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <span className="vm-l">
-          {m.name} <abbr>{m.abbr}</abbr>
-        </span>
-        <b>{v == null ? "–" : m.fmt(v)}</b>
-        <span className="vm-g">{g ? GRADE_TEXT[g] : "Not measured"}</span>
-        {v != null && <Scale k={k} v={v} on={on} />}
-        <span className="vm-more">
-          {open ? "Hide" : "What this means"} <span aria-hidden="true">{open ? "▴" : "▾"}</span>
-        </span>
-      </button>
-      {open && (
-        <div className="vm-info">
-          <p>
-            {m.what}
-            {field ? " Measured on real Chrome visits: 75% of visits were at least this fast." : ""}
-          </p>
-          <p className="vm-target">
-            Good is under <b>{m.fmt(m.good)}</b>; over <b>{m.fmt(m.poor)}</b> is poor.
-          </p>
-          {g && g !== "good" && (
-            <p className="vm-fix">
-              <b>How to improve:</b> {m.fix}
-            </p>
-          )}
-        </div>
-      )}
-    </div>
+    <a href={`#vmx-${k}`} className={`vm vm-${g ?? "na"} vm-link`} onClick={(e) => goMeaning(e, k)}>
+      <span className="vm-l">
+        {m.name} <abbr>{m.abbr}</abbr>
+      </span>
+      <b>{v == null ? "–" : m.fmt(v)}</b>
+      <span className="vm-g">{g ? GRADE_TEXT[g] : "Not measured"}</span>
+      {v != null && <Scale k={k} v={v} on={on} />}
+      <span className="vm-more">
+        What this means <span aria-hidden="true">↓</span>
+      </span>
+    </a>
+  );
+}
+
+/* "What these numbers mean": one card per metric that pile up on each other as you scroll (a scroll stack).
+   Each card shows the lab and real-visitor numbers side by side, the thresholds, and how to improve it. */
+function MeaningStack({ run, field }: { run: VitalsRun | null; field: Vitals["field"] }) {
+  const keys = (["lcp", "fcp", "tbt", "inp", "cls"] as MetricKey[]).filter((k) => {
+    const lab = k === "inp" ? null : run?.[k as "lcp" | "fcp" | "tbt" | "cls"];
+    const real = k === "fcp" || k === "tbt" ? null : field?.[k as "lcp" | "inp" | "cls"];
+    return lab != null || real != null;
+  });
+  if (!keys.length) return null;
+  return (
+    <section className="panel vmx" aria-labelledby="vmx-h">
+      <h2 id="vmx-h">What these numbers mean</h2>
+      <p className="panel-note">Scroll through the cards: each one explains a number in plain words.</p>
+      <ol className="vmx-stack">
+        {keys.map((k, i) => {
+          const m = METRIC[k];
+          const lab = k === "inp" ? null : (run?.[k as "lcp" | "fcp" | "tbt" | "cls"] ?? null);
+          const real = k === "fcp" || k === "tbt" ? null : (field?.[k as "lcp" | "inp" | "cls"] ?? null);
+          const gl = grade(lab, m.good, m.poor);
+          const gr = grade(real, m.good, m.poor);
+          const worst = [gl, gr].includes("poor") ? "poor" : [gl, gr].includes("ok") ? "ok" : gl || gr ? "good" : "na";
+          return (
+            <li key={k} style={{ ["--si" as string]: i }}>
+              <span id={`vmx-${k}`} className="vmx-mark" />
+              <article className={`vmx-card vm-${worst}`} tabIndex={-1} aria-labelledby={`vmx-${k}-h`}>
+                <header>
+                  <span className="vmx-n" aria-hidden="true">0{i + 1}</span>
+                  <h3 id={`vmx-${k}-h`}>
+                    {m.name} <abbr>{m.abbr}</abbr>
+                  </h3>
+                </header>
+                <p>{m.what}</p>
+                <dl className="vmx-vals">
+                  {lab != null && (
+                    <div className={`t-${gl}`}>
+                      <dt>Lab test</dt>
+                      <dd>{m.fmt(lab)} · {GRADE_TEXT[gl!]}</dd>
+                    </div>
+                  )}
+                  {real != null && (
+                    <div className={`t-${gr}`}>
+                      <dt>Real visitors</dt>
+                      <dd>{m.fmt(real)} · {GRADE_TEXT[gr!]}</dd>
+                    </div>
+                  )}
+                </dl>
+                <p className="vm-target">
+                  Good is under <b>{m.fmt(m.good)}</b>; over <b>{m.fmt(m.poor)}</b> is poor.
+                  {real != null ? " Real-visitor numbers are what 75% of Chrome visits got or better." : ""}
+                </p>
+                {worst !== "good" && worst !== "na" && (
+                  <p className="vm-fix">
+                    <b>How to improve:</b> {m.fix}
+                  </p>
+                )}
+              </article>
+            </li>
+          );
+        })}
+      </ol>
+    </section>
   );
 }
 
@@ -480,8 +540,13 @@ function Timeline({ r, on }: { r: VitalsRun; on: boolean }) {
   const at = (ms: number) => `${(ms / end) * 100}%`;
   const ticks = Array.from({ length: end / 1000 + 1 }, (_, i) => i);
   const lcpG = grade(r.lcp, 2500, 4000);
+  // When the two moments are close, their labels would print over each other: the same rounded time gets one
+  // shared label, and nearby times lift the first label onto a second row.
+  const both = r.fcp != null && r.lcp != null;
+  const same = both && sec(r.fcp) === sec(r.lcp);
+  const close = both && !same && Math.abs(r.lcp! - r.fcp!) / end < 0.28;
   return (
-    <div className="vtl" role="img" aria-label={`Loading timeline: first content at ${sec(r.fcp)}, main content at ${sec(r.lcp)}, target 2.5 s.`}>
+    <div className={`vtl${close ? " close" : ""}`} role="img" aria-label={`Loading timeline: first content at ${sec(r.fcp)}, main content at ${sec(r.lcp)}, target 2.5 s.`}>
       <div className="vtl-track">
         <span className={`vtl-fill ${lcpG ?? ""}`} style={{ width: on && r.lcp != null ? at(r.lcp) : "0%" }} />
         <span className="vtl-goal" style={{ left: at(2500) }}>
@@ -489,15 +554,17 @@ function Timeline({ r, on }: { r: VitalsRun; on: boolean }) {
         </span>
         {r.fcp != null && (
           <span className="vtl-pin fcp" style={{ left: at(r.fcp) }}>
-            <em>
-              First thing <b>{sec(r.fcp)}</b>
-            </em>
+            {!same && (
+              <em>
+                First thing <b>{sec(r.fcp)}</b>
+              </em>
+            )}
           </span>
         )}
         {r.lcp != null && (
-          <span className={`vtl-pin lcp ${lcpG ?? ""}`} style={{ left: at(r.lcp) }}>
+          <span className={`vtl-pin lcp ${lcpG ?? ""}${same ? " same" : ""}`} style={{ left: at(r.lcp) }}>
             <em>
-              Main content <b>{sec(r.lcp)}</b>
+              {same ? "First thing and main content" : "Main content"} <b>{sec(r.lcp)}</b>
             </em>
           </span>
         )}
@@ -593,7 +660,7 @@ export function VitalsPanel({ vitals }: { vitals: Vitals | null | undefined }) {
           <h2>The four numbers behind it</h2>
           <span className="panel-tag">Lab test · {shown === "mobile" ? "simulated phone" : "desktop"}</span>
         </div>
-        <p className="panel-note">Tap any number to see what it means and how to improve it.</p>
+        <p className="panel-note">Tap any number to jump to what it means and how to improve it.</p>
         {run && (
           <div className="vm-grid">
             <Metric k="lcp" v={run.lcp} on={on} />
@@ -613,15 +680,17 @@ export function VitalsPanel({ vitals }: { vitals: Vitals | null | undefined }) {
           <>
             <p className="panel-note">What people using Chrome actually experienced on this address. Google uses these numbers, not the lab test, when it ranks pages.</p>
             <div className="vm-grid">
-              <Metric k="lcp" v={f.lcp} field on={on} />
-              <Metric k="inp" v={f.inp} field on={on} />
-              <Metric k="cls" v={f.cls} field on={on} />
+              <Metric k="lcp" v={f.lcp} on={on} />
+              <Metric k="inp" v={f.inp} on={on} />
+              <Metric k="cls" v={f.cls} on={on} />
             </div>
           </>
         ) : (
           <p className="panel-note">Google doesn&rsquo;t have enough real-visitor data for this address yet, usually because it gets too little Chrome traffic. Until it does, the lab test above is the best guide.</p>
         )}
       </section>
+
+      <MeaningStack run={run} field={f} />
     </>
   );
 }
