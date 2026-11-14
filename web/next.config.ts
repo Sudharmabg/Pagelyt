@@ -36,9 +36,23 @@ const nextConfig: NextConfig = {
   cacheComponents: false,
   // Lets a phone on the same Wi-Fi load the dev server's scripts (otherwise buttons do nothing there).
   allowedDevOrigins: ["192.168.0.100", "192.168.*.*"],
-  // The analytics feature page became the Google integrations hub.
   async redirects() {
-    return [{ source: "/features/analytics-integrations", destination: "/features/google-integrations", permanent: true }];
+    return [
+      /* http → https. Cloudflare tells the Worker the visitor's scheme in X-Forwarded-Proto. Without this,
+         http://pagelyt.dev answered 200 and Google indexed the http address. Limited to the live host so
+         preview and local hosts are untouched; Next keeps the query string. */
+      {
+        source: "/:path*",
+        has: [
+          { type: "header", key: "x-forwarded-proto", value: "http" },
+          { type: "host", value: "pagelyt.dev" },
+        ],
+        destination: "https://pagelyt.dev/:path*",
+        permanent: true,
+      },
+      // The analytics feature page became the Google integrations hub.
+      { source: "/features/analytics-integrations", destination: "/features/google-integrations", permanent: true },
+    ];
   },
   // Security headers on every page. (The Pagelyt scan checks for exactly these.)
   async headers() {
