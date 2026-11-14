@@ -30,7 +30,7 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
       <JsonLd data={crumbLd([["Home", "/"], ["Free tools", "/tools"]])} />
       <SiteNav />
       <main>
-        <PageHero h1="Free tools for a healthier website." lead="Quick checkers and generators for search engines, AI assistants and security. Free with a Pagelyt account.">
+        <PageHero h1="Free tools for a healthier website." words={["SEO", "AI search", "Speed", "Security", "Schema", "robots.txt", "Sitemaps", "Hreflang"]} lead="Quick checkers and generators for search engines, AI assistants and security. Free with a Pagelyt account.">
           <ul className="tstats" aria-label="At a glance">
             <li><b>{TOOL_LIST.filter((t) => !t.paid).length}</b><span>free tools</span></li>
             <li><b>{CATEGORIES.length}</b><span>categories</span></li>

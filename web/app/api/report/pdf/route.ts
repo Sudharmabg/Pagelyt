@@ -1,6 +1,6 @@
 import { userFromRequest } from "@/lib/auth";
 import { NoBrowser, renderPdf } from "@/lib/pdf";
-import { isPaid } from "@/lib/scan/agency";
+import { firstBrand, isPaid } from "@/lib/scan/agency";
 import { getShare } from "@/lib/scan/store-ext";
 import { getScanRow, live, rateLimit } from "@/lib/scan/store";
 import { signPrint } from "@/lib/google/crypto";
@@ -46,17 +46,40 @@ export async function POST(req: Request) {
   if (!(await rateLimit(`pdf:${ownerId}`, 30, 3600))) return Response.json({ error: "Too many PDFs in the last hour. Please try again later." }, { status: 429 });
 
   const origin = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
+  const headers = {
+    "content-type": "application/pdf",
+    "content-disposition": `attachment; filename="${host.replace(/[^a-z0-9.-]/gi, "")}-website-report.pdf"`,
+    "cache-control": "private, no-store",
+  };
+  // A finished report doesn't change, so the PDF is kept for half an hour (keyed on the report and the account's
+  // branding) and repeat downloads skip the browser. Only where the Workers Cache API exists.
+  const cache = (globalThis as { caches?: { default?: Cache } }).caches?.default;
+  const key = cache ? await cacheKey(origin, typeof body.token === "string" ? `t:${body.token}` : `s:${String(body.scanId)}`, ownerId) : null;
+  if (cache && key) {
+    const hit = await cache.match(key).catch(() => undefined);
+    if (hit) return new Response(hit.body, { headers });
+  }
   try {
     const pdf = await renderPdf(new URL(path, origin).href);
-    return new Response(pdf as BodyInit, {
-      headers: {
-        "content-type": "application/pdf",
-        "content-disposition": `attachment; filename="${host.replace(/[^a-z0-9.-]/gi, "")}-website-report.pdf"`,
-        "cache-control": "private, no-store",
-      },
-    });
+    if (cache && key) await cache.put(key, new Response(pdf.slice() as BodyInit, { headers: { "content-type": "application/pdf", "cache-control": `public, max-age=${CACHE_SECONDS}` } })).catch(() => {});
+    return new Response(pdf as BodyInit, { headers });
   } catch (e) {
     if (e instanceof NoBrowser) return Response.json({ error: "Server PDFs are not switched on.", fallback: true }, { status: 501 });
     return Response.json({ error: "Could not create the PDF. Please try again.", fallback: true }, { status: 502 });
+  }
+}
+
+const CACHE_SECONDS = 1800;
+
+/** A private cache URL for one report's PDF. The id is hashed with the account's current branding, so changing
+    the logo or colours makes a new PDF. Never served to anyone directly: only this route reads it. */
+async function cacheKey(origin: string, id: string, ownerId: string): Promise<Request | null> {
+  try {
+    const brand = await firstBrand(ownerId).catch(() => null);
+    const raw = new TextEncoder().encode(`${id}|${ownerId}|${JSON.stringify(brand)}|${process.env.PDF_CACHE_SALT ?? ""}`);
+    const hash = [...new Uint8Array(await crypto.subtle.digest("SHA-256", raw))].map((b) => b.toString(16).padStart(2, "0")).join("");
+    return new Request(new URL(`/__pdf-cache/${hash}`, origin).href);
+  } catch {
+    return null;
   }
 }

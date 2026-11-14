@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "../toast";
 import { useState } from "react";
 
 /** The developer snippet on a fix guide, with a one-click copy button. */
@@ -9,6 +10,7 @@ export function CopyCode({ code }: { code: string }) {
     try {
       await navigator.clipboard.writeText(code);
       setDone(true);
+      toast("Code copied");
       setTimeout(() => setDone(false), 1800);
     } catch {
       /* clipboard blocked: the code stays selectable */

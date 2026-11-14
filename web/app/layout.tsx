@@ -4,6 +4,10 @@ import type { Metadata } from "next";
 import { Archivo, Inter } from "next/font/google";
 import "./globals.css";
 import { ScrollTop } from "./scroll-top";
+import { RevealHost } from "./reveal-host";
+import { Toaster } from "./toast";
+import { TooltipHost } from "./tooltip";
+import { CardFx } from "./card-fx";
 import { SITE_NAME, SITE_URL } from "./site-config";
 
 const display = Archivo({
@@ -47,6 +51,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </Suspense>
         {children}
         <SignInHost />
+        <RevealHost />
+        <TooltipHost />
+        <CardFx />
+        <Toaster />
       </body>
     </html>
   );

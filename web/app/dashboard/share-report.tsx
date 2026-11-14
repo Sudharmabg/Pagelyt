@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "../toast";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -89,6 +90,7 @@ export function ShareReport({ scanId, host, score, canEmail, onMade }: { scanId:
     try {
       await navigator.clipboard.writeText(made.link);
       setCopied(true);
+      toast("Client link copied");
       window.setTimeout(() => setCopied(false), 1800);
     } catch {
       /* the link is selectable */

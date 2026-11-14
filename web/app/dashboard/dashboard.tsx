@@ -1,13 +1,17 @@
 "use client";
 
+import { ActivityBell } from "./activity";
+import { FlapNum } from "../flap-num";
+import { toast } from "../toast";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Findings } from "../findings";
 import { Ring, tone } from "../ui";
 import { findingKey, overallScore, scoreModules } from "@/lib/scan/score";
 import { MODULE_NAMES, type Finding, type ModuleKey } from "@/lib/scan/types";
 import { AreaIcon, type IconKey } from "./icons";
+import { WhyItMatters } from "./why-modal";
 import { SaveSite } from "./save-site";
 import { BrandShare } from "./brand-share";
 import { RescanButton } from "./rescan";
@@ -22,7 +26,7 @@ import { visitsMap } from "@/lib/google/ga4-insights";
 import { spendMap, type AdSpend } from "@/lib/google/ads-insights";
 import { Visibility } from "../account/visibility/[siteId]/visibility";
 import { CompareButton } from "./compare-button";
-import { downloadPdf, fullReportPrintUrl } from "@/lib/download-pdf";
+import { downloadPdf, fullReportPrintUrl, preparePdf } from "@/lib/download-pdf";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { firstName, useSignedInUser } from "@/lib/use-signed-in";
 import { AuthLink } from "../auth-link";
@@ -92,9 +96,12 @@ function useCountUp(target: number, delay: number, duration: number, enabled: bo
   return enabled ? v : target;
 }
 
-function CountRing({ score, size, stroke, delay = 0, enabled }: { score: number; size: number; stroke: number; delay?: number; enabled: boolean }) {
+function CountRing({ score, size, stroke, delay = 0, enabled, flap }: { score: number; size: number; stroke: number; delay?: number; enabled: boolean; flap?: boolean }) {
   const n = useCountUp(score, delay, 1000, enabled);
-  return <Ring v={score} size={size} stroke={stroke} text={String(n)} />;
+  // Once the opening count has landed, later changes (marking issues fixed) flip like a split-flap board.
+  const [landed, setLanded] = useState(false);
+  if (flap && !landed && n === score) setLanded(true);
+  return <Ring v={score} size={size} stroke={stroke} text={flap && landed ? <FlapNum n={score} /> : String(n)} />;
 }
 
 /* Who is looking: the signed-in owner of this report, anyone else with the link (view only), or "local"
@@ -234,6 +241,24 @@ const STAR_ART: Partial<Record<string, { color: string; cta: string; ring: IconK
   compare: { color: "#d4572a", cta: "Add competitors", ring: ["table", "performance", "seo", "security"] },
   share: { color: "#14946a", cta: "Brand your report", ring: ["mail", "link", "pdf", "device"] },
 };
+/* Banner colour for each score area and each detail page, and the icons circling a detail page's banner. */
+const AREA_COLOR: Record<ModuleKey, string> = {
+  health: "#13704b",
+  performance: "#c2410c",
+  seo: "#1f56b0",
+  geo: "#6a30bd",
+  security: "#9a5b00",
+  accessibility: "#0f6a78",
+  domain: "#45507a",
+  privacy: "#a3245a",
+};
+const INSIGHT_ART: Partial<Record<Extra, { color: string; ring: IconKey[] }>> = {
+  speed: { color: "#d4572a", ring: ["device", "images", "code", "check"] },
+  pages: { color: "#13704b", ring: ["link", "search", "list", "check"] },
+  images: { color: "#0f7f8f", ring: ["performance", "download", "device", "check"] },
+  tech: { color: "#45507a", ring: ["mail", "security", "code", "link"] },
+  changes: { color: "#2a5fc4", ring: ["compare", "overview", "check", "performance"] },
+};
 const ALL_TOOLS: Section = { id: "tools", label: "All tools", icon: "tools", text: `All ${TOOL_LIST.length} free checkers and generators, pre-filled for this site. The ones that fix this scan's findings come first.` };
 
 /** Tools listed in the sidebar; the rest are under "More tools". */
@@ -325,7 +350,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const server = useServerFixed(scan.id, savedFixed);
   const { fixed, toggle } = access === "local" ? local : server;
   const saveError = access === "local" ? "" : server.saveError;
-  const { prev, trend, synced, points } = useHistory(scan, history);
+  const { prev, trend, synced, points, snaps } = useHistory(scan, history);
   const [acct, setAcct] = useAccount(access === "owner");
   // The signed-in owner sees their own name up top; anyone else with the link only ever sees the website.
   const me = useSignedInUser();
@@ -444,6 +469,11 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const groupOf = (v: View) =>
     v === "overview" ? "Start" : v === "all" ? "Findings" : v in MODULE_NAMES ? "Areas" : INSIGHTS.some((s) => s.id === v) ? "From this scan" : STAR.some((s) => s.id === v) ? "Star features" : "Tools";
 
+  // Undo from a toast runs later, so it must use the newest toggle (which knows the newest fixed set).
+  const undoRef = useRef(toggle);
+  useEffect(() => {
+    undoRef.current = toggle;
+  }, [toggle]);
   const onToggle = (key: string) => {
     if (!canEdit) return; // viewers cannot change a report
     const f = scan.findings.find((x) => findingKey(x) === key);
@@ -451,7 +481,9 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
       setParty(true);
       window.setTimeout(() => setParty(false), 3600);
     }
+    const marking = !fixed.has(key);
     toggle(key);
+    if (f) toast(marking ? `Marked as fixed: ${f.title}` : `Reopened: ${f.title}`, marking ? { action: { label: "Undo", onClick: () => undoRef.current(key) } } : { tone: "info" });
   };
 
   useShortcuts({ openPalette: () => setPalette(true), openHelp: () => setHelp(true), views: order, setView: (v) => setView(v as View), toggleKey: onToggle, step: (d) => { const v = order[at + d]; if (v) setView(v); } });
@@ -482,6 +514,13 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const topTool = tools[0]?.n ? tools[0].t : null;
 
   const [pdfBusy, setPdfBusy] = useState(false);
+  const { shut: navShut, toggle: toggleNav } = useNavGroups();
+  // Paid owners: start the PDF as soon as the Export menu opens, so it is usually ready by the click.
+  const paidOwner = access === "owner" && !!acct?.paid;
+  useEffect(() => {
+    if (modal !== "export" || !paidOwner) return;
+    void supabaseBrowser()?.auth.getSession().then(({ data }) => preparePdf({ scanId: scan.id }, data.session?.access_token));
+  }, [modal, paidOwner, scan.id]);
   // Paid owners get the server-rendered branded PDF; everyone else (and any failure) uses print-to-PDF.
   // Both include every issue: the print fallback opens the full report layout, not the section on screen.
   const pdf = async () => {
@@ -500,6 +539,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}`);
+      toast("Report link copied");
       setCopied(true);
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
@@ -525,29 +565,55 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     </button>
   );
 
-  const statsOf = (id: Extra) => sectionStats(id, scan, prev, points.length);
-  const hero = (s: Section, extra?: React.ReactNode) => (
-    <section className="dash-hero sec-hero" aria-label={s.label}>
-      <span className="sec-ico"><AreaIcon k={s.icon} size={28} /></span>
-      <div className="dash-hero-txt">
-        <p className="dash-eyebrow">{groupOf(s.id)}{needsPlan(s.id) && <span className="plan-badge">Paid plans</span>}</p>
-        <h1>{s.label}</h1>
-        <p>{s.text}</p>
-        {statsOf(s.id).length > 0 && (
-          <ul className="sec-stats" aria-label="Key numbers">
-            {statsOf(s.id).map((st, i) => (
-              <li key={st.label} className={st.tone ? `st-${st.tone}` : undefined} style={{ ["--i" as string]: i }}>
-                <b>{st.value}</b>
-                <span>{st.label}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        <WhyItMatters text={WHY[s.id]} />
-        {extra}
+  /* A sidebar group with a heading that folds it away. The group holding the page on screen always stays open.
+     On phones the groups flatten into the bottom bar (see .nav-grp in globals.css). */
+  const navGroup = (id: NavGroup, title: React.ReactNode, items: React.ReactNode, current: boolean, cls = "") => {
+    const open = current || !navShut.has(id);
+    return (
+      <div key={id} className={`nav-grp nav-grp-${id} ${cls}`.trim()}>
+        <button type="button" className="nav-gh" aria-expanded={open} aria-controls={`nav-${id}`} disabled={current} onClick={() => toggleNav(id)}>
+          <span>{title}</span>
+          <span className="nav-chev" aria-hidden="true" />
+        </button>
+        <div id={`nav-${id}`} className="nav-items" hidden={!open}>{items}</div>
       </div>
-    </section>
-  );
+    );
+  };
+  const statsOf = (id: Extra) => sectionStats(id, scan, prev, points.length);
+  /* A detail page's banner (Speed & vitals, Pages crawled, Images, Domain & tech, Changes): animated, in the page's
+     own colour, with this scan's key numbers as chips and an orbit of related icons. */
+  const hero = (s: Section) => {
+    const art = INSIGHT_ART[s.id] ?? { color: "#6a30bd", ring: ["check", "list", "search", "performance"] as IconKey[] };
+    const stats = statsOf(s.id);
+    return (
+      <section className={`dash-hero sec-hero bn bn-tool bn-star bn-ins`} aria-label={s.label} style={{ ["--tc" as string]: art.color }}>
+        <BannerFx />
+        <span className="sec-ico bn-tool-ic"><AreaIcon k={s.icon} size={30} /></span>
+        <div className="dash-hero-txt">
+          <p className="dash-eyebrow">{groupOf(s.id)}{needsPlan(s.id) && <span className="plan-badge">Paid plans</span>}</p>
+          <h1>{s.label}</h1>
+          <p>{s.text}</p>
+          {stats.length > 0 && (
+            <ul className="bn-chips bn-stats" aria-label="Key numbers">
+              {stats.map((st) => (
+                <li key={st.label} className={st.tone === "bad" ? "bn-chip-hot" : st.tone === "good" ? "bn-chip-ok" : undefined}>
+                  <b>{st.value}</b> {st.label}
+                </li>
+              ))}
+            </ul>
+          )}
+          <div className="bn-star-row">
+            <button type="button" className="bn-cta" onClick={() => goBody(false)}>See the details <span aria-hidden="true">↓</span></button>
+            <WhyItMatters title={`Why ${s.label} matters`} text={WHY[s.id]} icon={s.icon} color={art.color} facts={stats} action={{ label: "See the details", onClick: () => goBody(false) }} />
+          </div>
+        </div>
+        <span className="bn-star-art" aria-hidden="true" style={{ ["--n" as string]: art.ring.length }}>
+          <span className="bn-star-core"><AreaIcon k={s.icon} size={34} /></span>
+          {art.ring.map((k, i) => <span key={k} className="bn-orbit-dot" style={{ ["--k" as string]: i }}><span><AreaIcon k={k} size={16} /></span></span>)}
+        </span>
+      </section>
+    );
+  };
   /* A star feature's banner: its own colour, drifting light, live chips about this site, an orbit of related
      icons and one button that takes you to the feature below. */
   const starChips = (id: Extra): { text: React.ReactNode; tone?: "hot" | "ok" }[] => {
@@ -562,11 +628,12 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
       default: return [];
     }
   };
-  const goBody = () => {
+  /** Scrolls to the content under the banner; star features also focus their first control. */
+  const goBody = (focus = true) => {
     const el = document.getElementById("star-body");
     if (!el) return;
     el.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
-    el.querySelector<HTMLElement>("input, textarea, select, button")?.focus({ preventScroll: true });
+    if (focus) el.querySelector<HTMLElement>("input, textarea, select, button")?.focus({ preventScroll: true });
   };
   const starBanner = (s: Section) => {
     const art = STAR_ART[s.id]!;
@@ -582,8 +649,8 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
             {starChips(s.id).map((c, i) => <li key={i} className={c.tone ? `bn-chip-${c.tone}` : undefined}>{c.text}</li>)}
           </ul>
           <div className="bn-star-row">
-            <button type="button" className="bn-cta" onClick={goBody}>{art.cta} <span aria-hidden="true">↓</span></button>
-            <WhyItMatters text={WHY[s.id]} />
+            <button type="button" className="bn-cta" onClick={() => goBody()}>{art.cta} <span aria-hidden="true">↓</span></button>
+            <WhyItMatters title={`Why ${s.label} matters`} text={WHY[s.id]} icon={s.icon} color={art.color} action={{ label: art.cta, onClick: () => goBody() }} />
           </div>
         </div>
         <span className="bn-star-art" aria-hidden="true" style={{ ["--n" as string]: art.ring.length }}>
@@ -620,7 +687,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
         <section className="dash-hero bn bn-score" aria-label="Overall score" ref={watchHero}>
           <BannerFx />
           <div className="bn-ring">
-            <CountRing score={potential} size={132} stroke={13} enabled={intro} />
+            <CountRing score={potential} size={132} stroke={13} enabled={intro} flap />
           </div>
           <div className="dash-hero-txt">
             <p className="dash-eyebrow"><span className="bn-spark" aria-hidden="true">✦</span>Website Intelligence Score</p>
@@ -759,23 +826,45 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     const area = mod.key;
     body = (
       <>
-        <section className="dash-hero" aria-label={`${mod.name} score`}>
-          <CountRing score={mod.score} size={104} stroke={11} enabled={intro} />
-          <div className="dash-hero-txt">
-            <p className="dash-eyebrow">{MODULE_NAMES[area]}</p>
-            <h1>{mod.score >= 80 ? "Looking good" : mod.score >= 50 ? "Needs work" : "Needs attention"}</h1>
-            <p>{BLURB[area]}</p>
-            <WhyItMatters text={WHY[area]} />
-            <p className="dash-sub">
-              {inModule.length === 0
-                ? "No issues found in this area."
-                : countOf(area) === 0
-                  ? "Everything here is marked as fixed."
-                  : `${countOf(area)} of ${inModule.length} issue${inModule.length === 1 ? "" : "s"} still to look at.`}
-            </p>
-          </div>
-        </section>
-        {inModule.length > 0 && <Findings findings={inModule} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} visits={visits} spend={spend} grouped />}
+        {(() => {
+          const open = countOf(area);
+          const high = remaining.filter((f) => f.module === area && f.severity === "high").length;
+          const done = inModule.length - open;
+          const color = AREA_COLOR[area];
+          const facts = [
+            { value: String(mod.score), label: "score out of 100", tone: (mod.score >= 80 ? "good" : mod.score >= 50 ? "ok" : "bad") as "good" | "ok" | "bad" },
+            { value: String(open), label: open === 1 ? "open issue" : "open issues", tone: (open ? "bad" : "good") as "good" | "bad" },
+            ...(high ? [{ value: String(high), label: "high priority", tone: "bad" as const }] : []),
+          ];
+          return (
+            <section className={`dash-hero sec-hero bn bn-tool bn-star bn-area`} aria-label={`${mod.name} score`} style={{ ["--tc" as string]: color }}>
+              <BannerFx />
+              <span className="bn-ring"><CountRing score={mod.score} size={104} stroke={11} enabled={intro} /></span>
+              <div className="dash-hero-txt">
+                <p className="dash-eyebrow"><AreaIcon k={area} size={14} /> {MODULE_NAMES[area]}</p>
+                <h1>{mod.score >= 80 ? "Looking good" : mod.score >= 50 ? "Needs work" : "Needs attention"}</h1>
+                <p>{BLURB[area]}</p>
+                <ul className="bn-chips" aria-label="At a glance">
+                  {inModule.length === 0 ? (
+                    <li className="bn-chip-ok"><b>✓</b> No issues found</li>
+                  ) : (
+                    <>
+                      <li className={open ? "bn-chip-hot" : "bn-chip-ok"}><b>{open}</b> {open === 1 ? "issue" : "issues"} to look at</li>
+                      {high > 0 && <li className="bn-chip-hot"><b>{high}</b> high priority</li>}
+                      {done > 0 && <li className="bn-chip-ok"><b>{done}</b> marked fixed</li>}
+                      <li><b>{inModule.length}</b> found in total</li>
+                    </>
+                  )}
+                </ul>
+                <div className="bn-star-row">
+                  {inModule.length > 0 && <button type="button" className="bn-cta" onClick={() => goBody(false)}>See the fixes <span aria-hidden="true">↓</span></button>}
+                  <WhyItMatters title={`Why ${MODULE_NAMES[area]} matters`} text={WHY[area]} icon={area} color={color} facts={facts} action={inModule.length ? { label: "See the fixes", onClick: () => goBody(false) } : undefined} />
+                </div>
+              </div>
+            </section>
+          );
+        })()}
+        {inModule.length > 0 && <div id="star-body" className="star-body"><Findings findings={inModule} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} visits={visits} spend={spend} grouped /></div>}
       </>
     );
   } else if (tool && toolCtx) {
@@ -824,7 +913,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     else if (s.id === "changes")
       content = (
         <>
-          <ComparePanel scan={scan} prev={prev} trend={trend} synced={synced} points={points} />
+          <ComparePanel scan={scan} prev={prev} trend={trend} synced={synced} points={points} snaps={snaps} />
           {scan.change ? <ChangePanel scan={scan} shots={shots} /> : empty("This is the first scan we have of this site, so there is nothing to compare the homepage with yet. Rescan later to see what changed.")}
         </>
       );
@@ -858,7 +947,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     body = (
       <>
         {s.id === "tools" ? <ToolsBanner host={scan.host} missing={toolMissing} top={topTool} onOpen={setView} heading="h1" /> : STAR_ART[s.id] ? starBanner(s) : hero(s)}
-        {STAR_ART[s.id] ? <div id="star-body" className="star-body">{content}</div> : content}
+        {s.id === "tools" ? content : <div id="star-body" className="star-body">{content}</div>}
       </>
     );
   }
@@ -936,6 +1025,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           <button type="button" className="dash-btn kbd-btn" onClick={() => setPalette(true)} aria-label="Search and jump (Ctrl K)">
             Search <kbd>Ctrl K</kbd>
           </button>
+          <ActivityBell scan={scan} snaps={snaps} />
           {access === "owner" && <RescanButton url={scan.url} id={scan.id} running={params.get("scan")} />}
           <button type="button" className="dash-btn ico-btn" onClick={openShare}><AreaIcon k="share" size={16} />Share</button>
           <button type="button" className="dash-btn ico-btn" onClick={() => setModal("export")}><AreaIcon k="download" size={16} />{pdfBusy ? "Preparing PDF…" : "Export"}</button>
@@ -959,17 +1049,20 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
         <nav className="dash-nav" aria-label="Report sections">
           {navBtn("overview", "overview", "Overview", <b>{remaining.length}</b>)}
           {navBtn("all", "list", "All findings", <b>{scan.findings.length}</b>)}
-          {star.length > 0 && (
-            <div className="nav-star">
-              <p className="nav-h"><span aria-hidden="true">★</span> Star features</p>
-              {star.map((s) => navBtn(s.id, s.icon, s.label, needsPlan(s.id) ? <span className="plan-dot" title="Paid plans">Paid</span> : undefined))}
-            </div>
+          {navGroup("areas", "Score areas", modules.map((m) => navBtn(m.key, m.key, m.name, <b className={`t-${tone(m.score)}`} data-tip={`${m.name} score: ${m.score} out of 100. ${countOf(m.key) === 0 ? "No open issues." : `${countOf(m.key)} open issue${countOf(m.key) === 1 ? "" : "s"}.`}`}>{m.score}</b>)), modules.some((m) => m.key === view))}
+          {navGroup("scan", "From this scan", INSIGHTS.map((s) => navBtn(s.id, s.icon, s.label)), INSIGHTS.some((s) => s.id === view))}
+          {star.length > 0 && navGroup("star", <><span aria-hidden="true">★</span> Star features</>, star.map((s) => navBtn(s.id, s.icon, s.label, needsPlan(s.id) ? <span className="plan-dot" data-tip="Part of the paid plans">Paid</span> : undefined)), star.some((s) => s.id === view), "nav-star")}
+          {navGroup(
+            "tools",
+            "Tools",
+            <>
+              {mainTools.map(({ t, n }) => navBtn(t.slug, <ToolIcon slug={t.slug} size={16} />, t.name, n ? <b className="nav-miss" data-tip={`${n} item${n === 1 ? "" : "s"} from this scan this tool can fix`}>{n}</b> : undefined, "nav-tool"))}
+              {/* The tool on screen stays visible in the sidebar even when it isn't one of the main five. */}
+              {tool && !mainTools.some((x) => x.t.slug === tool.slug) && navBtn(tool.slug, <ToolIcon slug={tool.slug} size={16} />, tool.name, undefined, "nav-tool")}
+              {navBtn("tools", "tools", "More tools", <b>{TOOL_LIST.length}</b>, "nav-more")}
+            </>,
+            view === "tools" || !!tool
           )}
-          <p className="nav-h">Tools</p>
-          {mainTools.map(({ t, n }) => navBtn(t.slug, <ToolIcon slug={t.slug} size={16} />, t.name, n ? <b className="nav-miss" title={`${n} missing`}>{n}</b> : undefined, "nav-tool"))}
-          {/* The tool on screen stays visible in the sidebar even when it isn't one of the main five. */}
-          {tool && !mainTools.some((x) => x.t.slug === tool.slug) && navBtn(tool.slug, <ToolIcon slug={tool.slug} size={16} />, tool.name, undefined, "nav-tool")}
-          {navBtn("tools", "tools", "More tools", <b>{TOOL_LIST.length}</b>, "nav-more")}
         </nav>
 
         <main className="dash-main">
@@ -1035,14 +1128,47 @@ function useSiteId(host: string, enabled: boolean) {
   return id;
 }
 
-/* "Why it matters", folded to one line until opened. */
-function WhyItMatters({ text }: { text: string }) {
-  return (
-    <details className="sec-why">
-      <summary>Why it matters</summary>
-      <p>{text}</p>
-    </details>
+/* Which sidebar groups are folded away, remembered on this device. "From this scan" starts folded. */
+type NavGroup = "areas" | "scan" | "star" | "tools";
+const NAV_KEY = "pagelyt-nav-shut";
+function useNavGroups() {
+  const raw = useSyncExternalStore(
+    (cb) => {
+      window.addEventListener("pagelyt-nav", cb);
+      window.addEventListener("storage", cb);
+      return () => {
+        window.removeEventListener("pagelyt-nav", cb);
+        window.removeEventListener("storage", cb);
+      };
+    },
+    () => {
+      try {
+        return window.localStorage.getItem(NAV_KEY) ?? '["scan"]';
+      } catch {
+        return '["scan"]';
+      }
+    },
+    () => '["scan"]'
   );
+  const shut = useMemo(() => {
+    try {
+      return new Set<NavGroup>(JSON.parse(raw));
+    } catch {
+      return new Set<NavGroup>(["scan"]);
+    }
+  }, [raw]);
+  const toggle = (id: NavGroup) => {
+    const next = new Set(shut);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    try {
+      window.localStorage.setItem(NAV_KEY, JSON.stringify([...next]));
+    } catch {
+      /* storage blocked */
+    }
+    window.dispatchEvent(new Event("pagelyt-nav"));
+  };
+  return { shut, toggle };
 }
 
 /* Decoration behind every animated banner: drifting light, a faint grid and twinkling sparks. */
@@ -1102,7 +1228,7 @@ function Heat({ list }: { list: { severity: "high" | "medium" | "low" }[] }) {
   const n = (s: string) => list.filter((f) => f.severity === s).length;
   if (!list.length) return <span className="heat none" aria-hidden="true" />;
   return (
-    <span className="heat" aria-hidden="true">
+    <span className="heat" aria-hidden="true" data-tip={`${n("high")} important · ${n("medium")} worth fixing · ${n("low")} minor`}>
       <i className="h-high" style={{ flex: n("high") }} />
       <i className="h-medium" style={{ flex: n("medium") }} />
       <i className="h-low" style={{ flex: n("low") }} />

@@ -4,7 +4,7 @@ import { Arrow } from "./arrow";
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Arcs, Funnel } from "./art";
 import { TrustRow } from "./home-extras";
 import { Compare, HeroTitle, ProcessDraw, StatsBar, StickyCta, Stories, ToolGrid } from "./home-convert";
@@ -12,6 +12,8 @@ import { SiteFooter, SiteNav } from "./site-chrome";
 import { Sources } from "./sources";
 import { GoogleSection } from "./home-google";
 import { WelcomeBack } from "./welcome-back";
+import { HeroCollage, ReportBento } from "./home-motion";
+import { GuidesCarousel, WorksWith, type GuideCard } from "./home-media";
 import { ScanPreview, type ModScore } from "./ui";
 import { LeadModal, type ScanProblem, type ScanStart } from "./lead-modal";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -52,7 +54,7 @@ const AUDIENCE = {
   },
 };
 
-export default function Home() {
+export default function Home({ guides = [] }: { guides?: GuideCard[] }) {
   const [url, setUrl] = useState("");
   const [host, setHost] = useState("");
   const router = useRouter();
@@ -63,21 +65,7 @@ export default function Home() {
 
   const overall = Math.round(BASE.reduce((a, m) => a + m.score, 0) / BASE.length);
 
-  useEffect(() => {
-    document.documentElement.classList.add("js");
-    const io = new IntersectionObserver(
-      (es) =>
-        es.forEach((e) => {
-          if (e.isIntersecting) {
-            e.target.classList.add("in");
-            io.unobserve(e.target);
-          }
-        }),
-      { threshold: 0.12 }
-    );
-    document.querySelectorAll("[data-r]").forEach((el) => io.observe(el));
-    return () => io.disconnect();
-  }, []);
+  // Scroll reveal ([data-r]) and the .js class come from RevealHost in the root layout.
 
   const openModal = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -170,6 +158,7 @@ export default function Home() {
       {/* 1. HERO: ribbons behind, headline in front, big URL box, then the advantages */}
       <section className="hero hero-c" aria-labelledby="h1">
         <Arcs />
+        <HeroCollage />
         <div className="container hero-stack">
           <WelcomeBack />
           <HeroTitle />
@@ -216,6 +205,7 @@ export default function Home() {
 
       {/* 2. THREE NUMBERED STEPS */}
       <section className="sec" id="product" aria-labelledby="num-h">
+        <WorksWith />
         <div className="container">
           <div className="head-center" data-r>
             <h2 className="title" id="num-h">
@@ -227,6 +217,21 @@ export default function Home() {
             </p>
           </div>
           <ProcessDraw />
+        </div>
+      </section>
+
+      {/* 2b. INSIDE EVERY REPORT: small live demos */}
+      <section className="sec tight" id="inside" aria-labelledby="inside-h">
+        <div className="container">
+          <div className="head-center" data-r>
+            <h2 className="title" id="inside-h">
+              Inside every report.
+            </h2>
+            <p className="lead">Not a wall of numbers: a score you can follow, every page checked, and fixes you can tick off.</p>
+          </div>
+          <div data-r style={{ ["--d" as string]: 1 }}>
+            <ReportBento />
+          </div>
         </div>
       </section>
 
@@ -284,6 +289,21 @@ export default function Home() {
           <Stories />
         </div>
       </section>
+
+      {/* 8. GUIDES */}
+      {guides.length > 0 && (
+        <section className="sec ice" id="guides" aria-labelledby="gd-h">
+          <div className="container">
+            <div className="head-center" data-r>
+              <h2 className="title" id="gd-h">
+                Learn as you fix.
+              </h2>
+              <p className="lead">Plain-English guides to SEO, AI search and site health, written for owners rather than developers.</p>
+            </div>
+            <GuidesCarousel guides={guides} />
+          </div>
+        </section>
+      )}
 
       <TrustRow />
       <SiteFooter />

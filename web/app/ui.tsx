@@ -5,7 +5,7 @@ const word = { good: "Good", warn: "Needs work", bad: "Poor" };
 
 export type ModScore = { name: string; score: number };
 
-export function Ring({ v, size = 64, stroke = 7, text }: { v: number; size?: number; stroke?: number; text?: string }) {
+export function Ring({ v, size = 64, stroke = 7, text }: { v: number; size?: number; stroke?: number; text?: React.ReactNode }) {
   const r = (size - stroke) / 2;
   const C = 2 * Math.PI * r;
   const t = tone(v);

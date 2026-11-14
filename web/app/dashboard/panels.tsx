@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "../toast";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Findings } from "../findings";
 import { findingKey, PENALTY, WEIGHTS } from "@/lib/scan/score";
@@ -162,6 +163,7 @@ export function ExportTiles({ scan, findings, fixed, pdfLabel, pdfText, onPdf, p
       try {
         await navigator.clipboard.writeText(checklist());
         flash("copy");
+        toast("Fix checklist copied");
       } catch {
         flash("copy-fail");
       }
@@ -190,7 +192,7 @@ export function ExportTiles({ scan, findings, fixed, pdfLabel, pdfText, onPdf, p
 /* Compare with your previous scan (this browser only)                 */
 /* ------------------------------------------------------------------ */
 
-export type Snap = { id: string; at: string; overall: number; mods: Record<string, number>; keys: string[] };
+export type Snap = { id: string; at: string; overall: number; mods: Record<string, number>; keys: string[]; highs?: string[] };
 
 export function useHistory(scan: StoredScan, server?: Snap[]) {
   const synced = !!server && server.length > 0;
@@ -225,7 +227,7 @@ export function useHistory(scan: StoredScan, server?: Snap[]) {
   // Remember this scan once, so a later scan of the same site can be compared with it.
   useEffect(() => {
     if (synced || list.some((s) => s.id === scan.id)) return;
-    const snap: Snap = { id: scan.id, at: scan.scannedAt, overall: scan.overall, mods: Object.fromEntries(scan.modules.map((m) => [m.key, m.score])), keys: scan.findings.map(findingKey) };
+    const snap: Snap = { id: scan.id, at: scan.scannedAt, overall: scan.overall, mods: Object.fromEntries(scan.modules.map((m) => [m.key, m.score])), keys: scan.findings.map(findingKey), highs: scan.findings.filter((f) => f.severity === "high").map(findingKey) };
     try {
       window.localStorage.setItem(storeKey, JSON.stringify([...list, snap].slice(-12)));
       window.dispatchEvent(new Event("pagelyt-history"));
@@ -236,12 +238,12 @@ export function useHistory(scan: StoredScan, server?: Snap[]) {
 
   const src = synced ? server! : list;
   const prev = [...src].filter((s) => s.id !== scan.id && s.at < scan.scannedAt).pop() ?? null;
-  return { prev, trend: src.map((s) => s.overall), synced, points: src.map((s) => ({ at: s.at, overall: s.overall })) };
+  return { prev, trend: src.map((s) => s.overall), synced, points: src.map((s) => ({ at: s.at, overall: s.overall })), snaps: src };
 }
 
 const delta = (n: number) => (n > 0 ? `+${n}` : String(n));
 
-export function ComparePanel({ scan, prev, trend, synced = false, points = [] }: { scan: StoredScan; prev: Snap | null; trend: number[]; synced?: boolean; points?: { at: string; overall: number }[] }) {
+export function ComparePanel({ scan, prev, trend, synced = false, points = [], snaps = [] }: { scan: StoredScan; prev: Snap | null; trend: number[]; synced?: boolean; points?: { at: string; overall: number }[]; snaps?: Snap[] }) {
   if (!prev) {
     return (
       <section className="panel" aria-label="Progress">
@@ -291,8 +293,55 @@ export function ComparePanel({ scan, prev, trend, synced = false, points = [] }:
           );
         })}
       </ul>
+      {snaps.length > 1 && <ScoreTimeline snaps={snaps} current={scan.id} />}
       <p className="panel-note">Compared with {new Date(prev.at).toLocaleDateString("en-GB", { dateStyle: "medium" })}. {synced ? "From your saved scans." : "Saved on this device only."}</p>
     </section>
+  );
+}
+
+/* Every saved scan as a timeline, newest first: the score, the change from the scan before it, and how many
+   issues were resolved or appeared in between. Steps in one after another as it scrolls into view. */
+function ScoreTimeline({ snaps, current }: { snaps: Snap[]; current: string }) {
+  const list = [...snaps].sort((a, b) => (a.at < b.at ? -1 : 1));
+  const rows = list
+    .map((s, i) => {
+      const p = list[i - 1];
+      const before = new Set(p?.keys ?? []);
+      const now = new Set(s.keys ?? []);
+      return {
+        s,
+        d: p ? s.overall - p.overall : null,
+        resolved: p ? (p.keys ?? []).filter((k) => !now.has(k)).length : 0,
+        added: p ? (s.keys ?? []).filter((k) => !before.has(k)).length : 0,
+        highs: s.highs?.length ?? null,
+      };
+    })
+    .reverse()
+    .slice(0, 8);
+  const date = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  const tone = (n: number) => (n >= 80 ? "good" : n >= 50 ? "ok" : "poor");
+  return (
+    <div className="stl-wrap">
+      <h3 className="stl-h">Scan timeline</h3>
+      <ol className="stl" data-r>
+        {rows.map((r, i) => (
+          <li key={r.s.id} className={`stl-i t-${tone(r.s.overall)}${r.s.id === current ? " cur" : ""}`} style={{ ["--k" as string]: i }}>
+            <span className="stl-dot" aria-hidden="true" />
+            <div className="stl-body">
+              <time dateTime={r.s.at}>{date(r.s.at)}{r.s.id === current ? " · this scan" : ""}</time>
+              <p>
+                <b className="stl-score">{r.s.overall}</b>
+                {r.d !== null && <span className={`stl-d ${r.d > 0 ? "up" : r.d < 0 ? "down" : ""}`}>{r.d === 0 ? "no change" : delta(r.d)}</span>}
+              </p>
+              <span className="stl-meta">
+                {r.d === null ? "First scan" : `${r.resolved} resolved · ${r.added} new`}
+                {r.highs ? ` · ${r.highs} important open` : ""}
+              </span>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
   );
 }
 
@@ -864,6 +913,29 @@ export function QuickWins({ findings, gains, onOpen }: { findings: Finding[]; ga
 /* Visual change since the previous scan                               */
 /* ------------------------------------------------------------------ */
 
+/* Before and after on top of each other with a handle to drag between them. The handle is a real range input
+   (arrow keys, Home and End work); the earlier screenshot is clipped to the left of it. */
+function ImageCompare({ before, after, beforeLabel, afterLabel }: { before: string; after: string; beforeLabel: string; afterLabel: string }) {
+  const [p, setP] = useState(50);
+  return (
+    <figure className="imc" style={{ ["--p" as string]: `${p}%` }}>
+      <div className="imc-stage">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={after} alt={`Homepage, ${afterLabel}`} loading="lazy" />
+        <div className="imc-top" aria-hidden="true">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={before} alt="" loading="lazy" />
+        </div>
+        <span className="imc-line" aria-hidden="true"><span className="imc-knob">‹ ›</span></span>
+        <span className="imc-tag l" aria-hidden="true">Before</span>
+        <span className="imc-tag r" aria-hidden="true">Now</span>
+        <input type="range" min={0} max={100} value={p} onChange={(e) => setP(Number(e.target.value))} aria-label="Slide between the earlier and the latest screenshot" aria-valuetext={`${p}% earlier screenshot`} />
+      </div>
+      <figcaption>{beforeLabel} ← drag → {afterLabel}</figcaption>
+    </figure>
+  );
+}
+
 export function ChangePanel({ scan, shots }: { scan: StoredScan; shots?: { now: string | null; prev: string | null } }) {
   const c = scan.change;
   const now = shots?.now ?? null;
@@ -889,7 +961,10 @@ export function ChangePanel({ scan, shots }: { scan: StoredScan; shots?: { now: 
       ) : (
         <p className="panel-note">Save this site and scan it again later: we will compare the two and flag unexpected changes, such as a defaced homepage.</p>
       )}
-      {(now || shots?.prev) && (
+      {c && now && shots?.prev ? (
+        <ImageCompare before={shots.prev} after={now} beforeLabel={`Before · ${day(c.prevAt)}`} afterLabel={`Now · ${day(scan.scannedAt)}`} />
+      ) : null}
+      {(now || shots?.prev) && !(c && now && shots?.prev) && (
         <div className="chg-shots">
           {c && (
             <figure>

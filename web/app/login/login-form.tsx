@@ -1,5 +1,6 @@
 "use client";
 
+import { OtpInput } from "../otp-input";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { adoptSession, claimAndFindReport, type SessionTokens } from "@/lib/pending";
@@ -154,18 +155,8 @@ export function LoginForm({ next, startForgot, onSignedIn, title, bare = false, 
             into it. This hidden field gives the email a home (and lets the password manager save the new password). */}
         <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />
         <div className="tf">
-          <label htmlFor="rs-code">6-digit code</label>
-          <input
-            id="rs-code"
-            className="code-in"
-            name="code"
-            inputMode="numeric"
-            autoComplete="one-time-code"
-            maxLength={9}
-            onInput={(e) => (e.currentTarget.value = e.currentTarget.value.replace(/[^\d\s-]/g, ""))}
-            required
-            autoFocus
-          />
+          <p className="otp-lbl" aria-hidden="true">6-digit code</p>
+          <OtpInput id="rs-code" label="6-digit code" error={err} autoFocus />
         </div>
         <div className="tf">
           <label htmlFor="rs-pw">New password</label>

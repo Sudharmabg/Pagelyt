@@ -129,7 +129,7 @@ export default function HowItWorksPage() {
             {HOW_DETAIL.map((s, i) => {
               const M = MOCKS[i];
               return (
-                <div className="how-row" key={s.k} style={{ ["--c" as string]: COLOURS[i] }}>
+                <div className="how-row" key={s.k} style={{ ["--c" as string]: COLOURS[i], ["--si" as string]: i }}>
                   <div className="how-copy">
                     <div className="hnum" aria-hidden="true">
                       0{i + 1}

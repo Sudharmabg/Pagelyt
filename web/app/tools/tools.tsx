@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "../toast";
 import { useEffect, useId, useRef, useState } from "react";
 import { ModalX, onBackdrop } from "../modal-close";
 import type { ToolContext } from "@/lib/scan/tools-context";
@@ -30,6 +31,7 @@ export function Output({ text, filename, scroll }: { text: string; filename: str
     try {
       await navigator.clipboard.writeText(text);
       flash("Copied");
+      toast("Copied to your clipboard");
     } catch {
       flash("Copy blocked");
     }

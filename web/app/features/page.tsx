@@ -38,6 +38,7 @@ export default function FeaturesPage() {
       <main>
         <PageHero
           h1="Everything you need to understand your website."
+          words={["SEO", "AI search", "Speed", "Security", "Accessibility", "Privacy", "Google data", "Monitoring"]}
           lead="One URL, one report: website health, speed, SEO, AI search readiness, security and accessibility, with fixes ranked by impact."
         />
 

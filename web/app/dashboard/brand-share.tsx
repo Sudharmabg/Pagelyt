@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "../toast";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -149,6 +150,7 @@ function ShareTab({ scanId, host, score, canEmail, owner, onBrand, onSample }: {
     try {
       await navigator.clipboard.writeText(url(t));
       setCopied(t);
+      toast("Share link copied");
       window.setTimeout(() => setCopied(""), 1800);
     } catch { /* the link is still on screen to copy by hand */ }
   };

@@ -77,11 +77,29 @@ export async function openForHtml(browser: Browser, url: string, timeout = 10_00
   return { page, res };
 }
 
+/** Prints `url` to an A4 PDF. The print page is rendered on the server, so instead of waiting for the network to go
+    quiet (trackers and late requests made that slow) it waits for the page's own load event, at most 12 s, and its
+    fonts. Trackers and video are skipped. */
 export async function renderPdf(url: string): Promise<Uint8Array> {
   return withBrowser(async (browser) => {
     const page = await browser.newPage();
+    await page.setRequestInterception(true);
+    page.on("request", (req) => {
+      let host = "";
+      try {
+        host = new URL(req.url()).hostname;
+      } catch {
+        /* data: and similar */
+      }
+      if (req.resourceType() === "media" || SKIP_HOSTS.test(host)) void req.abort();
+      else void req.continue();
+    });
     await page.emulateMediaType("print");
-    await page.goto(url, { waitUntil: "networkidle0", timeout: 25_000 });
+    await page.goto(url, { waitUntil: "load", timeout: 12_000 }).catch((e: unknown) => {
+      // A slow image or script shouldn't sink the PDF: the report itself is already in the HTML.
+      if (!/timeout/i.test(e instanceof Error ? e.message : "")) throw e;
+    });
+    await page.evaluate(() => document.fonts.ready.then(() => true)).catch(() => {});
     const pdf = await page.pdf({ format: "A4", printBackground: true, margin: { top: "14mm", bottom: "14mm", left: "12mm", right: "12mm" } });
     return new Uint8Array(pdf);
   });

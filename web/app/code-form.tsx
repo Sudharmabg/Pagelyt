@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { adoptSession, type SessionTokens } from "@/lib/pending";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { checkCode, checkEmail } from "@/lib/validate";
+import { OtpInput } from "./otp-input";
 
 const COOLDOWN = 60;
 
@@ -80,20 +81,8 @@ export function CodeForm({ email: known, sendFirst = false, onVerified }: { emai
           <input type="email" autoComplete="email" inputMode="email" maxLength={254} value={email} onChange={(e) => setEmail(e.target.value)} required />
         </label>
       )}
-      <label>
-        6-digit code
-        <input
-          className="code-in"
-          name="code"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={9}
-          value={code}
-          onChange={(e) => setCode(e.target.value.replace(/[^\d\s-]/g, ""))}
-          autoFocus
-          required
-        />
-      </label>
+      <p className="otp-lbl">Enter the 6-digit code from the email</p>
+      <OtpInput id="cf-code" error={err} autoFocus onChange={setCode} />
       {err && <p className="lm-err" role="alert">{err}</p>}
       {note && <p className="lm-fine" role="status">{note}</p>}
       <button type="submit" className="btn" disabled={busy}>{busy ? "Checking…" : "Verify Email"}</button>

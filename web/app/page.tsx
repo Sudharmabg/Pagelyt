@@ -1,4 +1,5 @@
 import Home from "./home";
+import { POSTS } from "./blog-data";
 import { PLANS } from "./content";
 import { JsonLd } from "./json-ld";
 import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "./site-config";
@@ -41,7 +42,7 @@ export default function Page() {
           ],
         }}
       />
-      <Home />
+      <Home guides={POSTS.map(({ slug, tag, h1, lead }) => ({ slug, tag, h1, lead }))} />
     </>
   );
 }

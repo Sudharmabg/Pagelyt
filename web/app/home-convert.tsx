@@ -8,12 +8,11 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Arrow } from "./arrow";
 import { RailNav } from "./rail-nav";
+import { RollNum } from "./roll-num";
 import { COMPARE, COMPARE_COLS, PROCESS, ROTATOR, STATS, STORIES, type Mark } from "./home-data";
 import { CATEGORIES, TOOL_LIST, type ToolCategory } from "./tools/catalog";
 import { TONE } from "./tools/icons";
 import { ToolCard } from "./tools/tool-card";
-
-const reduced = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /* ---------- hero headline: the full keyword list is real text for search engines and screen readers;
    the rotating words are drawn with CSS content, so the H1's text stays one clean sentence ---------- */
@@ -28,41 +27,6 @@ export function HeroTitle() {
         ))}
       </span>
     </h1>
-  );
-}
-
-/* ---------- stats: final numbers are in the HTML; they count up once when scrolled into view ---------- */
-function CountUp({ n, prefix = "", suffix = "" }: { n: number; prefix?: string; suffix?: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [v, setV] = useState(n);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || n < 2 || reduced()) return;
-    let raf = 0;
-    const io = new IntersectionObserver(([e]) => {
-      if (!e.isIntersecting) return;
-      io.disconnect();
-      const t0 = performance.now();
-      const tick = (t: number) => {
-        const k = Math.min(1, (t - t0) / 900);
-        setV(Math.round(n * (1 - Math.pow(1 - k, 3))));
-        if (k < 1) raf = requestAnimationFrame(tick);
-      };
-      setV(0);
-      raf = requestAnimationFrame(tick);
-    }, { threshold: 0.6 });
-    io.observe(el);
-    return () => {
-      io.disconnect();
-      cancelAnimationFrame(raf);
-    };
-  }, [n]);
-  return (
-    <span ref={ref}>
-      {prefix}
-      {v}
-      {suffix}
-    </span>
   );
 }
 
@@ -83,7 +47,7 @@ export function StatsBar() {
             {STAT_ICONS[i]}
           </svg>
           <strong>
-            <CountUp n={s.n} prefix={s.prefix} suffix={s.suffix} />
+            <RollNum n={s.n} prefix={s.prefix} suffix={s.suffix} />
           </strong>
           <span>{s.label}</span>
         </li>
@@ -112,7 +76,7 @@ function StepVisual({ i }: { i: number }) {
           <circle className="pv-arc" cx="50" cy="50" r="42" pathLength={100} />
         </svg>
         <strong>
-          <CountUp n={82} />
+          <RollNum n={82} />
         </strong>
         <span>Overall score</span>
       </div>
@@ -311,7 +275,7 @@ export function Stories() {
               <small>After</small>
               <i />
               <b>
-                <CountUp n={s.after} />
+                <RollNum n={s.after} />
               </b>
             </span>
           </div>

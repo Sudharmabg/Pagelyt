@@ -7,16 +7,29 @@ import { MainCta } from "./main-cta";
 export function PageHero({
   h1,
   lead,
+  words,
   children,
 }: {
   h1: string;
   lead?: string;
+  /** Eight short words that rotate in a decorative line above the heading (the H1 itself stays as written). */
+  words?: string[];
   children?: ReactNode;
 }) {
   return (
     <section className="page-hero" aria-labelledby="page-h1">
       <Arcs />
       <div className="container">
+        {words && (
+          <p className="ph-rot" aria-hidden="true">
+            Built for
+            <span className="rot" style={{ ["--n" as string]: words.length }}>
+              {words.map((w, i) => (
+                <span key={w} data-w={w} style={{ ["--i" as string]: i, ["--len" as string]: w.length }} />
+              ))}
+            </span>
+          </p>
+        )}
         <h1 id="page-h1">{h1}</h1>
         {lead && <p className="sub">{lead}</p>}
         {children}

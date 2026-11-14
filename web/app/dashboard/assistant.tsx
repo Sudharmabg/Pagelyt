@@ -1,5 +1,6 @@
 "use client";
 
+import { toast } from "../toast";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -99,6 +100,7 @@ function CopyBtn({ text }: { text: string }) {
       onClick={() => {
         void navigator.clipboard?.writeText(text).then(() => {
           setDone(true);
+          toast("Answer copied");
           window.setTimeout(() => setDone(false), 1600);
         });
       }}
