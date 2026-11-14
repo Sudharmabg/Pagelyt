@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { PLANS } from "../content";
 import { JsonLd, crumbLd, faqLd } from "../json-ld";
 import { CtaBand, PageHero } from "../page-shell";
-import { SITE_DESCRIPTION, SITE_URL } from "../site-config";
+import { PRICING_ON, SITE_DESCRIPTION, SITE_URL } from "../site-config";
 import { SiteFooter, SiteNav } from "../site-chrome";
 
 export const metadata: Metadata = {
@@ -32,6 +33,7 @@ const FAQ: [string, string][] = [
 const priceOf = (p: string) => p.replace(/[^0-9]/g, "");
 
 export default function PricingPage() {
+  if (!PRICING_ON) redirect("/"); // pricing is hidden for now (site-config.ts)
   return (
     <>
       <JsonLd

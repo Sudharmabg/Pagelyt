@@ -118,8 +118,11 @@ export const TOOL_LIST: ToolInfo[] = [
     about: [
       "Many sites build their pages with JavaScript. Google renders them, but later and not always fully, and most AI crawlers (GPTBot, ClaudeBot, PerplexityBot) read only the raw HTML. Anything that appears only after JavaScript runs may be invisible to them.",
       "We fetch the page twice: once as plain HTML, once in a real Chrome browser. Then we compare the parts that decide how a page is indexed and list the text that only exists after rendering.",
+      "Who needs it: sites built as JavaScript apps (React, Vue or Angular single-page apps, and some Wix, Framer or Webflow pages). If your site runs on WordPress, Shopify or plain HTML, both versions are almost always the same and you can skip this check. A quick test: if your page's title, main text or menu links are missing when you choose View page source in your browser, run this tool.",
     ],
     faq: [
+      ["Do I need this tool?", "Only if your site is built with JavaScript. Open your page, choose View page source and search for a sentence from your main text. If it's there, crawlers can read it and you don't need this check. If it's missing, run the tool to see exactly what crawlers miss."],
+      ["How long does it take?", "Usually 5 to 15 seconds. We open the page in a real browser in the cloud, so it takes longer than our other tools. We skip images, fonts, styles and trackers to keep it quick."],
       ["Why is this on paid plans only?", "Each check opens the page in a real Chrome browser in the cloud, which costs far more than a normal fetch."],
       ["What should I do if a lot changes?", "Render the important content on the server: server-side rendering or static generation in frameworks such as Next.js, Nuxt or SvelteKit, or pre-rendering for single-page apps. At least the title, description, canonical, headings and main text should be in the raw HTML."],
     ],
@@ -289,12 +292,15 @@ export const TOOL_LIST: ToolInfo[] = [
     h1: "Google review link generator",
     lead: "Make a link that takes customers straight to the review box for your business on Google.",
     about: [
-      "Every extra step loses reviewers. A direct link skips searching for your business and opens the star rating straight away.",
-      "Share it in follow-up emails, on receipts or behind a QR code at the till. Ask every customer the same way: Google doesn't allow offering rewards for reviews.",
+      "What it is: a web link that opens the \"Rate and review\" box for your business on Google. Customers tap it, pick the stars and write a review, with no searching for your business on Maps first. Every extra step loses reviewers, so a direct link gets you more reviews.",
+      "Where to use it: WhatsApp and SMS messages after a sale, email signatures and follow-up emails, invoices and receipts, and a QR code at the counter or on the table. Ask every customer the same way: Google doesn't allow offering discounts or gifts for reviews.",
+      "Your business needs a Google Business Profile (the listing that shows on Google Maps) for this to work.",
     ],
     faq: [
-      ["Where do I find my Place ID?", "Search your business on Google's Place ID Finder (linked above the tool). It's the code starting with ChIJ in most cases."],
-      ["Is there an official short link?", "Yes: in your Google Business Profile, choose \"Ask for reviews\" to get a g.page link. This tool gives the same result when you can't access the profile."],
+      ["How do I find my Place ID?", "1. Open Google's Place ID Finder (linked above the tool). 2. Type your business name in the search box on the map and pick it from the list. 3. A box appears on the map with \"Place ID\" followed by a long code, usually starting with ChIJ. 4. Copy that code and paste it into the tool. Your link appears straight away."],
+      ["Is there an easier way?", "If you can sign in to your Google Business Profile: search your business name on Google while signed in, choose \"Ask for reviews\" (or \"Read reviews\", then \"Get more reviews\"), and copy the short link Google gives you. It does the same thing. Use this tool when you can't access the profile, or want the full link."],
+      ["How do I check the link works?", "Open it in a private or incognito window. You should see your business name and the star rating box. If you see a different business, the Place ID is wrong."],
+      ["Can I make a QR code from it?", "Yes. Copy the link into any free QR code maker, then print the code on receipts, table cards or your shop counter."],
     ],
   },
 ];

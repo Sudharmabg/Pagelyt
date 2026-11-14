@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { FEATURES } from "./features-data";
 import { POSTS } from "./blog-data";
 import { GUIDES } from "@/lib/scan/guides";
-import { SITE_URL } from "./site-config";
+import { PRICING_ON, SITE_URL } from "./site-config";
 import { TOOL_LIST } from "./tools/catalog";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -10,7 +10,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     "",
     "/features",
     "/how-it-works",
-    "/pricing",
+    ...(PRICING_ON ? ["/pricing"] : []),
     "/use-cases",
     "/tools",
     "/fix",

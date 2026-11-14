@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PRICING_ON } from "../site-config";
 import { useEffect, useState } from "react";
 import { GoogleMark } from "./google-data";
 import type { GoogleState } from "./use-google";
@@ -80,8 +81,8 @@ export function GoogleBanner({ g, paid, onOpen }: { g: GoogleState; paid: boolea
       <div className="g-banner-act">
         {!paid ? (
           <>
-            <Link className="dash-btn primary" href="/pricing">See plans</Link>
-            <Link className="fnd-link" href="/features/google-integrations">How it works</Link>
+            {PRICING_ON && <Link className="dash-btn primary" href="/pricing">See plans</Link>}
+            <Link className={PRICING_ON ? "fnd-link" : "dash-btn primary"} href="/features/google-integrations">How it works</Link>
           </>
         ) : (
           <>

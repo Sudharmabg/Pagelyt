@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PRICING_ON } from "../site-config";
 import { useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import type { AiBotReport } from "@/lib/tools/ai-bots";
@@ -37,7 +38,7 @@ export function ErrorNote({ p }: { p: Problem | null }) {
     <p className="terr" role="alert">
       {p.error}
       {p.signedOut && <> <SignInLink stay>Sign in again</SignInLink></>}
-      {p.upgrade && <> <Link href="/pricing">See plans</Link></>}
+      {p.upgrade && PRICING_ON && <> <Link href="/pricing">See plans</Link></>}
     </p>
   );
 }
@@ -392,18 +393,21 @@ export function ReviewLink() {
     <div className="tgrid">
       <div className="tform">
         <Field label="Google Place ID" hint="Usually starts with ChIJ.">{(fid) => <input id={fid} value={id} onChange={(e) => setId(e.target.value)} placeholder="ChIJN1t_tDeuEmsRUsoyG83frY4" spellCheck={false} />}</Field>
-        <p className="tnote">
-          Don&rsquo;t know it? Search for your business on{" "}
-          <a href="https://developers.google.com/maps/documentation/places/web-service/place-id" target="_blank" rel="noopener noreferrer">Google&rsquo;s Place ID Finder</a>{" "}
-          and copy the ID it shows.
-        </p>
+        <ol className="tnote tsteps">
+          <li>
+            Open{" "}
+            <a href="https://developers.google.com/maps/documentation/places/web-service/place-id#find-id" target="_blank" rel="noopener noreferrer">Google&rsquo;s Place ID Finder</a>.
+          </li>
+          <li>Type your business name in the search box on the map and pick it from the list.</li>
+          <li>Copy the code after &ldquo;Place ID&rdquo; (usually starts with ChIJ) and paste it above.</li>
+        </ol>
         {id.trim() && !valid && <p className="terr" role="alert">That doesn&rsquo;t look like a Place ID. It&rsquo;s a long code of letters, numbers, dashes and underscores.</p>}
       </div>
       <div>
         <Output text={link || "Your review link will appear here."} filename="review-link.txt" />
         {link && (
           <p className="tnote pad-top">
-            <a href={link} target="_blank" rel="noopener noreferrer">Open the link</a> to check it shows your business before you share it.
+            <a href={link} target="_blank" rel="noopener noreferrer">Open the link</a> to check it shows your business, then share it on WhatsApp, receipts, emails or a QR code.
           </p>
         )}
       </div>

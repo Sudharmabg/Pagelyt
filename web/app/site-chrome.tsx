@@ -4,7 +4,7 @@ import { AuthLink } from "./auth-link";
 import { FEATURES } from "./features-data";
 import { NavMobile } from "./nav-mobile";
 import { MainCta } from "./main-cta";
-import { CONTACT_EMAIL } from "./site-config";
+import { CONTACT_EMAIL, PRICING_ON } from "./site-config";
 import { SignInLink } from "@/app/sign-in-modal";
 
 const MENU: [string, string][] = [
@@ -12,7 +12,7 @@ const MENU: [string, string][] = [
   ["Pricing", "/pricing"],
   ["Consultation", "/consultation"],
   ["Blog", "/blog"],
-];
+].filter(([, href]) => PRICING_ON || href !== "/pricing") as [string, string][];
 
 // Features menu: every feature, then the free tools.
 const FEATURE_ITEMS = [
@@ -102,7 +102,7 @@ export function SiteFooter() {
             <Link href="/fix">Fix guides</Link>
             <Link href="/blog">Blog</Link>
             <SignInLink>Sign in</SignInLink>
-            <Link href="/pricing">Pricing</Link>
+            {PRICING_ON && <Link href="/pricing">Pricing</Link>}
             <Link href="/faq">FAQ</Link>
           </nav>
           <nav aria-label="Company">

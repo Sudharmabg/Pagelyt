@@ -211,15 +211,26 @@ export function SitemapGenerator({ ctx }: { ctx: Ctx }) {
     const done: CrawledPage[] = [];
     setPages([]);
     setState({ queued: queue.length, max: plan.sitemap, paid: plan.paid, found });
-    while (queue.length && done.length < plan.sitemap && !stop.current) {
-      const batch = queue.splice(0, Math.min(SITEMAP.batch, plan.sitemap - done.length));
-      const r = await callTool<{ pages: CrawledPage[]; links: string[] }>({ tool: "sitemap-crawl", host: found.host, urls: batch });
-      if (isProblem(r)) {
-        setErr(r);
-        break;
+    // Up to SITEMAP.parallel batches at a time; the links each round finds feed the next round.
+    let failed = false;
+    while (queue.length && done.length < plan.sitemap && !stop.current && !failed) {
+      const batches: string[][] = [];
+      let room = plan.sitemap - done.length;
+      while (queue.length && room > 0 && batches.length < SITEMAP.parallel) {
+        const b = queue.splice(0, Math.min(SITEMAP.batch, room));
+        room -= b.length;
+        batches.push(b);
       }
-      done.push(...r.pages);
-      r.links.forEach(enqueue);
+      const results = await Promise.all(batches.map((urls) => callTool<{ pages: CrawledPage[]; links: string[] }>({ tool: "sitemap-crawl", host: found.host, urls })));
+      for (const r of results) {
+        if (isProblem(r)) {
+          setErr(r);
+          failed = true;
+          continue;
+        }
+        done.push(...r.pages);
+        r.links.forEach(enqueue);
+      }
       setPages([...done]);
       setState((s) => ({ ...s, queued: queue.length }));
     }
@@ -268,12 +279,12 @@ export function SitemapGenerator({ ctx }: { ctx: Ctx }) {
       <form className="tform trow" onSubmit={run}>
         <Field label="Website to crawl">{(id) => <input id={id} type="text" inputMode="url" placeholder="https://example.com" value={url} onChange={(e) => setUrl(e.target.value)} required />}</Field>
         {busy ? (
-          <button className="btn outline" type="button" onClick={() => (stop.current = true)}>Stop</button>
+          <button className="btn outline" type="button" onClick={() => (stop.current = true)}>Stop and build sitemap</button>
         ) : (
           <button className="btn" type="submit">Generate sitemap</button>
         )}
       </form>
-      <p className="tnote">Free accounts crawl up to {SITEMAP.free} pages; paid plans {SITEMAP.paid.toLocaleString("en-GB")}. Sites built with JavaScript are loaded in a real browser instead: up to {SITEMAP_RENDER.free} pages free, {SITEMAP_RENDER.paid} on paid plans.</p>
+      <p className="tnote">No sitemap yet? That&rsquo;s fine: we start from your homepage and follow its links. Free accounts crawl up to {SITEMAP.free} pages; paid plans {SITEMAP.paid.toLocaleString("en-GB")}. Sites built with JavaScript are loaded in a real browser instead (slower): up to {SITEMAP_RENDER.free} pages free, {SITEMAP_RENDER.paid} on paid plans. You can stop at any time and download the sitemap for the pages found so far.</p>
       <ErrorNote p={err} />
       {pages && (
         <section className="tres" aria-label="Sitemap results" aria-live="polite">
@@ -367,7 +378,7 @@ export function RenderedChecker({ ctx }: { ctx: Ctx }) {
         <button className="btn" type="submit" disabled={busy} aria-busy={busy}>{busy ? "Rendering in Chrome…" : "Compare"}</button>
       </form>
       <ErrorNote p={err} />
-      {busy && !rep && <Working label="Fetching the raw HTML and rendering the page in Chrome…" />}
+      {busy && !rep && <Working label="Fetching the raw HTML and rendering the page in Chrome. This usually takes 5 to 15 seconds…" />}
       {rep && v && (
         <section className="tres" aria-label="Raw vs rendered results" aria-live="polite">
           <div className={`tverdict ${v[0]}`}>

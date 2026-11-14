@@ -1,6 +1,7 @@
 import { Arrow } from "../arrow";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PRICING_ON } from "../site-config";
 import { JsonLd, crumbLd, faqLd } from "../json-ld";
 import { PageHero } from "../page-shell";
 import { SiteFooter, SiteNav } from "../site-chrome";
@@ -78,7 +79,7 @@ export default async function ConsultationPage({ searchParams }: { searchParams:
               <div className="benefit">
                 <b>Subscription benefit:</b> Professional subscribers get one 30-minute consultation a year and Business
                 subscribers one 60-minute consultation a year. Book as usual and it comes off the invoice.{" "}
-                <Link href="/pricing">See plans</Link>
+                {PRICING_ON && <Link href="/pricing">See plans</Link>}
               </div>
             </div>
             <div className="cons-vis" id="book">

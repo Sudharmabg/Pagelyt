@@ -1,3 +1,5 @@
+import { PRICING_ON } from "./site-config";
+
 export type Feature = {
   slug: string;
   name: string;
@@ -462,7 +464,7 @@ export const USE_CASES = [
     h: "Repeatable website audits for freelancers",
     p: "Generate professional website audits for clients in minutes. Use clear findings and evidence to scope improvement work and show results.",
     points: ["Audit any client site from a URL", "Shareable PDF reports", "Show before and after progress"],
-    link: ["/pricing", "Compare plans"],
+    link: PRICING_ON ? ["/pricing", "Compare plans"] : ["/features", "See all features"],
   },
   {
     slug: "agencies",

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PRICING_ON } from "../site-config";
 import { JsonLd, crumbLd } from "../json-ld";
 import { CtaBand, PageHero } from "../page-shell";
 import { SiteFooter, SiteNav } from "../site-chrome";
@@ -69,8 +70,15 @@ export default function AboutPage() {
               <p>
                 Business owners who want to know if their website is healthy. Freelancers and agencies who audit client
                 sites. Developers who want a fast second opinion. Read the{" "}
-                <Link href="/use-cases">use cases</Link>, explore the <Link href="/features">features</Link>, or see{" "}
-                <Link href="/pricing">pricing</Link>.
+                <Link href="/use-cases">use cases</Link>, {PRICING_ON ? (
+                  <>
+                    explore the <Link href="/features">features</Link>, or see <Link href="/pricing">pricing</Link>.
+                  </>
+                ) : (
+                  <>
+                    or explore the <Link href="/features">features</Link>.
+                  </>
+                )}
               </p>
               <p>
                 Questions or feedback? <Link href="/contact">Get in touch</Link>. We read every message.

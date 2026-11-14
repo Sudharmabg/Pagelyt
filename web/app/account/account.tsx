@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { PRICING_ON } from "../site-config";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -256,7 +257,7 @@ export function Account() {
               {acct.accountType === "agency" && !acct.paid && <p className="panel-note">The agency dashboard comes with any paid plan.</p>}
               <div className="acct-links">
                 <Link className="fnd-link" href="/account/brand">Brand settings</Link>
-                {!acct.paid && <Link className="fnd-link" href="/pricing">Compare plans</Link>}
+                {!acct.paid && PRICING_ON && <Link className="fnd-link" href="/pricing">Compare plans</Link>}
                 <Link className="fnd-link" href="/consultation">Book a consultation</Link>
               </div>
             </section>

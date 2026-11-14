@@ -20,17 +20,61 @@ async function browserBinding(): Promise<unknown> {
   }
 }
 
-/** Opens a Browser Rendering session, runs `fn`, and always closes the browser. Throws NoBrowser when unavailable. */
+/** Runs `fn` in a Browser Rendering session. Starting Chrome takes a few seconds, so an idle session is reused
+    when one is free; otherwise a new one is launched and kept warm for a minute after use. Pages `fn` opens are
+    always closed afterwards. Throws NoBrowser when unavailable. */
 export async function withBrowser<T>(fn: (browser: Browser) => Promise<T>): Promise<T> {
   const binding = await browserBinding();
   if (!binding) throw new NoBrowser("Browser Rendering is not configured.");
   const puppeteer = (await import("@cloudflare/puppeteer")).default;
-  const browser = await puppeteer.launch(binding as Parameters<typeof puppeteer.launch>[0]);
+  type Binding = Parameters<typeof puppeteer.launch>[0];
+  const b = binding as Binding;
+  let browser: Browser | null = null;
+  try {
+    for (const s of (await puppeteer.sessions(b)).filter((x) => !x.connectionId)) {
+      try {
+        browser = await puppeteer.connect(b, s.sessionId);
+        break;
+      } catch {
+        /* taken by another request a moment ago: try the next one */
+      }
+    }
+  } catch {
+    /* listing sessions failed: launch a new one */
+  }
+  browser ??= await puppeteer.launch(b, { keep_alive: 60_000 });
+  const before = new Set(await browser.pages().catch(() => []));
   try {
     return await fn(browser);
   } finally {
-    await browser.close().catch(() => {});
+    const pages = await browser.pages().catch(() => []);
+    await Promise.all(pages.filter((p) => !before.has(p)).map((p) => p.close().catch(() => {})));
+    await Promise.resolve(browser.disconnect()).catch(() => {});
   }
+}
+
+/** Requests skipped while rendering for HTML: they don't change the page's HTML and cost time. */
+const SKIP_TYPES = new Set(["image", "media", "font", "stylesheet"]);
+const SKIP_HOSTS = /(^|\.)(googletagmanager\.com|google-analytics\.com|doubleclick\.net|googlesyndication\.com|googleadservices\.com|facebook\.(com|net)|hotjar\.(com|io)|clarity\.ms|segment\.(com|io)|mixpanel\.com|intercom\.io|hs-scripts\.com|hs-analytics\.net|tiktok\.com|ads-twitter\.com|snap\.licdn\.com)$/i;
+
+/** Opens `url` in a new tab with images, fonts, CSS and trackers blocked, waits for the page's own scripts to settle
+    (at most `settle` ms after it loads), and returns the tab. */
+export async function openForHtml(browser: Browser, url: string, timeout = 10_000, settle = 2_500) {
+  const page = await browser.newPage();
+  await page.setRequestInterception(true);
+  page.on("request", (req) => {
+    let host = "";
+    try {
+      host = new URL(req.url()).hostname;
+    } catch {
+      /* data: and similar */
+    }
+    if (SKIP_TYPES.has(req.resourceType()) || SKIP_HOSTS.test(host)) void req.abort();
+    else void req.continue();
+  });
+  const res = await page.goto(url, { waitUntil: "domcontentloaded", timeout });
+  await page.waitForNetworkIdle({ idleTime: 400, timeout: settle }).catch(() => {});
+  return { page, res };
 }
 
 export async function renderPdf(url: string): Promise<Uint8Array> {

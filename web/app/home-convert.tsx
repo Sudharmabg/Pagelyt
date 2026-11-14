@@ -71,7 +71,7 @@ const STAT_ICONS = [
   <g key="areas"><circle cx="12" cy="12" r="8.5" /><circle cx="12" cy="12" r="4.5" /><circle cx="12" cy="12" r="0.8" /></g>,
   <path key="tools" d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.4 2.4-2.6-.8-.8-2.6z" />,
   <g key="url"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></g>,
-  <path key="price" d="M7 5h10M7 9h10M7 5h3a4 4 0 0 1 0 8H7l7 6" />,
+  <path key="google" d="M5 20V10h3v10H5zm5.5 0V4h3v16h-3zM16 20v-7h3v7h-3z" />,
 ];
 
 export function StatsBar() {

@@ -1,6 +1,6 @@
 import { safeFetch } from "@/lib/scan/fetcher";
 import { inspect, sitemapLocs } from "@/lib/scan/crawl";
-import { withBrowser } from "@/lib/pdf";
+import { openForHtml, withBrowser } from "@/lib/pdf";
 
 /* Sitemap generator (and "load from sitemap" in the bulk schema checker).
    The browser drives the crawl: it asks for the site's existing sitemap once, then sends batches of pages to
@@ -103,6 +103,7 @@ export async function crawlPages(urls: string[], host: string): Promise<{ pages:
   const sameSite = sameSiteOf(site);
   const pages: CrawledPage[] = [];
   const links = new Set<string>();
+  const blocked = new Set<string>();
   const one = async (url: string) => {
     try {
       const r = await safeFetch(new URL(url), { follow: false });
@@ -114,15 +115,19 @@ export async function crawlPages(urls: string[], host: string): Promise<{ pages:
       }
       pages.push(judge(url, r.status, r.headers, r.body, site, links));
     } catch (e) {
-      if (!/Blocked/.test(e instanceof Error ? e.message : "")) pages.push({ url, status: 0, include: false, reason: "error" });
+      if (/Blocked/.test(e instanceof Error ? e.message : "")) blocked.add(url);
+      else pages.push({ url, status: 0, include: false, reason: "error" });
     }
   };
-  await Promise.race([Promise.all(urls.map(one)), new Promise((r) => setTimeout(r, 20_000))]);
+  // A slow page shouldn't hold up the batch: after 12 s, pages still loading are reported as errors.
+  await Promise.race([Promise.all(urls.map(one)), new Promise((r) => setTimeout(r, 12_000))]);
+  const answered = new Set(pages.map((p) => p.url));
+  for (const url of urls) if (!answered.has(url) && !blocked.has(url)) pages.push({ url, status: 0, include: false, reason: "error" });
   return { pages, links: [...links].slice(0, 1000) };
 }
 
 /** The same, but each page is loaded in a real browser (Cloudflare Browser Rendering) so links that JavaScript
-    adds are found. For sites whose raw HTML has no links. Images, media and fonts are skipped. Each address is
+    adds are found. For sites whose raw HTML has no links. Images, fonts, CSS and trackers are skipped. Each address is
     checked with safeFetch first, so only public addresses are ever opened. Throws NoBrowser where rendering is off. */
 export async function renderPages(urls: string[], host: string): Promise<{ pages: CrawledPage[]; links: string[] }> {
   const site = bare(host);
@@ -146,18 +151,13 @@ export async function renderPages(urls: string[], host: string): Promise<{ pages
   }
   if (!ok.length) return { pages, links: [...links] };
   await withBrowser(async (browser) => {
-    const page = await browser.newPage();
-    await page.setRequestInterception(true);
-    page.on("request", (req) => {
-      if (["image", "media", "font"].includes(req.resourceType())) void req.abort();
-      else void req.continue();
-    });
     for (const url of ok) {
       try {
-        const res = await page.goto(url, { waitUntil: "networkidle2", timeout: 15_000 });
+        const { page, res } = await openForHtml(browser, url, 8_000, 1_500);
         const status = res?.status() ?? 200;
         const headers = (res?.headers() ?? {}) as Record<string, unknown>;
         pages.push(judge(url, status, headers, await page.content(), site, links));
+        await page.close().catch(() => {});
       } catch {
         pages.push({ url, status: 0, include: false, reason: "error" });
       }
