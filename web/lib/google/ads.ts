@@ -1,8 +1,9 @@
 /* Server only. Reads Google Ads through its REST API (GAQL search queries; Pagelyt never changes anything): the
    accounts the connected Google account can see, including the client accounts under a manager (agency) account,
-   which one belongs to a site (ads landing on its domain), and the 28-day numbers in six queries. Needs Pagelyt's
-   developer token (GOOGLE_ADS_DEVELOPER_TOKEN); with only "test account" access Google refuses real accounts, which
-   comes back as AdsTokenError. Account checks are capped so a connect stays inside a Worker's subrequest budget. */
+   which one belongs to a site (ads landing on its domain), and the 28-day numbers in six queries. Google retired
+   developer tokens in September 2026: access now belongs to the Cloud project behind GOOGLE_CLIENT_ID (Google Ads API
+   enabled, Explorer access or higher). Until Google approves that project it refuses real accounts, which comes back
+   as AdsTokenError. Account checks are capped so a connect stays inside a Worker's subrequest budget. */
 
 import { googleOn, GoogleError, gUrl } from "./oauth";
 import { ga4Ranges } from "./ga4";
@@ -12,9 +13,9 @@ const VERSION = () => process.env.GOOGLE_ADS_API_VERSION || "v26";
 const BASE = () => `https://googleads.googleapis.com/${VERSION()}`;
 const MAX_ACCOUNTS = 15, MAX_MANAGERS = 3, MAX_MATCH = 12;
 
-export const adsOn = () => googleOn() && !!process.env.GOOGLE_ADS_DEVELOPER_TOKEN;
+export const adsOn = () => googleOn();
 
-/** Pagelyt's developer token isn't approved for real accounts yet (Google's "test account" access). */
+/** Pagelyt's Cloud project can't read real accounts yet: Google Ads API not enabled, or only Test access. */
 export class AdsTokenError extends Error {}
 
 /** `login`: the manager account the client is read through, or null when the account is read directly. */
@@ -27,7 +28,6 @@ async function call<T>(access: string, path: string, body?: unknown, login?: str
     method: body === undefined ? "GET" : "POST",
     headers: {
       authorization: `Bearer ${access}`,
-      "developer-token": process.env.GOOGLE_ADS_DEVELOPER_TOKEN ?? "",
       ...(login ? { "login-customer-id": digits(login) } : {}),
       ...(body === undefined ? {} : { "content-type": "application/json" }),
     },
@@ -35,7 +35,7 @@ async function call<T>(access: string, path: string, body?: unknown, login?: str
   });
   if (!r.ok) {
     const t = (await r.text()).slice(0, 600);
-    if (/DEVELOPER_TOKEN_NOT_APPROVED|DEVELOPER_TOKEN_PROHIBITED|DEVELOPER_TOKEN_INVALID/.test(t)) throw new AdsTokenError(t.slice(0, 200));
+    if (/CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION|SERVICE_DISABLED|accessNotConfigured|DEVELOPER_TOKEN_NOT_APPROVED/.test(t)) throw new AdsTokenError(t.slice(0, 200));
     throw new GoogleError(r.status === 401 ? "revoked" : r.status === 403 ? "denied" : "api", `Google Ads ${r.status}: ${t.slice(0, 300)}`);
   }
   return (await r.json()) as T;

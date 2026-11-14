@@ -216,7 +216,7 @@ http
 /* ---------- fake Google: consent, tokens, Search Console, Analytics, Google Ads ----------
    MOCK_GOOGLE=deny makes the consent screen decline; MOCK_GOOGLE=noscope grants sign-in but not Search Console,
    Analytics or Ads; MOCK_GOOGLE=empty gives an account with no properties or ad accounts; MOCK_GOOGLE=adstoken answers
-   Ads queries like an unapproved developer token. The numbers are made up but stable. */
+   Ads queries like a Cloud project Google hasn't approved for real accounts. The numbers are made up but stable. */
 const MOCK_GOOGLE = process.env.MOCK_GOOGLE || "";
 const gCodes = new Map(); // code -> scope
 const gGranted = []; // scopes the (single) mock Google account has granted so far
@@ -329,14 +329,15 @@ function mockGoogle(req, res, url, body) {
    latest scan; the second page gets a lot of spend, a below-average landing page rating and few conversions, and
    some search terms match the fake Search Console queries so paid vs organic has rows. */
 function mockAds(req, res, path, body, gaHosts) {
-  if (!req.headers["developer-token"]) return send(res, 401, { error: { code: 401, message: "developer-token header missing" } });
+  // Google retired developer tokens; it ignores the header and plans to reject it, so the mock does too.
+  if (req.headers["developer-token"]) return send(res, 400, { error: { code: 400, message: "developer-token header is no longer accepted" } });
   const MANAGER = "9990001111", OTHER = "5550002222";
   const adsId = (h) => String(1000000000 + Math.floor(hashN(`ads${h}`) * 8999999999)).slice(0, 10);
   const hosts = gaHosts();
   if (path.endsWith("/customers:listAccessibleCustomers")) return send(res, 200, { resourceNames: hosts.length ? [`customers/${MANAGER}`, `customers/${OTHER}`] : [] });
   const m = path.match(/\/customers\/(\d+)\/googleAds:search$/);
   if (!m) return send(res, 404, { error: { code: 404, message: `mock Google Ads has no ${path}` } });
-  if (MOCK_GOOGLE === "adstoken") return send(res, 403, { error: { code: 403, message: "The caller does not have permission", details: [{ errors: [{ errorCode: { authorizationError: "DEVELOPER_TOKEN_NOT_APPROVED" } }] }] } });
+  if (MOCK_GOOGLE === "adstoken") return send(res, 403, { error: { code: 403, message: "The caller does not have permission", details: [{ errors: [{ errorCode: { authorizationError: "CLOUD_PROJECT_NOT_APPROVED_FOR_PRODUCTION" } }] }] } });
   const id = m[1];
   const q = String(body.query || "");
   const from = (q.match(/\bFROM\s+(\w+)/i) || [])[1];

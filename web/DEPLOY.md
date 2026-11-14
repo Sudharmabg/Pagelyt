@@ -198,7 +198,6 @@ Run `supabase/migrations/0010_google.sql`, then `0011_google_analytics.sql`, the
 npx wrangler secret put GOOGLE_CLIENT_ID
 npx wrangler secret put GOOGLE_CLIENT_SECRET
 npx wrangler secret put GOOGLE_TOKEN_KEY      # any random string of 32+ characters; encrypts stored refresh tokens
-npx wrangler secret put GOOGLE_ADS_DEVELOPER_TOKEN   # from step 5; without it the Ads tab says it isn't switched on yet
 ```
 
 Optional: `GOOGLE_REDIRECT_URI` if the callback URL isn't `<site origin>/api/google/callback` (e.g. behind a proxy); `GOOGLE_ADS_API_VERSION` to pin another Google Ads API version than the default `v26` (Google retires each version about a year after release, so bump it when they announce a sunset). **Never change `GOOGLE_TOKEN_KEY` once people have connected**: stored tokens can't be read with a new key, so everyone would have to connect again.
@@ -208,16 +207,19 @@ Optional: `GOOGLE_REDIRECT_URI` if the callback URL isn't `<site origin>/api/goo
 - While the consent screen's publishing status is **Testing**, only the test users can connect, Google shows an "unverified app" warning, and **their connection expires after 7 days** (they connect again from the Google data view).
 - To open it to everyone: **Publish app**, then submit for **verification**. Search Console, Analytics and Ads read-only scopes are *sensitive* (not restricted), so there is no security assessment, but Google wants: a verified domain in Search Console for `pagelyt.dev`, the privacy policy saying what Google data is used for and that it isn't sold or used for ads (Google's Limited Use rules), and a short **YouTube video** showing the consent screen and where the data appears in Pagelyt. Allow 1–4 weeks. Include the Analytics and Ads scopes in the submission (the video should show the Analytics and Google Ads tabs, that Pagelyt only reads Ads data, and that the AI insights are made from the owner's own numbers).
 
-### 5. Google Ads developer token (start early: approval takes time)
+### 5. Google Ads API access (no developer token)
 
-1. Create a **Google Ads manager account** at <https://ads.google.com/home/tools/manager-accounts/> (free; it needs no spend).
-2. In it: **Admin → API Center**: accept the terms and copy the **developer token** (it starts at *Test account* access).
-3. Apply for **Basic access** from the same page: describe Pagelyt as a read-only reporting tool for site owners and agencies (landing-page health, paid vs organic overlap). Approval usually takes a few days to a few weeks.
-4. Set it as `GOOGLE_ADS_DEVELOPER_TOKEN`. With only *Test account* access Google refuses real accounts, and the Ads tab says so ("Google hasn't approved Pagelyt's Ads access yet") instead of failing. No manager-account ID secret is needed: Pagelyt reads each owner's accounts as them, through their own manager account when they have one.
+Google retired Ads developer tokens on 9 September 2026: API access now belongs to the **Cloud project** that owns the OAuth client above, and the API Center in Google Ads no longer handles requests. No manager account or extra secret is needed.
+
+1. In the same Cloud project: **APIs & Services → Library → Google Ads API → Enable**. This gives *Test* access, which only reads test accounts.
+2. Open the **Google Ads API** overview page in that project and apply for **Explorer access** (real accounts, up to 2,880 operations a day; usually approved automatically). Basic or Standard access needs brand verification first and is only worth it at much higher volume.
+3. Google may refuse projects on the free trial or with billing turned off; turn on billing if the application is rejected.
+
+Until the project is approved, Google refuses real accounts and the Ads tab says so ("still waiting for Google's approval") instead of failing. Pagelyt reads each owner's accounts as them, through their own manager account when they have one.
 
 ### Local testing
 
-`npm run dev:mock` points every Google call at the mock server's fake Google (consent, tokens, Search Console, Analytics and Google Ads with made-up but stable numbers; one page loses half its visits so the drop detective has something to show, and a manager account holds one Ads account per saved site with most spend landing on the second page), so the whole flow works with no Google project. Without `OPENAI_API_KEY` it also fakes OpenAI for **Analyse with AI** (`OPENAI_MOCK_URL`). `MOCK_GOOGLE=deny`, `noscope`, `empty` or `adstoken` try a declined consent, an unticked permission, an account with no properties and an unapproved Ads developer token.
+`npm run dev:mock` points every Google call at the mock server's fake Google (consent, tokens, Search Console, Analytics and Google Ads with made-up but stable numbers; one page loses half its visits so the drop detective has something to show, and a manager account holds one Ads account per saved site with most spend landing on the second page), so the whole flow works with no Google project. Without `OPENAI_API_KEY` it also fakes OpenAI for **Analyse with AI** (`OPENAI_MOCK_URL`). `MOCK_GOOGLE=deny`, `noscope`, `empty` or `adstoken` try a declined consent, an unticked permission, an account with no properties and a Cloud project Google hasn't approved for Ads yet.
 
 Unit tests for the Google and AI helpers: `node --import ./scripts/test-resolve.mjs --experimental-strip-types --test "lib/**/*.test.ts"`.
 

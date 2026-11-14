@@ -21,8 +21,6 @@ const env = {
   GOOGLE_CLIENT_ID: "mock-client.apps.googleusercontent.com",
   GOOGLE_CLIENT_SECRET: "mock-client-secret",
   GOOGLE_TOKEN_KEY: "mock-google-token-key-not-secret-0123456789",
-  // Switches the Google Ads tab on; the mock accepts any developer token (MOCK_GOOGLE=adstoken plays an unapproved one).
-  GOOGLE_ADS_DEVELOPER_TOKEN: "mock-ads-developer-token",
   // Without a real OPENAI_API_KEY, the "Analyse with AI" buttons (Analytics and Ads) use the mock's fake OpenAI.
   ...(process.env.OPENAI_API_KEY ? {} : { OPENAI_MOCK_URL: `http://localhost:${MOCK_PORT}` }),
 };
