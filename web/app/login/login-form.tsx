@@ -150,9 +150,22 @@ export function LoginForm({ next, startForgot, onSignedIn, title, bare = false, 
       <form className={`${card} auth-code`} onSubmit={reset} noValidate>
         <h2>Enter your code</h2>
         <p className="panel-note">If an account exists for <strong>{email}</strong>, we&rsquo;ve emailed it a 6-digit code. Enter it with your new password. The code works once and expires in an hour.</p>
+        {/* Without a username field, Chrome treats the code box as the username and autofills the saved email
+            into it. This hidden field gives the email a home (and lets the password manager save the new password). */}
+        <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />
         <div className="tf">
           <label htmlFor="rs-code">6-digit code</label>
-          <input id="rs-code" className="code-in" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={9} required autoFocus />
+          <input
+            id="rs-code"
+            className="code-in"
+            name="code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={9}
+            onInput={(e) => (e.currentTarget.value = e.currentTarget.value.replace(/[^\d\s-]/g, ""))}
+            required
+            autoFocus
+          />
         </div>
         <div className="tf">
           <label htmlFor="rs-pw">New password</label>

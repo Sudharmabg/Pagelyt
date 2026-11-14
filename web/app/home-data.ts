@@ -12,7 +12,7 @@ export const STATS: { n: number; prefix?: string; suffix?: string; label: string
   { n: 8, label: "areas checked in every scan" },
   { n: FREE_TOOLS.length, label: "free SEO and AI tools" },
   { n: 1, suffix: " URL", label: "is all the setup you need" },
-  { n: 3, suffix: " Google tools", label: "joined to your report: Search Console, Analytics, Ads" },
+  { n: 3, label: "Google tools: Search Console, Analytics, Ads" },
 ];
 
 export const PROCESS = [

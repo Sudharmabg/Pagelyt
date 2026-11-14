@@ -15,7 +15,6 @@ import { ActionModal, Tile } from "./action-modal";
 import { AGENCY_UPSELL, AgencyModal, useAccount } from "./agency-modal";
 import { Assistant } from "./assistant";
 import { GoogleData, type GoogleTab } from "./google-data";
-import { GoogleBanner } from "./google-banner";
 import { AiOverviewCard } from "./analytics-data";
 import { useGoogle } from "./use-google";
 import { byTraffic, trafficMap } from "@/lib/google/gsc-insights";
@@ -339,6 +338,10 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const [chat, setChat] = useState(false); // the small Ask Pagelyt widget, bottom right
   const siteId = useSiteId(scan.host, access === "owner");
   const google = useGoogle(siteId, access === "owner");
+  // Google integrations chip in the score banner: Search Console, Analytics and (where enabled) Google Ads.
+  const gs = google.status;
+  const googleTotal = gs?.adsOn === false ? 2 : 3;
+  const googleLinked = [gs?.property, gs?.ga4Property, gs?.adsOn !== false && gs?.adsCustomer].filter(Boolean).length;
   const [gTab, setGTab] = useState<GoogleTab>(() => (params.get("gtab") === "analytics" ? "ga4" : params.get("gtab") === "ads" ? "ads" : params.get("gtab") === "search" ? "gsc" : "overview"));
 
   // Show the compact score bar once the hero has scrolled out of view.
@@ -654,11 +657,16 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
               <li><b>{modules.length}</b> areas scored</li>
               <li><b>{scan.crawl?.pages ?? 1}</b> {(scan.crawl?.pages ?? 1) === 1 ? "page" : "pages"} crawled</li>
               <li><b>{TOOL_LIST.length}</b> tools ready</li>
+              {access === "owner" && (
+                <li className="bn-chip-g">
+                  <button type="button" onClick={() => { setGTab("overview"); setView("google"); }}>
+                    <b>{googleTotal}</b> Google integrations{googleLinked > 0 && <span> · {googleLinked} connected</span>}
+                  </button>
+                </li>
+              )}
             </ul>
           </div>
         </section>
-
-        {access === "owner" && acct && <GoogleBanner g={google} paid={acct.paid} onOpen={() => { setGTab("overview"); setView("google"); }} />}
 
         <ul className="dash-cards dash-cards-13" aria-label="Scores by area and details from this scan">
           {modules.map((m, i) => (
