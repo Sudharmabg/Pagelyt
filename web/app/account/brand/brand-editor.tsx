@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { SignInLink } from "@/app/sign-in-modal";
 
 type Brand = { id: string; name: string; logo_url: string | null; color: string; website: string | null; contact_email: string | null; footer: string | null; show_powered_by: boolean };
 type Share = { token: string; created_at: string; revoked: boolean; expires_at: string | null; scans: { host: string } | null };
@@ -90,7 +91,7 @@ export function BrandEditor({ embedded = false }: { embedded?: boolean }) {
 
   if (!sb) return <div className="panel auth-card"><h1>Accounts aren’t switched on yet</h1><p className="panel-note">Add your Supabase keys to enable brand settings. See DEPLOY.md.</p></div>;
   if (signedIn === undefined) return <p className="dash-loading" role="status">Loading…</p>;
-  if (!signedIn) return <div className="panel auth-card"><h1>Sign in to set up your brand</h1><Link className="btn" href="/login">Sign in</Link></div>;
+  if (!signedIn) return <div className="panel auth-card"><h1>Sign in to set up your brand</h1><SignInLink className="btn" stay>Sign in</SignInLink></div>;
 
   return (
     <div className="acct-grid">

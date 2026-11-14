@@ -6,7 +6,7 @@ import { MODULE_NAMES, type Finding } from "@/lib/scan/types";
 import { campaignRows, cpa, cpc, findingsOnUrl, landingHealth, money, organicValue, paidOrganicOverlap, spendMap, wastedTerms, weakLanding, type AdsData, type Spend } from "@/lib/google/ads-insights";
 import type { GscData } from "@/lib/google/gsc-insights";
 import { Delta, GoogleMark, Skeleton, Steps } from "./google-data";
-import { DataTable, FindingLink, FindingList, InsightsPanel, PageLink, n0, type Col } from "./google-kit";
+import { DataTable, FindingLink, FindingList, InsightsPanel, PageLink, n0, type Col, GuideLink } from "./google-kit";
 import type { GoogleState } from "./use-google";
 
 /* The Ads tab of ★ Google data: Connect Google Ads, pick the account (agency manager accounts included), then the AI's
@@ -60,6 +60,7 @@ export function AdsTab({ g, scan, findings, notice }: Props) {
             <GoogleMark />{g.busy === "connect" ? "Opening Google…" : s.connected ? "Add Google Ads access" : "Connect Google Ads"}
           </button>
           <p className="gd-fine">Pagelyt only reads your Google Ads data: it never changes campaigns, budgets or bids. Disconnect any time from your account page.</p>
+          <p className="gd-fine">New to Google Ads? <GuideLink product="ads">Read our setup guide</GuideLink></p>
         </section>
       </>
     );
@@ -128,6 +129,7 @@ function Footer({ g, fetchedAt }: { g: GoogleState; fetchedAt?: string }) {
         <span>Google Ads · {s.adsName ?? s.adsCustomer}{s.email ? ` · ${s.email}` : ""}{fetchedAt ? ` · updated ${new Date(fetchedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}` : ""}</span>
         <button type="button" className="fnd-link" onClick={() => void (g.days === 28 ? g.refresh(true, "ads") : g.setDays(g.days, true))} disabled={g.busy === "adsrefresh" || g.busy === "range"}>{g.busy === "adsrefresh" || g.busy === "range" ? "Refreshing…" : "Refresh now"}</button>
         <button type="button" className="fnd-link" onClick={() => setChanging((v) => !v)}>{changing ? "Keep this account" : "Change account"}</button>
+        <GuideLink product="ads">Tips</GuideLink>
       </p>
       {changing && <AdsPicker g={g} host={s.adsName ?? "this site"} />}
     </>

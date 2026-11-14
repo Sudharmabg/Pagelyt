@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { visibilityScore } from "@/lib/ai/analyse";
 import { PROVIDER } from "@/lib/ai/providers";
+import { SignInLink } from "@/app/sign-in-modal";
 
 type Site = { id: string; host: string; brand_terms: string[]; competitors: string[]; ai_track: boolean };
 type Prompt = { id: string; prompt: string };
@@ -171,7 +172,7 @@ export function Visibility({ siteId, embedded }: { siteId: string; embedded?: bo
 
   if (!sb) return <div className="panel auth-card"><h1>Accounts aren’t switched on yet</h1><p className="panel-note">Add your Supabase keys to enable AI visibility. See DEPLOY.md.</p></div>;
   if (signedIn === undefined) return <p className="dash-loading" role="status">Loading…</p>;
-  if (!signedIn) return <div className="panel auth-card"><h1>Sign in to track AI visibility</h1><Link className="btn" href="/login">Sign in</Link></div>;
+  if (!signedIn) return <div className="panel auth-card"><h1>Sign in to track AI visibility</h1><SignInLink className="btn" stay>Sign in</SignInLink></div>;
   if (!site) return <div className="panel auth-card"><h1>Site not found</h1><p className="panel-note">It may belong to another account. <Link className="fnd-link" href="/account">Back to your sites</Link></p></div>;
 
   const lastRun = runs[0]?.at;

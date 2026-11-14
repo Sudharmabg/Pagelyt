@@ -9,6 +9,7 @@ import type { AdminSite } from "@/lib/scan/admin";
 import { AdminAnalytics } from "./analytics";
 import { AdminRequests } from "./requests";
 import { AdminBookings } from "./bookings";
+import { SignInLink } from "@/app/sign-in-modal";
 
 /* Admin panel: run scheduled rescans, AI visibility checks and uptime pings by hand while the cron Worker is off.
    Rescans run one site at a time from this tab (each scan is a series of short requests), so keep it open until
@@ -158,7 +159,7 @@ export function AdminPanel() {
     return (
       <div className="panel auth-card">
         <h1>Sign in to open the admin panel</h1>
-        <Link className="btn" href="/login?next=/admin">Sign in</Link>
+        <SignInLink className="btn" next="/admin" stay>Sign in</SignInLink>
       </div>
     );
   }

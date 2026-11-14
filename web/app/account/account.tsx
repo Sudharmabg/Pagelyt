@@ -9,6 +9,7 @@ import { AGENCY_UPSELL, useAccount, type AccountInfo } from "../dashboard/agency
 import { disconnectGoogle, googleAccount, type GoogleStatus } from "../dashboard/use-google";
 import { firstName, useSignedInUser } from "@/lib/use-signed-in";
 import { checkPassword, passwordsMatch } from "@/lib/validate";
+import { SignInLink } from "@/app/sign-in-modal";
 
 type Cadence = "none" | "daily" | "weekly" | "monthly";
 type SiteRow = { id: string; host: string; url: string; cadence: Cadence; uptime: boolean; alerts: boolean; last_scan_id: string | null };
@@ -120,7 +121,7 @@ export function Account() {
       <div className="panel auth-card">
         <h1>Sign in to see your sites</h1>
         <p className="panel-note">Save sites, rescan them on a schedule and keep your report history.</p>
-        <Link className="btn" href="/login?next=%2Faccount">Sign in</Link>
+        <SignInLink className="btn" next="/account" stay>Sign in</SignInLink>
       </div>
     );
   }
@@ -325,7 +326,7 @@ function Security({ email, onSignOut }: { email: string; onSignOut: () => void }
             <label htmlFor="cp-cf">Confirm new password</label>
             <input id="cp-cf" name="confirm" type="password" autoComplete="new-password" minLength={8} maxLength={72} required />
           </div>
-          <p className="lm-fine">At least 8 characters. Forgotten the current one? <Link href="/login?forgot=1" onClick={onSignOut}>Reset it with an email code</Link>.</p>
+          <p className="lm-fine">At least 8 characters. Forgotten the current one? <SignInLink forgot stay email={email}>Reset it with an email code</SignInLink>.</p>
           {err && <p className="lm-err" role="alert">{err}</p>}
           <div className="acct-links">
             <button type="submit" className="dash-btn primary" disabled={busy}>{busy ? "Saving…" : "Update password"}</button>

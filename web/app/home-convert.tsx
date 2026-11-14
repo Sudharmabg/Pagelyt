@@ -24,7 +24,7 @@ export function HeroTitle() {
       <span className="sr-only">{ROTATOR.slice(0, -1).join(", ")} and {ROTATOR[ROTATOR.length - 1]}</span>
       <span className="rot" aria-hidden="true" style={{ ["--n" as string]: ROTATOR.length }}>
         {ROTATOR.map((w, i) => (
-          <span key={w} data-w={w} style={{ ["--i" as string]: i }} />
+          <span key={w} data-w={w} style={{ ["--i" as string]: i, ["--len" as string]: w.length }} />
         ))}
       </span>
     </h1>

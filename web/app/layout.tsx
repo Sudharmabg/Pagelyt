@@ -1,3 +1,4 @@
+import { SignInHost } from "./sign-in-modal";
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import { Archivo, Inter } from "next/font/google";
@@ -45,6 +46,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <ScrollTop />
         </Suspense>
         {children}
+        <SignInHost />
       </body>
     </html>
   );

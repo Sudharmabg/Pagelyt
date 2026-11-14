@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { useSignedInUser } from "@/lib/use-signed-in";
+import { SignInLink } from "@/app/sign-in-modal";
 
 /* The header's account control. Visitors get an outlined "Sign in". Once signed in it shows who is signed in
    (initial, name, "Signed in") and opens a menu with the email, Account and Log out. */
@@ -28,9 +29,9 @@ export function AuthLink({ compact = false }: { compact?: boolean }) {
 
   if (!user) {
     return (
-      <Link className="btn sm outline" href="/login" aria-busy={user === undefined}>
+      <SignInLink className="btn sm outline" aria-busy={user === undefined}>
         Sign in
-      </Link>
+      </SignInLink>
     );
   }
 

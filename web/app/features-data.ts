@@ -11,6 +11,8 @@ export type Feature = {
   gains: [string, string][];
   faq: [string, string][];
   related: string[];
+  /** Product cards shown under the hero (the Google hub). */
+  products?: { key: "gsc" | "ga4" | "ads"; name: string; tag: string; text: string; points: string[]; guide: string; open: string }[];
 };
 
 export const FEATURES: Feature[] = [
@@ -292,6 +294,35 @@ export const FEATURES: Feature[] = [
   },
   {
     slug: "google-integrations",
+    products: [
+      {
+        key: "gsc",
+        name: "Google Search Console",
+        tag: "Searches",
+        text: "The Google searches that bring people to each page, and the issues on those pages.",
+        points: ["Clicks and impressions on every issue", "Searches close to page one", "Pages losing clicks, low click rates", "Google's own indexing check", "AI insights with a next step"],
+        guide: "/blog/google-search-console-setup-guide",
+        open: "/dashboard?view=google&gtab=search",
+      },
+      {
+        key: "ga4",
+        name: "Google Analytics 4",
+        tag: "Visitors",
+        text: "Who arrives on each page, from which channel, and whether they stay.",
+        points: ["Visits and engagement per issue", "Channels, devices and countries", "The drop detective: pages losing visitors", "Pages that don't hold visitors", "AI insights with a next step"],
+        guide: "/blog/google-analytics-4-setup-guide",
+        open: "/dashboard?view=google&gtab=analytics",
+      },
+      {
+        key: "ads",
+        name: "Google Ads",
+        tag: "Ad spend",
+        text: "What you pay to send people to pages with problems, and where ads overlap free clicks.",
+        points: ["Ad spend landing on pages with issues", "Below-average landing-page keywords", "Paid searches you already rank for", "Organic clicks priced as ads", "Searches with spend and no conversions"],
+        guide: "/blog/google-ads-setup-guide",
+        open: "/dashboard?view=google&gtab=ads",
+      },
+    ],
     name: "Google Integrations",
     short: "Search Console, Analytics and Google Ads numbers next to every fix.",
     title: "Google Search Console, GA4 and Google Ads Integration",

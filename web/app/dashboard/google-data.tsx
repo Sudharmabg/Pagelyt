@@ -10,7 +10,7 @@ import { AnalyticsTab } from "./analytics-data";
 import { AdsTab } from "./ads-data";
 import { GoogleOverview } from "./google-overview";
 import { PageDrill } from "./page-drill";
-import { DataTable, FindingLink, FindingList, GoogleNav, InsightsPanel, PageLink, SplitBars, countryName, deviceName, n0, pathOf, pct, type Col } from "./google-kit";
+import { DataTable, FindingLink, FindingList, GoogleNav, InsightsPanel, PageLink, SplitBars, countryName, deviceName, n0, pathOf, pct, type Col, GuideLink } from "./google-kit";
 
 /* The ★ Google data view: Overview | Search Console | Analytics | Google Ads, with a 7/28/90-day window, sortable
    tables with CSV download, and a drill-down panel for any page. Search Console lives here; Analytics in
@@ -158,6 +158,7 @@ function GscTab({ g, scan, findings, notice }: { g: GoogleState; scan: Scan; fin
             <GoogleMark />{busy === "connect" ? "Opening Google…" : s.connected ? "Add Search Console access" : "Connect Google"}
           </button>
           <p className="gd-fine">Read-only: Pagelyt can&rsquo;t change anything in your Google account. Disconnect any time from your account page.</p>
+          <p className="gd-fine">New to Search Console? <GuideLink product="gsc">Read our setup guide</GuideLink></p>
         </section>
       </>
     );
@@ -200,7 +201,7 @@ function PropertyPicker({ g, host }: { g: GoogleState; host: string }) {
       {!props ? (
         <p className="panel-note">Loading your properties…</p>
       ) : props.length === 0 ? (
-        <p className="panel-note">This Google account ({g.status?.email}) can&rsquo;t see any Search Console properties. Add {host} in Search Console first, or disconnect from your account page and connect the Google account that has it.</p>
+        <p className="panel-note">This Google account ({g.status?.email}) can&rsquo;t see any Search Console properties. Add {host} in Search Console first (<GuideLink product="gsc">how to add and verify a site</GuideLink>), or disconnect from your account page and connect the Google account that has it.</p>
       ) : (
         <form className="gd-pick" onSubmit={(e) => { e.preventDefault(); if (pick) void g.link(pick); }}>
           <label>
@@ -226,6 +227,7 @@ function Footer({ g, property, fetchedAt }: { g: GoogleState; property: string; 
         <span>Search Console · {propLabel(property)}{g.status?.email ? ` · ${g.status.email}` : ""}{fetchedAt ? ` · updated ${new Date(fetchedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}` : ""}</span>
         <button type="button" className="fnd-link" onClick={() => void (g.days === 28 ? g.refresh(true) : g.setDays(g.days, true))} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh now"}</button>
         <button type="button" className="fnd-link" onClick={() => setChanging((v) => !v)}>{changing ? "Keep this property" : "Change property"}</button>
+        <GuideLink product="gsc">Tips</GuideLink>
       </p>
       {changing && <PropertyPicker g={g} host={property} />}
     </>

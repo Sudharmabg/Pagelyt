@@ -5,6 +5,7 @@ import { FEATURES } from "./features-data";
 import { NavMobile } from "./nav-mobile";
 import { MainCta } from "./main-cta";
 import { CONTACT_EMAIL } from "./site-config";
+import { SignInLink } from "@/app/sign-in-modal";
 
 const MENU: [string, string][] = [
   ["How it works", "/how-it-works"],
@@ -100,7 +101,7 @@ export function SiteFooter() {
             <Link href="/tools">Free tools</Link>
             <Link href="/fix">Fix guides</Link>
             <Link href="/blog">Blog</Link>
-            <Link href="/login">Sign in</Link>
+            <SignInLink>Sign in</SignInLink>
             <Link href="/pricing">Pricing</Link>
             <Link href="/faq">FAQ</Link>
           </nav>

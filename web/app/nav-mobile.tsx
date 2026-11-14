@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSignedInUser } from "@/lib/use-signed-in";
+import { SignInLink } from "@/app/sign-in-modal";
 
 type Item = { name: string; href: string };
 
@@ -56,9 +57,9 @@ export function NavMobile({ features, links }: { features: Item[]; links: Item[]
               Go to dashboard
             </Link>
           ) : (
-            <Link className="btn outline nm-signin" href="/login">
+            <SignInLink className="btn outline nm-signin" onClick={() => setOpen(false)}>
               Sign in
-            </Link>
+            </SignInLink>
           )}
           <p className="nm-h">Features</p>
           {features.map((f) => (

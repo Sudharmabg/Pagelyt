@@ -8,6 +8,7 @@ import { checkEmail, checkLead, checkPassword } from "@/lib/validate";
 import { isDisposable } from "@/lib/disposable";
 import { CodeForm } from "./code-form";
 import { ModalX, onBackdrop } from "./modal-close";
+import { SignInLink } from "@/app/sign-in-modal";
 
 export type LeadInput = { name: string; email: string };
 
@@ -473,7 +474,7 @@ export function LeadModal({
         {human}
         {isLogin ? (
           <p className="lm-fine">
-            <a className="lm-link" href="/login?forgot=1">Forgot password?</a>
+            <SignInLink className="lm-link" forgot stay>Forgot password?</SignInLink>
           </p>
         ) : (
           <p className="lm-fine">At least 8 characters. We&rsquo;ll email you a 6-digit code to confirm your address. No spam.</p>

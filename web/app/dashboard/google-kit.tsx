@@ -3,9 +3,21 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { Finding } from "@/lib/scan/types";
 import type { Ga4Insight } from "@/lib/google/ga4-insights";
+import Link from "next/link";
 
 /* Shared pieces of the ★ Google data view: sortable tables with CSV download, links that open a page's drill-down
    panel or jump to the exact finding, device/country bars and the AI insights panel used by every tab. */
+
+/* The setup guide for each Google product (blog posts in blog-posts-google.ts): setup, connecting, uses and tips. */
+export const GUIDES = {
+  gsc: { href: "/blog/google-search-console-setup-guide", name: "Search Console" },
+  ga4: { href: "/blog/google-analytics-4-setup-guide", name: "Google Analytics 4" },
+  ads: { href: "/blog/google-ads-setup-guide", name: "Google Ads" },
+} as const;
+export function GuideLink({ product, children }: { product: keyof typeof GUIDES; children?: ReactNode }) {
+  const g = GUIDES[product];
+  return <Link className="fnd-link gd-guide" href={g.href} target="_blank">{children ?? `${g.name} setup guide and tips`} <span aria-hidden="true">↗</span></Link>;
+}
 
 export const n0 = (n: number) => Math.round(n).toLocaleString("en-GB");
 export const pct = (n: number) => `${(n * 100).toFixed(n < 0.1 ? 1 : 0)}%`;

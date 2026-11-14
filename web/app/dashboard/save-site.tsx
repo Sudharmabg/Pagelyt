@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { SignInLink } from "@/app/sign-in-modal";
 
 type Cadence = "daily" | "weekly" | "monthly" | "none";
 const CADENCES: { id: Cadence; label: string; text: string; tag?: string }[] = [
@@ -55,7 +56,7 @@ export function SaveSite({ scanId, host }: { scanId: string; host: string }) {
     return (
       <div className="panel mon-out">
         <p><b>Sign in to keep watching {host}.</b> Saved sites get scheduled rescans, uptime checks and an email when something gets worse.</p>
-        <Link href="/login" className="dash-btn primary">Sign in to save</Link>
+        <SignInLink className="dash-btn primary" stay>Sign in to save</SignInLink>
       </div>
     );
 

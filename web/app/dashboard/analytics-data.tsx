@@ -6,7 +6,7 @@ import { MODULE_NAMES, type Finding } from "@/lib/scan/types";
 import { byVisits, channelRows, findingsOnPath, ga4Drops, lowEngagement, rate, visitsMap, type Ga4Data, type Visits } from "@/lib/google/ga4-insights";
 import { change } from "@/lib/google/gsc-insights";
 import { Delta, GoogleMark, Skeleton, Steps } from "./google-data";
-import { DataTable, FindingLink, FindingList, InsightsPanel, PageLink, SplitBars, deviceName, n0, type Col } from "./google-kit";
+import { DataTable, FindingLink, FindingList, InsightsPanel, PageLink, SplitBars, deviceName, n0, type Col, GuideLink } from "./google-kit";
 import type { AiInsights, GoogleState } from "./use-google";
 
 /* The Analytics tab of ★ Google data: Connect Google Analytics, pick the GA4 property, then the AI's insights (on a
@@ -56,6 +56,7 @@ export function AnalyticsTab({ g, scan, findings, notice }: Props) {
             <GoogleMark />{g.busy === "connect" ? "Opening Google…" : s.connected ? "Add Google Analytics access" : "Connect Google Analytics"}
           </button>
           <p className="gd-fine">Read-only: Pagelyt can&rsquo;t change anything in your Google account. Disconnect any time from your account page.</p>
+          <p className="gd-fine">New to Google Analytics? <GuideLink product="ga4">Read our setup guide</GuideLink></p>
         </section>
       </>
     );
@@ -124,6 +125,7 @@ function Footer({ g, fetchedAt }: { g: GoogleState; fetchedAt?: string }) {
         <span>Google Analytics · {s.ga4Name ?? s.ga4Property}{s.email ? ` · ${s.email}` : ""}{fetchedAt ? ` · updated ${new Date(fetchedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}` : ""}</span>
         <button type="button" className="fnd-link" onClick={() => void (g.days === 28 ? g.refresh(true, "ga4") : g.setDays(g.days, true))} disabled={g.busy === "ga4refresh" || g.busy === "range"}>{g.busy === "ga4refresh" || g.busy === "range" ? "Refreshing…" : "Refresh now"}</button>
         <button type="button" className="fnd-link" onClick={() => setChanging((v) => !v)}>{changing ? "Keep this property" : "Change property"}</button>
+        <GuideLink product="ga4">Tips</GuideLink>
       </p>
       {changing && <Ga4Picker g={g} host={s.ga4Name ?? "this site"} />}
     </>

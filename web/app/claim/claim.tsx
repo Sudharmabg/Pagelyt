@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { useSignedInUser } from "@/lib/use-signed-in";
+import { SignInLink } from "@/app/sign-in-modal";
 
 const META = "pagelyt-site-verification";
 type State = { status: "pending"; token: string } | { status: "owned" } | null;
@@ -72,7 +73,7 @@ export function Claim({ domain: wanted }: { domain: string }) {
         <p className="panel-note">
           Log in to the account that should own <strong>{wanted}</strong>. No account yet? Enter {wanted} on the home page and choose &ldquo;Prove ownership&rdquo; to create one.
         </p>
-        <Link className="btn" href={`/login?next=${encodeURIComponent(`/claim?domain=${wanted}`)}`}>Log in</Link>
+        <SignInLink className="btn" next={`/claim?domain=${wanted}`} stay>Log in</SignInLink>
       </div>
     );
   }

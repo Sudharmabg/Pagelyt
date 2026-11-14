@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { claimAndFindReport, forgetVerifyEmail, rememberVerifyEmail, useLinkError } from "@/lib/pending";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { checkEmail } from "@/lib/validate";
+import { SignInLink } from "@/app/sign-in-modal";
 
 /* Where the confirmation link lands. Supabase puts the new session in the address; the client picks it up, then
    this page attaches the person's scans to their account and opens the newest report. */
@@ -68,7 +69,7 @@ export function Verified() {
       }}
     >
       <h2>That link didn’t work</h2>
-      <p className="panel-note">Confirmation links work once and expire. Enter your email and we&rsquo;ll send a new one. Already confirmed? <Link href="/login">Sign in</Link>.</p>
+      <p className="panel-note">Confirmation links work once and expire. Enter your email and we&rsquo;ll send a new one. Already confirmed? <SignInLink>Sign in</SignInLink>.</p>
       <div className="tf">
         <label htmlFor="vf-email">Email</label>
         <input id="vf-email" type="email" autoComplete="email" inputMode="email" maxLength={254} value={typed} onChange={(e) => setTyped(e.target.value)} required />

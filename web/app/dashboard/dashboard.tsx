@@ -34,6 +34,7 @@ import { toolContext } from "@/lib/scan/tools-context";
 import { DashTool, DashToolGrid, fixableCount, toolsByNeed } from "../tools/dash-tools";
 import { TOOL_LIST, TOOLS_BY_SLUG, type ToolInfo, type ToolSlug } from "../tools/catalog";
 import { TONE, ToolIcon } from "../tools/icons";
+import { SignInLink } from "@/app/sign-in-modal";
 
 /* One plain-English line per area, shown at the top of its breakdown. */
 const BLURB: Record<ModuleKey, string> = {
@@ -225,6 +226,15 @@ const STAR: Section[] = [
   { id: "compare", label: "Compare competitors", icon: "compare", text: "Scan up to three competitors and line them up against this report, area by area." },
   { id: "share", label: "Brand & share", icon: "share", text: "Send your client a report with your logo and colours, by link or straight to their inbox." },
 ];
+/* Each star feature's banner colour, button and the icons circling it. */
+const STAR_ART: Partial<Record<string, { color: string; cta: string; ring: IconKey[] }>> = {
+  assistant: { color: "#7b3fe0", cta: "Ask a question", ring: ["chat", "list", "search", "check"] },
+  monitor: { color: "#0e8f7e", cta: "Save and set alerts", ring: ["mail", "history", "check", "performance"] },
+  google: { color: "#2a78d6", cta: "Connect Google", ring: ["search", "table", "seo", "performance"] },
+  ai: { color: "#b8358e", cta: "Check AI answers", ring: ["chat", "geo", "link", "search"] },
+  compare: { color: "#d4572a", cta: "Add competitors", ring: ["table", "performance", "seo", "security"] },
+  share: { color: "#14946a", cta: "Brand your report", ring: ["mail", "link", "pdf", "device"] },
+};
 const ALL_TOOLS: Section = { id: "tools", label: "All tools", icon: "tools", text: `All ${TOOL_LIST.length} free checkers and generators, pre-filled for this site. The ones that fix this scan's findings come first.` };
 
 /** Tools listed in the sidebar; the rest are under "More tools". */
@@ -535,10 +545,55 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
       </div>
     </section>
   );
+  /* A star feature's banner: its own colour, drifting light, live chips about this site, an orbit of related
+     icons and one button that takes you to the feature below. */
+  const starChips = (id: Extra): { text: React.ReactNode; tone?: "hot" | "ok" }[] => {
+    const open = remaining.length;
+    switch (id) {
+      case "assistant": return [{ text: <><b>{open}</b> open finding{open === 1 ? "" : "s"} to ask about</>, tone: open ? "hot" : "ok" }, { text: "Knows this report" }, { text: "Fix guides and blog built in" }];
+      case "monitor": return [siteId ? { text: <><b>✓</b> Saved to your account</>, tone: "ok" } : { text: "Not saved yet", tone: "hot" }, { text: "Scheduled rescans" }, { text: "Uptime checks and email alerts" }];
+      case "google": return [{ text: "Search Console" }, { text: "Analytics" }, { text: "Google Ads" }];
+      case "ai": return [{ text: "Checks ChatGPT answers" }, { text: "Mentions and citations" }, siteId ? { text: <><b>✓</b> Ready for {scan.host}</>, tone: "ok" } : { text: "Save the site first", tone: "hot" }];
+      case "compare": return [{ text: <>You score <b>{scan.overall}</b></>, tone: scan.overall >= 80 ? "ok" : "hot" }, { text: "Up to 3 competitors" }, { text: "Area by area" }];
+      case "share": return [{ text: "Your logo and colours" }, { text: "Share by link" }, { text: canEmail ? "Or email it to your client" : "PDF and print ready" }];
+      default: return [];
+    }
+  };
+  const goBody = () => {
+    const el = document.getElementById("star-body");
+    if (!el) return;
+    el.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    el.querySelector<HTMLElement>("input, textarea, select, button")?.focus({ preventScroll: true });
+  };
+  const starBanner = (s: Section) => {
+    const art = STAR_ART[s.id]!;
+    return (
+      <section className={`dash-hero sec-hero bn bn-tool bn-star bn-star-${s.id}`} aria-label={s.label} style={{ ["--tc" as string]: art.color }}>
+        <BannerFx />
+        <span className="sec-ico bn-tool-ic"><AreaIcon k={s.icon} size={30} /></span>
+        <div className="dash-hero-txt">
+          <p className="dash-eyebrow"><span className="bn-spark" aria-hidden="true">✦</span> Star feature{needsPlan(s.id) && <span className="plan-badge">Paid plans</span>}</p>
+          <h1>{s.label}</h1>
+          <p>{s.text}</p>
+          <ul className="bn-chips" aria-label="At a glance">
+            {starChips(s.id).map((c, i) => <li key={i} className={c.tone ? `bn-chip-${c.tone}` : undefined}>{c.text}</li>)}
+          </ul>
+          <div className="bn-star-row">
+            <button type="button" className="bn-cta" onClick={goBody}>{art.cta} <span aria-hidden="true">↓</span></button>
+            <WhyItMatters text={WHY[s.id]} />
+          </div>
+        </div>
+        <span className="bn-star-art" aria-hidden="true" style={{ ["--n" as string]: art.ring.length }}>
+          <span className="bn-star-core"><AreaIcon k={s.icon} size={34} /></span>
+          {art.ring.map((k, i) => <span key={k} className="bn-orbit-dot" style={{ ["--k" as string]: i }}><span><AreaIcon k={k} size={16} /></span></span>)}
+        </span>
+      </section>
+    );
+  };
   const empty = (text: string) => <p className="panel sec-empty">{text}</p>;
   const signInNote = (
     <p className="panel sec-empty">
-      Only the report&rsquo;s owner can use this. <Link className="fnd-link" href={`/login?next=${encodeURIComponent(`/dashboard/${scan.id}`)}`}>Sign in as the owner</Link>
+      Only the report&rsquo;s owner can use this. <SignInLink className="fnd-link" next={`/dashboard/${scan.id}`} stay>Sign in as the owner</SignInLink>
     </p>
   );
 
@@ -794,8 +849,8 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     else if (s.id === "share") content = <BrandShare scanId={scan.id} host={scan.host} score={scan.overall} canEmail={!!canEmail} owner={access === "owner"} />;
     body = (
       <>
-        {s.id === "tools" ? <ToolsBanner host={scan.host} missing={toolMissing} top={topTool} onOpen={setView} heading="h1" /> : hero(s)}
-        {content}
+        {s.id === "tools" ? <ToolsBanner host={scan.host} missing={toolMissing} top={topTool} onOpen={setView} heading="h1" /> : STAR_ART[s.id] ? starBanner(s) : hero(s)}
+        {STAR_ART[s.id] ? <div id="star-body" className="star-body">{content}</div> : content}
       </>
     );
   }
@@ -887,7 +942,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
       {access === "viewer" && (
         <p className="dash-viewonly" role="status">
           <b>View only.</b> You&rsquo;re looking at a shared report. The owner can sign in to tick findings off, rescan and save the site.{" "}
-          <Link href={`/login?next=${encodeURIComponent(`/dashboard/${scan.id}`)}`}>Sign in as the owner</Link>
+          <SignInLink next={`/dashboard/${scan.id}`} stay>Sign in as the owner</SignInLink>
         </p>
       )}
       {saveError && <p className="dash-viewonly bad" role="alert">{saveError}</p>}

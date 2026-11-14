@@ -8,6 +8,7 @@ import type { DomainAge } from "@/lib/tools/domain-age";
 import type { HreflangReport } from "@/lib/tools/hreflang";
 import { parseRobots, robotsPath, robotsVerdict } from "@/lib/tools/robots";
 import { Field, Output, type Ctx } from "./tools";
+import { SignInLink } from "@/app/sign-in-modal";
 
 /* The free checkers. The ones that fetch another site call /api/tools with the visitor's session. */
 
@@ -35,7 +36,7 @@ export function ErrorNote({ p }: { p: Problem | null }) {
   return (
     <p className="terr" role="alert">
       {p.error}
-      {p.signedOut && <> <Link href={`/login?next=${encodeURIComponent(location.pathname)}`}>Sign in again</Link></>}
+      {p.signedOut && <> <SignInLink stay>Sign in again</SignInLink></>}
       {p.upgrade && <> <Link href="/pricing">See plans</Link></>}
     </p>
   );

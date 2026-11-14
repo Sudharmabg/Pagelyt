@@ -92,8 +92,13 @@ export async function resendConfirmation(email: string, redirectTo: string): Pro
 }
 
 /** Sends a password-reset email. Always resolves quietly: the caller never reveals whether the address exists. */
-export async function recover(email: string, redirectTo: string): Promise<void> {
-  await call("recover", { email }, redirectTo);
+/** Asks Supabase to email the reset code. Supabase answers the same for known and unknown addresses, so the result
+    says only whether the email could be sent: "limited" (its email rate limit) or "failed" (SMTP or setup). */
+export async function recover(email: string, redirectTo: string): Promise<"sent" | "limited" | "failed"> {
+  const { status, json } = await call("recover", { email }, redirectTo);
+  if (status >= 200 && status < 300) return "sent";
+  console.error(`recover: Supabase answered ${status} ${codeOf(json) || String(json.msg ?? json.message ?? "").slice(0, 120)}`);
+  return status === 429 ? "limited" : "failed";
 }
 
 /** Checks the 6-digit code from a password-reset email. On success the person holds a short recovery session. */

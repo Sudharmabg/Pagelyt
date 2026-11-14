@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useLinkError } from "@/lib/pending";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { checkPassword, passwordsMatch } from "@/lib/validate";
+import { SignInLink } from "@/app/sign-in-modal";
 
 /* Where the password-reset link lands. Supabase puts a short recovery session in the address; once the client
    picks it up, the person chooses a new password. */
@@ -60,7 +61,7 @@ export function Reset() {
     return (
       <div className="panel auth-card">
         <h2>That link didn’t work</h2>
-        <p className="panel-note">Reset links work once and expire soon. <Link href="/login?forgot=1">Send a new reset link</Link>.</p>
+        <p className="panel-note">Reset links work once and expire soon. <SignInLink forgot>Get a reset code instead</SignInLink>.</p>
       </div>
     );
   }

@@ -48,7 +48,7 @@ export async function POST(req: Request) {
   const gsc = link?.gsc_property ? await getCache<GscData>(site.id, "gsc").catch(() => null) : null;
   try {
     const ai = await analyseGa4(ga.data, res, ga.fetched_at, gsc?.data ? gscBrief(gsc.data, open, res.url, findingKey) : undefined);
-    await putCache(site.id, "ga4_ai", ai, null);
+    await putCache(site.id, "ga4_ai", ai, null).catch((e) => console.error("ga4_ai cache save", e instanceof Error ? e.message : e)); // a failed save must not hide a good answer
     return Response.json(view(ai, new Date().toISOString(), ga.fetched_at), { headers: H });
   } catch (e) {
     console.error("ga4 analyse", e instanceof Error ? e.message : e);
@@ -68,7 +68,7 @@ async function ads(siteId: string, userId: string, link: object | null, res: Sca
   const gsc = hasGsc ? await getCache<GscData>(siteId, "gsc").catch(() => null) : null;
   try {
     const ai = await analyseAds(d.data, res, d.fetched_at, gsc?.data);
-    await putCache(siteId, "ads_ai", ai, null);
+    await putCache(siteId, "ads_ai", ai, null).catch((e) => console.error("ads_ai cache save", e instanceof Error ? e.message : e)); // a failed save must not hide a good answer
     return Response.json(view(ai, new Date().toISOString(), d.fetched_at), { headers: H });
   } catch (e) {
     console.error("ads analyse", e instanceof Error ? e.message : e);
@@ -85,7 +85,7 @@ async function searchAi(siteId: string, userId: string, linked: boolean, res: Sc
     return no("You've run the AI analysis a lot today. It resets within 24 hours.", 429);
   try {
     const ai = await analyseGsc(d.data, res, d.fetched_at);
-    await putCache(siteId, "gsc_ai", ai, null);
+    await putCache(siteId, "gsc_ai", ai, null).catch((e) => console.error("gsc_ai cache save", e instanceof Error ? e.message : e)); // a failed save must not hide a good answer
     return Response.json(view(ai, new Date().toISOString(), d.fetched_at), { headers: H });
   } catch (e) {
     console.error("gsc analyse", e instanceof Error ? e.message : e);

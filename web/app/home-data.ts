@@ -5,7 +5,7 @@ import { TOOL_LIST } from "./tools/catalog";
 export const FREE_TOOLS = TOOL_LIST.filter((t) => !t.paid);
 
 /** Words the hero headline cycles through. The full list is also in the H1 as text for search engines. */
-export const ROTATOR = ["SEO", "Page Speed", "AI Search", "Security", "Accessibility"];
+export const ROTATOR = ["SEO", "Page Speed", "AI Search", "Google Search Console", "Security", "Google Analytics", "Accessibility", "Google Ads"];
 
 /** Product facts only: no usage counts. */
 export const STATS: { n: number; prefix?: string; suffix?: string; label: string }[] = [

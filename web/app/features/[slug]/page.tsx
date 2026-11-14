@@ -57,6 +57,34 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
           </div>
         </PageHero>
 
+        {f.products && (
+          <section className="sec gp-sec" aria-labelledby="gp-h">
+            <div className="container">
+              <h2 className="title" id="gp-h">
+                Three integrations. Connect any of them.
+              </h2>
+              <p className="lead">Each one adds its own numbers to your report. All three are read-only and come with the Professional and Business plans.</p>
+              <ul className="gp-cards">
+                {f.products.map((p, i) => (
+                  <li key={p.key} className={`gp-card gp-${p.key}`} style={{ ["--i" as string]: i }}>
+                    <span className="gp-ico" aria-hidden="true"><ProductIcon k={p.key} /></span>
+                    <p className="gp-tag">{p.tag}</p>
+                    <h3>{p.name}</h3>
+                    <p className="gp-text">{p.text}</p>
+                    <ul className="gp-points">
+                      {p.points.map((x) => <li key={x}>{x}</li>)}
+                    </ul>
+                    <div className="gp-act">
+                      <Link className="btn" href={p.open}>Connect in your dashboard</Link>
+                      <Link className="gp-guide" href={p.guide}>Read the setup guide <span aria-hidden="true">→</span></Link>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </section>
+        )}
+
         <section className="sec" aria-labelledby="about-h">
           <div className="container split">
             <div className="prose">
@@ -123,4 +151,12 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
       <SiteFooter />
     </>
   );
+}
+
+/* Plain line icons for the Google hub cards (no Google logos on marketing pages). */
+function ProductIcon({ k }: { k: "gsc" | "ga4" | "ads" }) {
+  const common = { width: 26, height: 26, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
+  if (k === "gsc") return <svg {...common}><circle cx="10.5" cy="10.5" r="6" /><path d="M15 15l5 5M8 11.5l2 2 3.5-4" /></svg>;
+  if (k === "ga4") return <svg {...common}><path d="M5 20V12M12 20V7M19 20V4" /><path d="M3 20h18" /></svg>;
+  return <svg {...common}><path d="M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1z" /><path d="M17 9a4 4 0 0 1 0 6M19.5 6.5a7.5 7.5 0 0 1 0 11" /></svg>;
 }

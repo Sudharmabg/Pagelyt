@@ -1,5 +1,6 @@
 // Blog posts live in the repo. Paragraphs support internal links written as [text](/path).
 import { MORE_POSTS } from "./blog-posts-more";
+import { GOOGLE_POSTS } from "./blog-posts-google";
 
 export type Block =
   | { h2: string }
@@ -740,6 +741,7 @@ export const POSTS: Post[] = [
     related: ["technical-seo-checklist", "why-is-my-website-slow"],
   },
   ...MORE_POSTS,
+  ...GOOGLE_POSTS,
 ];
 
 export const postBySlug = (slug: string) => POSTS.find((p) => p.slug === slug);

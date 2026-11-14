@@ -8,6 +8,7 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 import { MODULE_NAMES } from "@/lib/scan/types";
 import type { SiteSummary } from "@/lib/scan/agency";
 import { AGENCY_UPSELL } from "../../dashboard/agency-modal";
+import { SignInLink } from "@/app/sign-in-modal";
 
 /* Agency dashboard: every saved client site at a glance, with bulk rescans.
    Bulk rescans run one site at a time from this tab (each scan is a series of short requests), so the
@@ -135,7 +136,7 @@ export function AgencySites() {
     return (
       <div className="panel auth-card">
         <h1>Sign in to see your client sites</h1>
-        <Link className="btn" href="/login?next=/account/sites">Sign in</Link>
+        <SignInLink className="btn" next="/account/sites" stay>Sign in</SignInLink>
       </div>
     );
   }

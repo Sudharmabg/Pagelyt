@@ -110,8 +110,14 @@ Do these once, in this order:
    `<p>Your Pagelyt code is</p><h2>{{ .Token }}</h2><p>Enter it on your dashboard. It expires in an hour.</p>`.
    In *Sign In / Providers > Email*, keep **Email OTP length** at 6. Edit *Reset password* so it shows the code too,
    for example `<p>Your Pagelyt password reset code is</p><h2>{{ .Token }}</h2><p>Enter it on the sign-in page. It expires in an hour.</p>`
-   (Forgot password at `/login?forgot=1` and on the account page asks for this 6-digit code, not a link).
+   (Forgot password in the sign-in modal, at `/login?forgot=1` and on the account page asks for this 6-digit code, not a link).
 7. **Supabase > Authentication > Rate Limits**: with custom SMTP on, raise *emails per hour* (default is only a few).
+
+   **No reset or confirmation email arriving?** It is almost always steps 3, 4 or 7, not the code. `/api/auth/forgot`
+   now checks Supabase's reply: the Worker log shows `recover: Supabase answered <status> <code>`, and visitors see
+   "Too many reset emails were sent just now" (Supabase answered 429: raise the limit in step 7) or "We couldn't send
+   the email just now" (any other error: usually custom SMTP is off, so Supabase's built-in email only reaches team
+   members, or the Resend domain isn't verified). Neither message says whether an account exists.
 8. **Turnstile**: set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. Without them the human check is skipped,
    which leaves sign-up and sign-in open to bots (the rate limits below still apply).
 
