@@ -108,8 +108,9 @@ Do these once, in this order:
    and for local testing `http://localhost:3000/**`.
 6. **Supabase > Authentication > Email Templates**: edit *Confirm signup* so it shows the code, not a link, for example
    `<p>Your Pagelyt code is</p><h2>{{ .Token }}</h2><p>Enter it on your dashboard. It expires in an hour.</p>`.
-   In *Sign In / Providers > Email*, keep **Email OTP length** at 6. Edit *Reset password* to Pagelyt wording and keep
-   `{{ .ConfirmationURL }}` there (password resets still use a link).
+   In *Sign In / Providers > Email*, keep **Email OTP length** at 6. Edit *Reset password* so it shows the code too,
+   for example `<p>Your Pagelyt password reset code is</p><h2>{{ .Token }}</h2><p>Enter it on the sign-in page. It expires in an hour.</p>`
+   (Forgot password at `/login?forgot=1` and on the account page asks for this 6-digit code, not a link).
 7. **Supabase > Authentication > Rate Limits**: with custom SMTP on, raise *emails per hour* (default is only a few).
 8. **Turnstile**: set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. Without them the human check is skipped,
    which leaves sign-up and sign-in open to bots (the rate limits below still apply).
@@ -123,8 +124,27 @@ Security behaviour worth knowing:
   with `Retry-After`, and sign-up and sign-in **block** (not allow) if the limiter is unreachable.
 - The caller's IP comes only from Cloudflare's `cf-connecting-ip` header in production.
 - Passwords are sent to our own `/api/auth/*` routes over HTTPS only to be forwarded to Supabase. They are never logged or stored by the app.
+- Forgot password: 1 code email a minute and 5 an hour per address; 6 code tries per 15 minutes per address. A reset or a change
+  from the account page (which asks for the current password first, 5 tries per 15 minutes) signs out other sessions and
+  emails a "your password was changed" notice. In *Sign In / Providers > Email*, **Secure password change** can stay off:
+  the current-password check happens in `/api/auth/password`.
 - A static Content-Security-Policy is sent in production (`next.config.ts`). It allows inline scripts because Next.js needs them;
   a nonce-based policy would force every page to render per request and lose caching.
+
+## Consultation booking (`/consultation`)
+
+Visitors pick a session and a free time on the page (no sign-in; Turnstile instead) and the booking is confirmed straight
+away: the visitor gets an email with a calendar file and a cancel link, and `CONTACT_EMAIL` gets a heads-up. Nothing is
+paid at booking; send the invoice by email (Professional and Business subscribers' free annual session comes off it).
+
+1. Run `supabase/migrations/0013_google_ranges_bookings.sql` (also listed under Google integrations).
+2. Emails need `EMAILS_ON=1` and `RESEND_API_KEY` (as for alerts); without them bookings still work but nobody is emailed.
+3. In **/admin > Bookings**: set the weekly hours (default every day 9:00–22:00 IST, shown to visitors in their own timezone),
+   minimum notice (24 hours), how far ahead (30 days) and the buffer between calls (15 minutes); block days off. For each
+   booking, paste the video call link (the visitor is emailed it with an updated calendar file), move it to another free
+   time, mark it done or cancel it (both email the visitor).
+
+Limits: 60 slot lookups per 10 minutes and 5 bookings an hour per IP; the database refuses two bookings at the same start.
 
 ## White-label reports
 
@@ -175,7 +195,7 @@ What it does: dashboard star feature **Google data** (`?view=google`, owner only
 
 ### 1. Database
 
-Run `supabase/migrations/0010_google.sql`, then `0011_google_analytics.sql`, then `0012_google_ads.sql`, in the Supabase SQL editor before deploying.
+Run `supabase/migrations/0010_google.sql`, then `0011_google_analytics.sql`, then `0012_google_ads.sql`, then `0013_google_ranges_bookings.sql` (date windows, Search Console AI and consultation bookings), in the Supabase SQL editor before deploying.
 
 ### 2. Google Cloud project (one time, about 20 minutes)
 

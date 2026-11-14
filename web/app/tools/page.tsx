@@ -6,6 +6,7 @@ import { SiteFooter, SiteNav } from "../site-chrome";
 import { CATEGORIES, TOOL_LIST } from "./catalog";
 import { ToolBrowser } from "./tool-browser";
 import { ToolSteps } from "./tool-steps";
+import { GoogleStrip } from "./google-strip";
 
 const STEPS: [string, string][] = [
   ["Sign in free", "One account opens every tool. No card, nothing to install."],
@@ -42,6 +43,7 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
             <ToolBrowser tools={TOOL_LIST.map(({ slug, name, blurb, category, kind, paid }) => ({ slug, name, blurb, category, kind, paid }))} categories={CATEGORIES} />
           </div>
         </section>
+        <GoogleStrip />
         <section className="sec ice tsteps-sec" aria-labelledby="tsteps-h">
           <div className="container">
             <div className="tline-wrap tc-ai">

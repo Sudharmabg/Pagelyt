@@ -9,8 +9,14 @@ export type Ga4Totals = { sessions: number; engaged: number; users: number; newU
 export type Ga4Page = { path: string; sessions: number; engaged: number; views: number; prevSessions: number; prevEngaged: number };
 export type Ga4Channel = { channel: string; sessions: number; engaged: number; prevSessions: number };
 export type Ga4PageChannel = { path: string; channel: string; sessions: number; prevSessions: number };
+/** Sessions for one device category or country (GA4's own names, e.g. "mobile", "India"). */
+export type Ga4Split = { key: string; sessions: number; engaged: number };
 export type Ga4Data = {
   property: string;
+  /** Length of the window in days (7, 28 or 90). Older caches have none: 28. */
+  days?: number;
+  devices?: Ga4Split[];
+  countries?: Ga4Split[];
   name: string | null;
   range: { start: string; end: string };
   prevRange: { start: string; end: string };

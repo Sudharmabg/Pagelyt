@@ -459,16 +459,16 @@ export function PersonaIcon({ name }: { name: string }) {
 export function AnalyticsMock() {
   return (
     <div data-ui className="mock">
-      <Top title="Analytics overview" sub="Last 28 days · connected sources" pill={["good", "+12% traffic"]} />
+      <Top title="Google data" sub="Last 28 days · Search Console, Analytics, Ads" pill={["good", "+12% clicks"]} />
       <div className="mk-grid c3">
-        <div className="tile"><div className="k">Sessions</div><div className="v">18.4k</div></div>
         <div className="tile"><div className="k">Search clicks</div><div className="v">6.2k</div></div>
-        <div className="tile"><div className="k">Avg. position</div><div className="v">11.3</div></div>
+        <div className="tile"><div className="k">Visits</div><div className="v">18.4k</div></div>
+        <div className="tile"><div className="k">Ad spend on issues</div><div className="v">₹8.1k</div></div>
       </div>
       <div style={{ marginTop: 12 }}><Spark data={[40, 44, 41, 50, 49, 58, 55, 63, 60, 72]} height={100} /></div>
       <div className="mk-grid c2" style={{ marginTop: 6 }}>
         <div>
-          <div className="mock-sub" style={{ marginBottom: 4 }}>Top pages</div>
+          <div className="mock-sub" style={{ marginBottom: 4 }}>Clicks on pages with issues</div>
           {["/", "/pricing", "/services"].map((p, i) => (
             <div className="lrow" key={p}><span>{p}</span><b>{[4.2, 2.8, 1.9][i]}k</b></div>
           ))}

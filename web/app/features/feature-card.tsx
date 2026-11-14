@@ -13,7 +13,7 @@ export const MOCKS: Record<string, () => React.ReactElement> = {
   "competitor-intelligence": CompareMock,
   "ai-recommendations": AiMock,
   "monitoring-reports": TimelineMock,
-  "analytics-integrations": AnalyticsMock,
+  "google-integrations": AnalyticsMock,
 };
 
 /** Colour tone for a feature (purple, green, pink, amber), the same order the /features page uses. */

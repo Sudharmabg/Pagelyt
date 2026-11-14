@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JsonLd, crumbLd, faqLd } from "../../json-ld";
 import { CtaBand, PageHero } from "../../page-shell";
+import { GoogleStrip, hasGoogleNote } from "../google-strip";
 import { SiteFooter, SiteNav } from "../../site-chrome";
 import { TOOL_LIST, TOOLS_BY_SLUG, type ToolSlug } from "../catalog";
 import { TONE, ToolIcon } from "../icons";
@@ -140,6 +141,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
             </div>
           </div>
         </section>
+        {hasGoogleNote(t.slug) && <GoogleStrip slug={t.slug} />}
         <CtaBand title="Want the full picture?" text="This tool checks one thing. A free Pagelyt scan checks speed, SEO, AI readiness, security and more, and tells you what to fix first." />
       </main>
       <SiteFooter />

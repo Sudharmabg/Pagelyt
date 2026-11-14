@@ -11,10 +11,15 @@ import type { AdsAi, AdsData } from "@/lib/google/ads-insights";
    cron job). Shared by the Google data view, the numbers shown on findings and the Overview, so it is fetched once per
    report. The AI's insights (Analytics and Ads, separately) load with the status and are (re)made only on request. */
 
-type Cached<T> = { data: T | null; error: string | null; fetchedAt: string; stale: boolean };
+export type Cached<T> = { data: T | null; error: string | null; fetchedAt: string; stale: boolean };
 export type Ga4Property = { property: string; name: string; account: string };
 export type AiInsights = Ga4Ai & { at: string; current: boolean };
 export type AdsAiInsights = AdsAi & { at: string; current: boolean };
+export type GscAiInsights = Ga4Ai & { at: string; current: boolean };
+/** The date windows the Google data view offers. 28 days is the main one: findings, AI insights and the PDF use it. */
+export type Days = 7 | 28 | 90;
+/** Data for a 7- or 90-day window, fetched when the owner picks it (cached on the server for 24 hours). */
+type RangeSet = { gsc?: Cached<GscData>; ga4?: Cached<Ga4Data>; ads?: Cached<AdsData>; error?: string };
 export type AdsAccount = { id: string; name: string; login: string | null; currency: string };
 export type Product = "gsc" | "ga4" | "ads";
 
@@ -28,6 +33,7 @@ export type GoogleStatus = {
   property?: string | null;
   properties?: string[];
   cache?: Cached<GscData> | null;
+  gscAi?: GscAiInsights | null;
   ga4Property?: string | null;
   ga4Name?: string | null;
   ga4Properties?: Ga4Property[];
@@ -57,7 +63,7 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return d;
 }
 
-type Busy = null | "load" | "refresh" | "ga4refresh" | "adsrefresh" | "connect" | "link" | "props" | "analyse" | "adsanalyse";
+type Busy = null | "load" | "refresh" | "ga4refresh" | "adsrefresh" | "connect" | "link" | "props" | "analyse" | "adsanalyse" | "gscanalyse" | "range";
 
 export function useGoogle(siteId: string | null, enabled: boolean) {
   const [status, setStatus] = useState<GoogleStatus | null>(null);
@@ -65,6 +71,9 @@ export function useGoogle(siteId: string | null, enabled: boolean) {
   const [error, setError] = useState("");
   const [aiError, setAiError] = useState("");
   const [adsAiError, setAdsAiError] = useState("");
+  const [gscAiError, setGscAiError] = useState("");
+  const [days, setDaysState] = useState<Days>(28);
+  const [ranges, setRanges] = useState<Partial<Record<Days, RangeSet>>>({});
 
   const run = useCallback(async (b: Busy, fn: () => Promise<void>, onErr = setError) => {
     setBusy(b);
@@ -166,6 +175,35 @@ export function useGoogle(siteId: string | null, enabled: boolean) {
     }, setAiError);
   }, [siteId, run]);
 
+  const analyseGsc = useCallback(async (scanId: string, force = false) => {
+    if (!siteId) return;
+    await run("gscanalyse", async () => {
+      const gscAi = await call<GscAiInsights>("/api/google/analyse", { siteId, scanId, force, product: "gsc" });
+      setStatus((s) => (s ? { ...s, gscAi } : s));
+    }, setGscAiError);
+  }, [siteId, run]);
+
+  /** Switches the Google data view to another date window, fetching each linked product's numbers for it once. */
+  const setDays = useCallback(async (d: Days, force = false) => {
+    setDaysState(d);
+    if (d === 28 || !siteId || !status) return;
+    if (ranges[d] && !force) return;
+    const want: Product[] = [];
+    if (status.gsc && status.property) want.push("gsc");
+    if (status.ga4 && status.ga4Property) want.push("ga4");
+    if (status.adsOn && status.ads && status.adsCustomer) want.push("ads");
+    if (!want.length) return void setRanges((x) => ({ ...x, [d]: {} }));
+    setBusy("range");
+    const out = await Promise.allSettled(want.map((p) => call<Cached<GscData | Ga4Data | AdsData>>("/api/google/refresh", { siteId, product: p, days: d, force })));
+    const next: RangeSet = {};
+    out.forEach((o, i) => {
+      if (o.status === "fulfilled") (next as Record<string, unknown>)[want[i]] = o.value;
+      else next.error = o.reason instanceof Error ? o.reason.message : String(o.reason);
+    });
+    setRanges((r) => ({ ...r, [d]: next }));
+    setBusy((b) => (b === "range" ? null : b));
+  }, [siteId, status, ranges]);
+
   const analyseAds = useCallback(async (scanId: string, force = false) => {
     if (!siteId) return;
     await run("adsanalyse", async () => {
@@ -184,7 +222,18 @@ export function useGoogle(siteId: string | null, enabled: boolean) {
     }
   }, [siteId, status?.ga4Cache?.data, status?.adsCache?.data]);
 
-  return { status, busy, error, aiError, adsAiError, gsc: status?.cache?.data ?? null, ga4: status?.ga4Cache?.data ?? null, ai: status?.ai ?? null, ads: status?.adsCache?.data ?? null, adsAi: status?.adsAi ?? null, refresh, connect, loadProps, link, analyse, analyseAds, printPass };
+  // The numbers for the window on screen (28 days comes with the status; 7 and 90 from `ranges`).
+  const r = days === 28 ? null : ranges[days];
+  const inRange = {
+    days,
+    loading: days !== 28 && !r,
+    error: r?.error ?? "",
+    gsc: days === 28 ? (status?.cache ?? null) : (r?.gsc ?? null),
+    ga4: days === 28 ? (status?.ga4Cache ?? null) : (r?.ga4 ?? null),
+    ads: days === 28 ? (status?.adsCache ?? null) : (r?.ads ?? null),
+  };
+
+  return { status, busy, error, aiError, adsAiError, gscAiError, days, setDays, inRange, gscAi: status?.gscAi ?? null, analyseGsc, gsc: status?.cache?.data ?? null, ga4: status?.ga4Cache?.data ?? null, ai: status?.ai ?? null, ads: status?.adsCache?.data ?? null, adsAi: status?.adsAi ?? null, refresh, connect, loadProps, link, analyse, analyseAds, printPass };
 }
 
 export type GoogleState = ReturnType<typeof useGoogle>;

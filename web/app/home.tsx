@@ -10,6 +10,7 @@ import { TrustRow } from "./home-extras";
 import { Compare, HeroTitle, ProcessDraw, StatsBar, StickyCta, Stories, ToolGrid } from "./home-convert";
 import { SiteFooter, SiteNav } from "./site-chrome";
 import { Sources } from "./sources";
+import { GoogleSection } from "./home-google";
 import { WelcomeBack } from "./welcome-back";
 import { ScanPreview, type ModScore } from "./ui";
 import { LeadModal, type ScanProblem, type ScanStart } from "./lead-modal";
@@ -187,6 +188,10 @@ export default function Home() {
                 </>
               )}
             </p>
+            <Link href="/features/google-integrations" className="hero-gchip">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10h3v10H5zm5.5 0V4h3v16h-3zM16 20v-7h3v7h-3z" /></svg>
+              Works with Search Console, GA4 &amp; Google Ads
+            </Link>
           </div>
 
           <div data-r style={{ ["--d" as string]: 3 }}>
@@ -231,6 +236,9 @@ export default function Home() {
           <Funnel />
         </div>
       </section>
+
+      {/* 3b. GOOGLE DATA */}
+      <GoogleSection />
 
       {/* 4. SKY SECTION: how it analyses */}
       <section className="sec ice sky-sec" id="how" aria-labelledby="src-h">

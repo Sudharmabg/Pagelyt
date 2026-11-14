@@ -100,15 +100,16 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 | `ga4-ai.ts` | `analyseGa4`, `analyseOn`, `analysePrompt`, `cleanInsights`, `askJson`, `SCHEMA` | Server only. "Analyse with AI": OpenAI Responses API with a strict JSON schema (`chatModel()`), reply re-checked so only real paths and finding ids stay (max 6). `OPENAI_MOCK_URL` for the dev mock. Tests in `ga4-ai.test.ts` |
 | `ads.ts` | `adsOn`, `AdsTokenError`, `AdsAccount`, `listAdsAccounts`, `matchAdsAccount`, `fetchAds` | Server only. Google Ads REST API (GAQL `googleAds:search`, no developer token: access comes from the OAuth client's Cloud project, version from `GOOGLE_ADS_API_VERSION`, default v26): accessible accounts plus manager clients, the account whose ads land on the site, and 7 queries for the 28-day numbers (totals by day, campaigns, landing pages, keywords with landing-page rating, ad final URLs, search terms). Read only |
 | `ads-insights.ts` | `AdsData`, `AdsAi`, `AdsInsight`, `AdSpend`, `money`, `cpa`, `cpc`, `spendFor`, `spendMap`, `findingsOnUrl`, `landingHealth`, `weakLanding`, `paidOrganicOverlap`, `organicValue`, `campaignRows`, `wastedTerms`, `adsBrief` | Client-safe. Ads data shape and calculations (spend on pages with issues and per finding, below-average landing pages, paid vs organic top 3, organic clicks priced as ads, wasted searches, the assistant's summary). Tests in `ads-insights.test.ts` |
+| `gsc-ai.ts` | `GscAi`, `analyseGsc`, `gscPrompt`, `cleanGscInsights` | Server only. "Analyse with AI" on the Search Console tab (reuses `askJson`), checked so only real page paths and finding ids stay; cached as `gsc_ai`. Tests in `gsc-ai.test.ts` |
 | `ads-ai.ts` | `analyseAds`, `adsPrompt`, `cleanAdsInsights` | Server only. "Analyse with AI" on the Ads tab (reuses `askJson`), checked so only real landing paths and finding ids stay. Tests in `ads-ai.test.ts` |
-| `store.ts` | `canUseGoogle`, `getConnection`, `saveConnection`, `disconnect`, `accessFor`, `ownSite`, `siteForHost`, `getLink`, `setGscProperty`, `setGa4Property`, `setAdsAccount`, `getCache`, `putCache`, `refreshGsc`, `refreshGa4`, `refreshAds`, `isStale`, `STALE_MS` | Server only. `google_connections`, `google_links`, `google_cache` (migrations 0010–0012; cache sources gsc, ga4, ga4_ai, ads, ads_ai) and the 24-hour refresh |
+| `store.ts` | `canUseGoogle`, `getConnection`, `saveConnection`, `disconnect`, `accessFor`, `ownSite`, `siteForHost`, `getLink`, `setGscProperty`, `setGa4Property`, `setAdsAccount`, `getCache`, `putCache`, `refreshGsc`, `refreshGa4`, `refreshAds`, `isStale`, `STALE_MS` | Server only. `google_connections`, `google_links`, `google_cache` (migrations 0010–0013; cache sources gsc, ga4, ads with `_7` / `_90` date windows, plus gsc_ai, ga4_ai, ads_ai) and the 24-hour refresh; `refreshGsc` / `refreshGa4` / `refreshAds` take `days` (7, 28 or 90) |
 
 ## Auth, ownership, limits (`lib/`)
 
 | File | Key exports | Purpose |
 |---|---|---|
 | `auth.ts` | `userFromRequest`, `adminFromRequest`, `isAdmin`, `verifyTurnstile`, `clientIp`, `AuthUser` | Server-side auth helpers (Bearer token) |
-| `gotrue.ts` | `signUp`, `signInWithPassword`, `verifyEmailCode`, `resendConfirmation`, `recover`, `reply`, `NO_STORE` | Supabase Auth calls |
+| `gotrue.ts` | `signUp`, `signInWithPassword`, `verifyEmailCode`, `verifyRecoveryCode`, `setPassword`, `resendConfirmation`, `recover`, `reply`, `NO_STORE` | Supabase Auth calls |
 | `session-age.ts` | `SESSION_DAYS` (7), `sessionFresh`, `signedInAt` | Hard 7-day session limit |
 | `supabase-browser.ts` | `supabaseBrowser` | Browser client (anon key) |
 | `use-signed-in.ts` | `useSignedInUser`, `useSignedIn`, `firstName` | Client hook for the signed-in user |
@@ -121,7 +122,8 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 | `owners.ts` | `ownerOf`, `claimDomain`, `setOwner`, `confirmOwner`, `claimToken`, `dropClaims` | One owner per site (`site_owners`, `site_claims`) |
 | `ownership-proof.ts` | `provesOwnership`, `META_NAME` | Ownership proof via a meta tag or DNS TXT record |
 | `ratelimit.ts` | `guard`, `digest`, `LIMITS`, `Rule` | Rate limits for auth, email and the tools (`tool`, `toolBatch` for batched tools, `render` for Browser Rendering, `renderBatch` for sitemap rendering batches) |
-| `email.ts` | `emailsOn`, `sendEmail`, `headerName`, `escapeHtml` | Resend; on only when `EMAILS_ON=1` and `RESEND_API_KEY` are set |
+| `email.ts` | `emailsOn`, `sendEmail` (with attachments), `headerName`, `escapeHtml`, `notifyPasswordChanged`, `whenText`, `sendBookingToVisitor`, `sendBookingToFounder` | Resend; on only when `EMAILS_ON=1` and `RESEND_API_KEY` are set. Booking emails carry an `.ics` file |
+| `booking.ts` | `BookingSettings`, `Booking`, `Block`, `DEFAULT_SETTINGS`, `sessionOf`, `zoned`, `dayIn`, `tzOffset`, `freeSlots`, `checkSettings`, `availability`, `getSettings`, `saveSettings`, `listBlocks`, `setBlock`, `listBookings`, `getBooking`, `insertBooking`, `updateBooking`, `newToken`, `sameToken`, `bookingIcs` | Consultation booking: weekly hours (default every day 9:00–22:00 IST), notice, horizon and buffer, free 30-minute-step slots, storage (`booking_settings`, `booking_blocks`, `bookings`; in memory without Supabase) and the calendar file. Tests in `booking.test.ts` |
 | `requests.ts` | `checkRequest`, `saveRequest`, `listRequests`, `setRequestStatus` | Consultation and contact requests |
 | `pdf.ts` | `renderPdf`, `withBrowser`, `NoBrowser` | Server PDF through Cloudflare Browser Rendering (opens `/print/[id]`). `withBrowser` opens and always closes a browser session (also used by raw vs rendered) |
 | `download-pdf.ts` | `downloadPdf`, `fullReportPrintUrl` | Client: fetch the PDF, or fall back to printing (`printUrl`: the dashboard opens `/print/[id]?auto=1`, so every issue is in it; `&g=` adds the owner's Analytics section) |
@@ -134,7 +136,9 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 | `scan` POST | Start a scan: validation, limits, site-ownership check, lead, row. A finished scan of the same URL from the last 10 minutes is reused, unless `siteId` is given or a signed-in user sends `fresh: true`. A bearer token the server no longer accepts gets 401 `code: "signed_out"` (the homepage then signs out locally and shows the form) |
 | `scan/[id]/step` POST | Run the next stage. Returns `{stage, done, label, areas}` |
 | `scan/[id]/fixed` PUT | Owner marks findings as fixed |
-| `auth/signup`, `auth/login`, `auth/verify`, `auth/resend`, `auth/forgot` | Sign-up, password sign-in, 6-digit code check, resend the code, reset link |
+| `auth/signup`, `auth/login`, `auth/verify`, `auth/resend` | Sign-up, password sign-in, 6-digit code check, resend the code |
+| `auth/forgot`, `auth/reset` | Forgot password: email a 6-digit reset code, then code + new password (signs out other sessions, signs this browser in, emails a notice) |
+| `auth/password` POST | Change password from the account page (current password checked first) |
 | `auth/site` POST | Asks whether a site is already registered (a known site forces login) |
 | `sites/claim` POST | Ownership proof for a site registered to another account |
 | `account/claim` | Save a report to the account and make it the saved site's latest scan. Changes the schedule, uptime and email alerts only when `cadence` / `uptime` / `alerts` are sent |
@@ -152,8 +156,10 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 | `google/link` POST, `google/refresh` POST, `google/disconnect` POST | Pick the property or Ads account (`product`: gsc, ga4 or ads; checked against Google's list), refetch when older than 24 hours (`force`: 6 an hour per site and product), revoke and delete everything |
 | `google/analyse` POST | "Analyse with AI" on the Analytics data (`{siteId, scanId, force?}`): cached 24 hours in `google_cache` (`ga4_ai`) while the Analytics data is unchanged; 4 a day per site, 20 per account; not part of the chat quota. `product: "ads"` does the same for the Google Ads data (`ads_ai`, its own caps) |
 | `chat` POST | Pagelyt Assistant: signed in, own report only; streams plain text, sources in the `x-chat-sources` header. 6 a minute; 10 a day free, 100 paid |
-| `request` POST | Consultation and contact forms |
-| `admin/*` | `ai`, `analytics`, `requests`, `scan`, `sites`, `uptime`; admin only (`admins` table) |
+| `request` POST | Contact form (and the old consultation request) |
+| `booking` GET, POST | Free start times for a 30/60/90-minute session; book one (no sign-in, Turnstile; 409 when taken), emails both sides |
+| `booking/manage` GET, POST | The visitor's link from the email (`id` + secret `t`): show the booking, cancel it |
+| `admin/*` | `ai`, `analytics`, `booking` (settings, days off, cancel, done, call link, move), `requests`, `scan`, `sites`, `uptime`; admin only (`admins` table) |
 | `internal/*` | `due`, `start`, `ai-due`, `ai-run`; for the cron Worker |
 
 ## Pages and components (`app/`)
@@ -183,7 +189,8 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
   - `useSiteId` finds the saved site, so the AI visibility view can show the whole `Visibility` tool (embedded).
   - Star feature **Ask Pagelyt** (`?view=assistant`, owner only) renders `Assistant`; a floating Ask button (`.asst-fab`) opens it from other views.
 - Star feature **Google data** (`?view=google`, owner only, paid badge): `google-data.tsx` `GoogleData` (connect card, property picker, totals with sparkline, issues ranked by traffic, near page one, seen but not clicked, pages that lost clicks, indexing check, footer with Refresh now / Change property; `?google=<status>` after the consent screen shows a notice). `use-google.ts` `useGoogle` loads the status once per report and refreshes stale data; the dashboard passes its `traffic` map to `Findings` (a "Google clicks" badge, `.trf`), `FindingsExplorer` ("Most Google clicks" sort) and Top fixes (`byTraffic`). Styles in the "Google data" block at the end of globals.css. The account page shows the connection and Disconnect.
-- Google data has three tabs (`.gd-tabs`; `gTab` state in the dashboard, `?gtab=analytics` / `?gtab=ads` open the others): Search Console (`GscTab`), Analytics (`analytics-data.tsx` `AnalyticsTab`: connect card, GA4 property picker, `AiPanel` with Analyse with AI, `Ga4View` with totals, channels, issues ranked by visitors, drop detective and pages that don't hold visitors). `AiOverviewCard` shows the top 3 AI insights on the Overview. The dashboard passes `visitsMap` to `Findings` / `FindingsExplorer` ("N visits" badge, `.trf.vis`). `useGoogle` also returns `ga4`, `ai`, `analyse` and `printPass` (the PDF fallback's `?g=` pass). Google Ads (`ads-data.tsx` `AdsTab`: connect card, `AdsPicker`, `AdsAiPanel`, `AdsView` with the 28-day summary and campaigns, spend on pages with issues and issues ranked by ad spend, below-average landing pages, paid vs organic, organic traffic value and searches with no conversions). The dashboard passes `spendMap` to `Findings` / `FindingsExplorer` ("£X ad spend" badge, `.trf.ads`). `useGoogle` also returns `ads`, `adsAi` and `analyseAds`.
+- Google data has four tabs (`.gd-bar`; `gTab` state in the dashboard, default `overview`; `?gtab=search|analytics|ads` open the others) and a 7/28/90-day `RangePicker` (`useGoogle` `setDays`, other windows load on demand into `inRange`; finding badges always use the 28-day data). `google-overview.tsx` `GoogleOverview`: per-product status cards, KPIs with deltas, `Trend` (small-multiple daily chart with toggles, hover crosshair, scan-date line and a table view), `FixFirst` (issues ranked by clicks + visits + ad clicks) and the top AI insights from all three. `GscTab` (Search Console with its own Analyse with AI), `analytics-data.tsx` `AnalyticsTab` and `ads-data.tsx` `AdsTab` share `google-kit.tsx`: `DataTable` (sortable, show all, Download CSV), `SplitBars` (device and country), `InsightsPanel`, `PageLink` / `FindingLink` (via the `GoogleNav` context). `page-drill.tsx` `PageDrill` is the side panel for one page (searches, visits, channels, ad spend, its issues). `Steps` and `Skeleton` cover setup and loading. `AiOverviewCard` shows the top 3 Analytics insights on the Overview. The dashboard passes `visitsMap` / `spendMap` to `Findings` / `FindingsExplorer` (`.trf.vis`, `.trf.ads` badges) and `openFinding` to jump from Google data to an issue (`.fnd-flash`).
+- `google-banner.tsx`: `GoogleBanner`, the banner at the top of Overview (owner only) that says what Search Console, Analytics and Ads add and opens Google data.
 - `assistant.tsx`: `Assistant`, the chat: header with site and score, grouped starter questions from this report, streamed answers with a small safe markdown renderer (only `/` and `https:` links), source chips, Copy, follow-up suggestions, auto-growing input, Stop and New chat, and a jump-to-newest button. The conversation is kept in sessionStorage per report. `mini` (with `onExpand`/`onClose`) is the small widget the dashboard's floating Ask button opens (`.asst-pop`: a bottom-right panel, a sheet on phones); it shares the conversation with the full view. Styles in the "Pagelyt Assistant" block of globals.css.
 - `panels.tsx`: `FindingsExplorer`, `ExportTiles` (PDF, checklist, CSV and JSON tiles for the Export modal; every export has every issue, most important first, with a summary and where each was found), `VitalsPanel` (plain-English summary, loading timeline, metric cards with a scale and a "what this means" panel), `useInView`, `CrawlWhyPanel` (pages crawled, why it stopped, how to find more), `CrawlPanel`, `ImagesPanel`, `QuickWins`, `ChangePanel`, `ComparePanel`, `DomainPanel`, `TechPanel`, `HowScores`, `useHistory`.
 - `action-modal.tsx`: `ActionModal` (a `<dialog>` with title and tile grid; a bottom sheet on phones) and `Tile`.
@@ -224,6 +231,8 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 - `tools-list.ts`: list of free tools for the Features page, built from `tools/catalog.ts`.
 - `site-config.ts`: name, URL and contact.
 - Pages: `about`, `pricing`, `faq`, `features`, `fix`, `how-it-works`, `use-cases`, `consultation`, `contact`, `privacy`, `terms`, `tools`, `bot` (what PagelytBot fetches; linked from the scanner user agent).
+- `/consultation`: session cards (`sessions.tsx`, "Choose" fires `SESSION_EVENT`), `consultation/booker.tsx` `Booker` (session, day strip and times in the visitor's timezone, details prefilled when signed in, Turnstile when not; pay later by invoice), how booking works, who it's for, founder card and FAQ (FAQPage JSON-LD). `/consultation/manage?id&t` (`manage.tsx` `ManageBooking`) shows and cancels a booking. Styles in the "consultation booking" block of globals.css.
+- `/features/google-integrations` is the Google hub (`features-data.ts`); `/features/analytics-integrations` redirects there (`next.config.ts`). `home-google.tsx` `GoogleSection` is the homepage Google section; `tools/google-strip.tsx` `GoogleStrip` (and `hasGoogleNote`) is the promo strip on /tools and related tool pages.
 - `/fix` is the fix guides directory (data in `lib/scan/guides.ts`, ItemList JSON-LD). `/fix?area=<module>` preselects an area chip.
   - `fix/guide-browser.tsx`: `GuideBrowser`, search box, area chips (`.ga-*` tone classes) and guide cards per area (filtering only hides cards).
   - `fix/[id]/page.tsx`: one guide: breadcrumb with area tag, "Why it matters", numbered steps, developer snippet, "Check it worked", tool button, related guides in the same area, previous/next. HowTo JSON-LD.
@@ -257,6 +266,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 - `dashboard/page.tsx` + `dashboard/open-latest.tsx`: /dashboard sends signed-in people to their newest report (or /account if none) and visitors to sign in.
 - `api/account/latest/route.ts`: GET the signed-in person's newest finished report (id, host, score).
 - `nav-mobile.tsx`, `scroll-top.tsx`, `json-ld.tsx`, `use-turnstile.ts`, `request-form.tsx`.
+- `admin/bookings.tsx`: `AdminBookings`, the admin Bookings tab (upcoming bookings with call link, move, done and cancel; bookable hours, notice, horizon, buffer; days off).
 - Styles are all in `globals.css`. Modals reuse `.lead-modal`; the share modal is `.share-modal`.
 
 ## Database (`supabase/migrations/`)
@@ -275,6 +285,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 | 0010 | `google_connections`, `google_links`, `google_cache` |
 | 0011 | `google_links.ga4_property`, `ga4_name`; cache sources `ga4`, `ga4_ai`, `ads` |
 | 0012 | `google_links.ads_customer`, `ads_login`, `ads_name`; cache source `ads_ai` |
+| 0013 | Cache sources for 7/90-day windows and `gsc_ai`; `booking_settings`, `booking_blocks`, `bookings` |
 
 ## Dev mocks (`scripts/`)
 

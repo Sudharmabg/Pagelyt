@@ -8,8 +8,14 @@ export type GscRow = { clicks: number; impressions: number; ctr: number; positio
 export type GscPage = GscRow & { url: string; prevClicks: number; prevImpressions: number };
 export type GscQuery = GscRow & { query: string; page: string };
 export type GscInspection = { url: string; verdict: string; coverage: string | null; lastCrawl: string | null; googleCanonical: string | null; userCanonical: string | null };
+/** Clicks and impressions for one device type or country (Search Console's own codes: MOBILE, DESKTOP, TABLET; ISO 3166-1 alpha-3). */
+export type GscSplit = { key: string; clicks: number; impressions: number };
 export type GscData = {
   property: string;
+  /** Length of the window in days (7, 28 or 90). Older caches have none: 28. */
+  days?: number;
+  devices?: GscSplit[];
+  countries?: GscSplit[];
   range: { start: string; end: string };
   prevRange: { start: string; end: string };
   totals: GscRow & { prevClicks: number; prevImpressions: number };

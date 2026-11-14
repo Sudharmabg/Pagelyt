@@ -44,6 +44,14 @@ export const LIMITS = {
     { key: `forgot:ip:${ip}`, limit: 15, windowSec: 3600 },
   ],
   site: (ip: string): Rule[] => [{ key: `site:ip:${ip}`, limit: 30, windowSec: 900 }],
+  reset: (ip: string, email: string): Rule[] => [
+    { key: `reset:em:${email}`, limit: 6, windowSec: 900 },
+    { key: `reset:ip:${ip}`, limit: 30, windowSec: 900 },
+  ],
+  password: (ip: string, user: string): Rule[] => [
+    { key: `password:user:${user}`, limit: 5, windowSec: 900 },
+    { key: `password:ip:${ip}`, limit: 20, windowSec: 900 },
+  ],
   verify: (ip: string, email: string): Rule[] => [
     { key: `verify:em:${email}`, limit: 6, windowSec: 900 },
     { key: `verify:ip:${ip}`, limit: 30, windowSec: 900 },

@@ -132,12 +132,13 @@ const totalsOf = (m?: Record<string, unknown>): AdsTotals => ({
 });
 const add = (a: AdsTotals, b: AdsTotals): AdsTotals => ({ cost: a.cost + b.cost, clicks: a.clicks + b.clicks, impressions: a.impressions + b.impressions, conversions: a.conversions + b.conversions, value: a.value + b.value });
 
-export async function fetchAds(access: string, acct: { id: string; login: string | null; name: string | null }): Promise<AdsData> {
-  const { range, prevRange } = ga4Ranges();
+/** `days`: 7, 28 or 90. */
+export async function fetchAds(access: string, acct: { id: string; login: string | null; name: string | null }, days = 28): Promise<AdsData> {
+  const { range, prevRange } = ga4Ranges(new Date(), days);
   const now = `segments.date BETWEEN '${range.start}' AND '${range.end}'`;
   const M = "metrics.cost_micros, metrics.clicks, metrics.impressions, metrics.conversions, metrics.conversions_value";
   const q = (query: string) => search(access, acct.id, query, acct.login);
-  const [info, days, camps, lands, kws, ads, terms] = await Promise.all([
+  const [info, dayRows, camps, lands, kws, ads, terms] = await Promise.all([
     q("SELECT customer.descriptive_name, customer.currency_code FROM customer LIMIT 1"),
     q(`SELECT segments.date, ${M} FROM customer WHERE segments.date BETWEEN '${prevRange.start}' AND '${range.end}'`),
     q(`SELECT campaign.name, campaign.status, campaign.advertising_channel_type, ${M} FROM campaign WHERE ${now} AND metrics.impressions > 0 ORDER BY metrics.cost_micros DESC LIMIT 50`),
@@ -149,7 +150,7 @@ export async function fetchAds(access: string, acct: { id: string; login: string
 
   let totals = { ...ZERO }, prev = { ...ZERO };
   const daily: AdsData["daily"] = [];
-  for (const r of days) {
+  for (const r of dayRows) {
     const date = str(r.segments?.date);
     const t = totalsOf(r.metrics);
     if (date >= range.start) {
@@ -189,6 +190,7 @@ export async function fetchAds(access: string, acct: { id: string; login: string
   const c = info[0]?.customer;
   return {
     customer: digits(acct.id),
+    days,
     name: str(c?.descriptiveName) || acct.name,
     currency: str(c?.currencyCode) || "USD",
     range,

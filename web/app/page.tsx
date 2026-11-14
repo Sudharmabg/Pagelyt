@@ -18,6 +18,18 @@ export default function Page() {
               applicationCategory: "BusinessApplication",
               operatingSystem: "Web",
               description: SITE_DESCRIPTION,
+              featureList: [
+                "Technical SEO audit",
+                "GEO: readiness for AI search and answer engines",
+                "Page speed and Core Web Vitals",
+                "Accessibility checks (WCAG)",
+                "Security headers, SSL and domain checks",
+                "Google Search Console clicks and impressions on every issue",
+                "Google Analytics 4 visitors and engagement on every issue",
+                "Google Ads spend on pages with issues",
+                "AI insights and prioritised fixes",
+                "Scheduled monitoring and PDF reports",
+              ],
               url: SITE_URL,
               offers: PLANS.map((p) => ({
                 "@type": "Offer",

@@ -7,6 +7,7 @@ import { adsOn, listAdsAccounts, type AdsAccount } from "@/lib/google/ads";
 import type { AdsAi, AdsData } from "@/lib/google/ads-insights";
 import { accessFor, canUseGoogle, getCache, getConnection, getLink, hasScope, isStale, ownSite, type CacheRow } from "@/lib/google/store";
 import type { GscData } from "@/lib/google/gsc-insights";
+import type { GscAi } from "@/lib/google/gsc-ai";
 import type { Ga4Ai, Ga4Data } from "@/lib/google/ga4-insights";
 import { getScanRow, live } from "@/lib/scan/store";
 
@@ -35,12 +36,13 @@ export async function GET(req: Request) {
   if (!site) return Response.json({ error: "Site not found." }, { status: 404, headers: H });
 
   const link = await getLink(site.id);
-  const [cache, ga4Cache, ai, adsCache, adsAi] = await Promise.all([
+  const [cache, ga4Cache, ai, adsCache, adsAi, gscAi] = await Promise.all([
     link?.gsc_property ? getCache<GscData>(site.id, "gsc") : null,
     link?.ga4_property ? getCache<Ga4Data>(site.id, "ga4") : null,
     link?.ga4_property ? getCache<Ga4Ai>(site.id, "ga4_ai") : null,
     link?.ads_customer ? getCache<AdsData>(site.id, "ads") : null,
     link?.ads_customer ? getCache<AdsAi>(site.id, "ads_ai") : null,
+    link?.gsc_property ? getCache<GscAi>(site.id, "gsc_ai") : null,
   ]);
 
   let properties: string[] | undefined;
@@ -75,6 +77,7 @@ export async function GET(req: Request) {
       property: link?.gsc_property ?? null,
       properties,
       cache: view(cache),
+      gscAi: gscAi?.data ? { ...gscAi.data, at: gscAi.fetched_at, current: gscAi.data.basedOn === cache?.fetched_at } : null,
       ga4Property: link?.ga4_property ?? null,
       ga4Name: link?.ga4_name ?? null,
       ga4Properties,

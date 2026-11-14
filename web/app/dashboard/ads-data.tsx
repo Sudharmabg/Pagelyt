@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Spark } from "../ui";
 import { findingKey } from "@/lib/scan/score";
-import { MODULE_NAMES, type Finding, type ModuleKey } from "@/lib/scan/types";
-import { gaPath } from "@/lib/google/ga4-insights";
-import { campaignRows, cpa, cpc, landingHealth, money, organicValue, paidOrganicOverlap, spendMap, wastedTerms, weakLanding, type AdsData, type Spend } from "@/lib/google/ads-insights";
+import { MODULE_NAMES, type Finding } from "@/lib/scan/types";
+import { campaignRows, cpa, cpc, findingsOnUrl, landingHealth, money, organicValue, paidOrganicOverlap, spendMap, wastedTerms, weakLanding, type AdsData, type Spend } from "@/lib/google/ads-insights";
 import type { GscData } from "@/lib/google/gsc-insights";
-import { Delta, GoogleMark } from "./google-data";
+import { Delta, GoogleMark, Skeleton, Steps } from "./google-data";
+import { DataTable, FindingLink, FindingList, InsightsPanel, PageLink, n0, type Col } from "./google-kit";
 import type { GoogleState } from "./use-google";
 
 /* The Ads tab of ★ Google data: Connect Google Ads, pick the account (agency manager accounts included), then the AI's
@@ -15,7 +14,6 @@ import type { GoogleState } from "./use-google";
    for landing-page experience, searches paid for while already in the top 3 organically, and what the organic clicks
    would cost as ads (the last two need Search Console). Pagelyt only reads Ads; it never changes campaigns. */
 
-const n0 = (n: number) => Math.round(n).toLocaleString("en-GB");
 const p0 = (n: number) => `${Math.round(n * 100)}%`;
 const LPX: Record<string, string> = { BELOW_AVERAGE: "Below average", AVERAGE: "Average", ABOVE_AVERAGE: "Above average" };
 
@@ -30,9 +28,9 @@ const NOTICE: Record<string, { text: string; bad?: boolean }> = {
   failed: { text: "Google Ads couldn't be connected just now. Please try again.", bad: true },
 };
 
-type Props = { g: GoogleState; scan: { id: string; url: string; host: string }; findings: Finding[]; onOpenArea: (m: ModuleKey) => void; notice: string | null };
+type Props = { g: GoogleState; scan: { id: string; url: string; host: string }; findings: Finding[]; notice: string | null };
 
-export function AdsTab({ g, scan, findings, onOpenArea, notice }: Props) {
+export function AdsTab({ g, scan, findings, notice }: Props) {
   const s = g.status!;
   const note = notice && NOTICE[notice];
   const head = (
@@ -50,6 +48,7 @@ export function AdsTab({ g, scan, findings, onOpenArea, notice }: Props) {
         {head}
         <section className="panel gd-connect">
           <h2>Connect Google Ads</h2>
+          <Steps at={0} />
           <p className="panel-note">See how much of your ad spend lands on pages with problems, which searches you pay for while already ranking for free, and let AI read your ads next to this report.</p>
           <ul className="gd-gets">
             <li><b>Landing-page health</b> Spend on pages with issues, and keywords Google rates below average for landing page</li>
@@ -67,13 +66,14 @@ export function AdsTab({ g, scan, findings, onOpenArea, notice }: Props) {
 
   if (!s.adsCustomer) return <>{head}<AdsPicker g={g} host={scan.host} /></>;
 
-  const c = s.adsCache;
+  const c = g.inRange.ads;
+  if (g.inRange.loading || (!c?.data && (g.busy === "refresh" || g.busy === "adsrefresh" || g.busy === "link"))) return <>{head}<Skeleton label="Fetching your Google Ads numbers…" /></>;
   if (!c?.data)
     return (
       <>
         {head}
-        <p className="panel sec-empty">{g.busy === "refresh" || g.busy === "adsrefresh" || g.busy === "link" ? "Fetching your Google Ads numbers…" : c?.error ?? "No Google Ads data yet."}</p>
-        {g.busy !== "adsrefresh" && <Footer g={g} fetchedAt={undefined} />}
+        <p className="panel sec-empty">{c?.error ?? "No Google Ads data yet."}</p>
+        <Footer g={g} fetchedAt={undefined} />
       </>
     );
 
@@ -81,8 +81,8 @@ export function AdsTab({ g, scan, findings, onOpenArea, notice }: Props) {
     <>
       {head}
       {c.error && <p className="panel gd-note bad" role="alert">{c.error} Showing the numbers from {new Date(c.fetchedAt).toLocaleDateString("en-GB")}.</p>}
-      <AdsAiPanel g={g} scanId={scan.id} findings={findings} onOpenArea={onOpenArea} />
-      <AdsView d={c.data} gsc={g.gsc} homeUrl={scan.url} findings={findings} onOpenArea={onOpenArea} />
+      <InsightsPanel title="AI insights from your Google Ads" source="Google Ads" ai={g.adsAi} busy={g.busy === "adsanalyse"} error={g.adsAiError} findings={findings} onRun={(force) => void g.analyseAds(scan.id, force)} />
+      <AdsView d={c.data} gsc={g.inRange.gsc?.data ?? (g.days === 28 ? g.gsc : null)} homeUrl={scan.url} findings={findings} />
       <Footer g={g} fetchedAt={c.fetchedAt} />
     </>
   );
@@ -98,6 +98,7 @@ function AdsPicker({ g, host }: { g: GoogleState; host: string }) {
   return (
     <section className="panel">
       <h2>Which Google Ads account advertises {host}?</h2>
+      <Steps at={1} />
       {!accounts ? (
         <p className="panel-note">Loading your Google Ads accounts…</p>
       ) : accounts.length === 0 ? (
@@ -125,7 +126,7 @@ function Footer({ g, fetchedAt }: { g: GoogleState; fetchedAt?: string }) {
     <>
       <p className="gd-foot">
         <span>Google Ads · {s.adsName ?? s.adsCustomer}{s.email ? ` · ${s.email}` : ""}{fetchedAt ? ` · updated ${new Date(fetchedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}` : ""}</span>
-        <button type="button" className="fnd-link" onClick={() => void g.refresh(true, "ads")} disabled={g.busy === "adsrefresh"}>{g.busy === "adsrefresh" ? "Refreshing…" : "Refresh now"}</button>
+        <button type="button" className="fnd-link" onClick={() => void (g.days === 28 ? g.refresh(true, "ads") : g.setDays(g.days, true))} disabled={g.busy === "adsrefresh" || g.busy === "range"}>{g.busy === "adsrefresh" || g.busy === "range" ? "Refreshing…" : "Refresh now"}</button>
         <button type="button" className="fnd-link" onClick={() => setChanging((v) => !v)}>{changing ? "Keep this account" : "Change account"}</button>
       </p>
       {changing && <AdsPicker g={g} host={s.adsName ?? "this site"} />}
@@ -133,107 +134,67 @@ function Footer({ g, fetchedAt }: { g: GoogleState; fetchedAt?: string }) {
   );
 }
 
-const PRIORITY = { high: "Important", medium: "Worth a look", low: "Minor" } as const;
-
-/** The AI's insights on the Ads numbers, or the button that asks for them. Separate from the Analytics insights. */
-function AdsAiPanel({ g, scanId, findings, onOpenArea }: { g: GoogleState; scanId: string; findings: Finding[]; onOpenArea: (m: ModuleKey) => void }) {
-  const ai = g.adsAi;
-  const busy = g.busy === "adsanalyse";
-  const byId = useMemo(() => new Map(findings.map((f) => [f.id, f])), [findings]);
-  return (
-    <section className="panel gd-ai" aria-label="AI insights on Google Ads" aria-busy={busy}>
-      <div className="gd-ai-top">
-        <h2><span aria-hidden="true">✦</span> AI insights from your Google Ads</h2>
-        {ai && <button type="button" className="dash-btn" onClick={() => void g.analyseAds(scanId, true)} disabled={busy}>{busy ? "Analysing…" : "Analyse again"}</button>}
-      </div>
-      {!ai ? (
-        <>
-          <p className="panel-note">AI reads your last 28 days of Google Ads next to this report{g.gsc ? " and your Search Console numbers" : ""} and writes a few plain-English findings, each with a next step. It takes about half a minute.</p>
-          <button type="button" className="dash-btn primary" onClick={() => void g.analyseAds(scanId)} disabled={busy}>{busy ? "Analysing your ads…" : "Analyse with AI"}</button>
-        </>
-      ) : (
-        <>
-          <ol className="gd-ins">
-            {ai.insights.map((i) => (
-              <li key={i.title} className={`p-${i.priority}`}>
-                <span className="gd-ins-p">{PRIORITY[i.priority]}</span>
-                <h3>{i.title}</h3>
-                <p>{i.detail}</p>
-                <p className="gd-ins-do"><b>Next step:</b> {i.action}</p>
-                {(i.pages.length > 0 || i.findings.length > 0) && (
-                  <p className="gd-ins-refs">
-                    {i.pages.map((p) => <code key={p}>{p}</code>)}
-                    {i.findings.map((id) => {
-                      const f = byId.get(id);
-                      return f ? <button key={id} type="button" className="fnd-link" onClick={() => onOpenArea(f.module)}>{f.title}</button> : null;
-                    })}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ol>
-          <p className="gd-fine">
-            Written by AI on {new Date(ai.at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })} from your Google Ads and this report. Check before changing campaigns.
-            {!ai.current && " Your Ads numbers have updated since: analyse again for the latest."}
-          </p>
-        </>
-      )}
-      {g.adsAiError && <p className="gd-note bad" role="alert">{g.adsAiError}</p>}
-    </section>
-  );
-}
-
 const coverOf = (x: Spend) => (x.scope === "site" ? "whole site" : x.scope === "homepage" ? "homepage" : `${x.pages} page${x.pages === 1 ? "" : "s"}`);
 
-function AdsView({ d, gsc, homeUrl, findings, onOpenArea }: { d: AdsData; gsc: GscData | null; homeUrl: string; findings: Finding[]; onOpenArea: (m: ModuleKey) => void }) {
+function AdsView({ d, gsc, homeUrl, findings }: { d: AdsData; gsc: GscData | null; homeUrl: string; findings: Finding[] }) {
+  const days = d.days ?? 28;
   const $ = (n: number, digits = 0) => money(n, d.currency, digits);
   const sp = useMemo(() => spendMap(findings, d, homeUrl, findingKey), [findings, d, homeUrl]);
-  const ranked = useMemo(() => findings.filter((f) => { const x = sp.get(findingKey(f)); return !!x && x.cost > 0 && x.scope !== "site"; }).sort((a, b) => sp.get(findingKey(b))!.cost - sp.get(findingKey(a))!.cost).slice(0, 10), [findings, sp]);
-  const lh = useMemo(() => landingHealth(d, findings), [d, findings]);
-  const weak = useMemo(() => weakLanding(d), [d]);
+  const ranked = useMemo(() => findings.filter((f) => { const x = sp.get(findingKey(f)); return !!x && x.cost > 0 && x.scope !== "site"; }), [findings, sp]);
+  const lh = useMemo(() => landingHealth(d, findings, 50), [d, findings]);
+  const weak = useMemo(() => weakLanding(d, 50), [d]);
   const camps = useMemo(() => campaignRows(d), [d]);
-  const waste = useMemo(() => wastedTerms(d), [d]);
-  const ov = useMemo(() => (gsc ? paidOrganicOverlap(d, gsc) : null), [d, gsc]);
-  const val = useMemo(() => (gsc ? organicValue(d, gsc) : null), [d, gsc]);
+  const waste = useMemo(() => wastedTerms(d, 30), [d]);
+  const ov = useMemo(() => (gsc ? paidOrganicOverlap(d, gsc, 30) : null), [d, gsc]);
+  const val = useMemo(() => (gsc ? organicValue(d, gsc, 30) : null), [d, gsc]);
   const T = d.totals, P = d.prev;
   const c = cpa(T), pc = cpa(P);
+  const spend = (f: Finding) => sp.get(findingKey(f))!;
+
+  const issueCols: Col<Finding>[] = [
+    { label: "Issue", get: (f) => f.title, cell: (f) => <FindingLink f={f} />, wrap: true },
+    { label: "Area", get: (f) => MODULE_NAMES[f.module] },
+    { label: "Ad spend", get: (f) => +spend(f).cost.toFixed(2), cell: (f) => <b>{$(spend(f).cost)}</b> },
+    { label: "Ad clicks", get: (f) => spend(f).clicks, cell: (f) => n0(spend(f).clicks) },
+    { label: "Covers", get: (f) => coverOf(spend(f)) },
+  ];
+  const landingCols: Col<AdsData["landing"][number]>[] = [
+    { label: "Landing page", get: (l) => l.url, cell: (l) => <PageLink url={l.url} /> },
+    { label: "Spend", get: (l) => +l.cost.toFixed(2), cell: (l) => <b>{$(l.cost)}</b> },
+    { label: "Clicks", get: (l) => l.clicks, cell: (l) => n0(l.clicks) },
+    { label: "Conversions", get: (l) => +l.conversions.toFixed(1), cell: (l) => n0(l.conversions) },
+    { label: "Issues on this page", get: (l) => findingsOnUrl(l.url, findings).map((f) => f.title).join("; "), cell: (l) => <FindingList list={findingsOnUrl(l.url, findings)} />, wrap: true, noSort: true },
+  ];
+
   return (
     <>
-      <section className="panel gd-totals" aria-label="Google Ads, last 28 days">
-        <h2>Google Ads, last 28 days</h2>
-        <p className="panel-note">{d.range.start} to {d.range.end}, against the 28 days before.{d.name ? ` Account: ${d.name}.` : ""} Amounts in {d.currency}.</p>
+      <section className="panel gd-totals" aria-label={`Google Ads, last ${days} days`}>
+        <h2>Google Ads, last {days} days</h2>
+        <p className="panel-note">{d.range.start} to {d.range.end}, against the {days} days before.{d.name ? ` Account: ${d.name}.` : ""} Amounts in {d.currency}.</p>
         <ul className="sec-stats">
-          <li><b>{$(T.cost)}</b><span>spend</span><Delta now={T.cost} before={P.cost} /></li>
-          <li><b>{n0(T.clicks)}</b><span>clicks</span><Delta now={T.clicks} before={P.clicks} /></li>
-          <li><b>{n0(T.conversions)}</b><span>conversions</span><Delta now={T.conversions} before={P.conversions} /></li>
+          <li><b>{$(T.cost)}</b><span>spend</span><Delta now={T.cost} before={P.cost} days={days} /></li>
+          <li><b>{n0(T.clicks)}</b><span>clicks</span><Delta now={T.clicks} before={P.clicks} days={days} /></li>
+          <li><b>{n0(T.conversions)}</b><span>conversions</span><Delta now={T.conversions} before={P.conversions} days={days} /></li>
           <li><b>{c == null ? "–" : $(c, 2)}</b><span>per conversion{pc == null ? "" : ` (was ${$(pc, 2)})`}</span></li>
           <li><b>{cpc(T) == null ? "–" : $(cpc(T)!, 2)}</b><span>per click</span></li>
-          <li><b>{n0(T.impressions)}</b><span>impressions</span><Delta now={T.impressions} before={P.impressions} /></li>
+          <li><b>{n0(T.impressions)}</b><span>impressions</span><Delta now={T.impressions} before={P.impressions} days={days} /></li>
         </ul>
-        {d.daily.length > 2 && (
-          <div className="gd-spark" role="img" aria-label={`Daily ad spend, from ${$(d.daily[0].cost)} to ${$(d.daily[d.daily.length - 1].cost)}`}>
-            <Spark data={d.daily.map((x) => x.cost)} color="var(--d-accent)" height={70} />
-          </div>
-        )}
-        {camps.length > 0 && (
-          <div className="crawl-wrap">
-            <table className="crawl gd-t">
-              <thead><tr><th>Campaign</th><th>Type</th><th>Spend</th><th>Clicks</th><th>Conversions</th><th>Per conversion</th></tr></thead>
-              <tbody>
-                {camps.slice(0, 10).map((x) => (
-                  <tr key={x.name}>
-                    <td className="gd-wrap">{x.name}{x.status && x.status !== "ENABLED" ? <em> ({x.status.toLowerCase()})</em> : null}</td>
-                    <td>{x.type.replace(/_/g, " ").toLowerCase()}</td>
-                    <td><b>{$(x.cost)}</b></td>
-                    <td>{n0(x.clicks)}</td>
-                    <td>{n0(x.conversions)}</td>
-                    <td className={x.cpa != null && c != null && x.cpa > c * 1.5 ? "bad" : ""}>{x.cpa == null ? "–" : $(x.cpa, 2)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <h3 className="gd-sub">Campaigns</h3>
+        <DataTable
+          rows={camps}
+          rowKey={(x) => x.name}
+          file={`campaigns-${days}d`}
+          sort={{ col: 2 }}
+          limit={10}
+          cols={[
+            { label: "Campaign", get: (x) => x.name, cell: (x) => <>{x.name}{x.status && x.status !== "ENABLED" ? <em> ({x.status.toLowerCase()})</em> : null}</>, wrap: true },
+            { label: "Type", get: (x) => x.type.replace(/_/g, " ").toLowerCase() },
+            { label: "Spend", get: (x) => +x.cost.toFixed(2), cell: (x) => <b>{$(x.cost)}</b> },
+            { label: "Clicks", get: (x) => x.clicks, cell: (x) => n0(x.clicks) },
+            { label: "Conversions", get: (x) => +x.conversions.toFixed(1), cell: (x) => n0(x.conversions) },
+            { label: "Per conversion", get: (x) => (x.cpa == null ? null : +x.cpa.toFixed(2)), cell: (x) => (x.cpa == null ? "–" : $(x.cpa, 2)), cls: (x) => (x.cpa != null && c != null && x.cpa > c * 1.5 ? "bad" : undefined) },
+          ]}
+        />
       </section>
 
       <section className="panel" aria-label="Ad landing-page health">
@@ -241,49 +202,11 @@ function AdsView({ d, gsc, homeUrl, findings, onOpenArea }: { d: AdsData; gsc: G
         <p className="panel-note">
           {lh.rows.length ? <><b>{$(lh.cost)}</b> ({p0(lh.share)} of your spend) sent people to pages where this scan found problems. Slow, broken or hard-to-use landing pages lower Quality Score, raise your cost per click and lose conversions.</> : "None of the pages your ads land on have issues in this report."}
         </p>
-        {lh.rows.length > 0 && (
-          <div className="crawl-wrap">
-            <table className="crawl gd-t">
-              <thead><tr><th>Landing page</th><th>Spend</th><th>Clicks</th><th>Conversions</th><th>Issues on this page</th></tr></thead>
-              <tbody>
-                {lh.rows.map((l) => (
-                  <tr key={l.url}>
-                    <td title={l.url}>{gaPath(l.url)}</td>
-                    <td><b>{$(l.cost)}</b></td>
-                    <td>{n0(l.clicks)}</td>
-                    <td>{n0(l.conversions)}</td>
-                    <td className="gd-wrap">
-                      {l.issues.slice(0, 3).map((f, i) => <span key={findingKey(f)}>{i ? "; " : ""}<button type="button" className="fnd-link" onClick={() => onOpenArea(f.module)}>{f.title}</button></span>)}
-                      {l.issues.length > 3 ? ` +${l.issues.length - 3} more` : ""}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <DataTable rows={lh.rows} cols={landingCols} file={`ad-landing-pages-with-issues-${days}d`} sort={{ col: 1 }} limit={10} rowKey={(l) => l.url} />
         {ranked.length > 0 && (
           <>
             <h3 className="gd-sub">Issues ranked by the ad spend on their pages</h3>
-            <div className="crawl-wrap">
-              <table className="crawl gd-t">
-                <thead><tr><th>Issue</th><th>Area</th><th>Ad spend</th><th>Ad clicks</th><th>Covers</th></tr></thead>
-                <tbody>
-                  {ranked.map((f) => {
-                    const x = sp.get(findingKey(f))!;
-                    return (
-                      <tr key={findingKey(f)}>
-                        <td className="gd-wrap"><button type="button" className="fnd-link" onClick={() => onOpenArea(f.module)}>{f.title}</button></td>
-                        <td>{MODULE_NAMES[f.module]}</td>
-                        <td><b>{$(x.cost)}</b></td>
-                        <td>{n0(x.clicks)}</td>
-                        <td>{coverOf(x)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            <DataTable rows={ranked} cols={issueCols} file={`issues-by-ad-spend-${days}d`} sort={{ col: 2 }} limit={10} rowKey={findingKey} />
           </>
         )}
       </section>
@@ -291,49 +214,41 @@ function AdsView({ d, gsc, homeUrl, findings, onOpenArea }: { d: AdsData; gsc: G
       <section className="panel" aria-label="Keywords with weak landing pages">
         <h2>Keywords Google rates below average for landing page</h2>
         <p className="panel-note">Google&rsquo;s own &ldquo;landing page experience&rdquo; rating, part of Quality Score. A below-average page makes every click on these keywords cost more.</p>
-        {weak.length ? (
-          <div className="crawl-wrap">
-            <table className="crawl gd-t">
-              <thead><tr><th>Keyword</th><th>Campaign</th><th>Spend</th><th>Quality Score</th><th>Lands on</th></tr></thead>
-              <tbody>
-                {weak.map((k) => (
-                  <tr key={`${k.campaign}|${k.text}|${k.match}`}>
-                    <td className="gd-wrap">{k.text} <em>({k.match.toLowerCase()})</em></td>
-                    <td className="gd-wrap">{k.campaign}</td>
-                    <td><b>{$(k.cost)}</b></td>
-                    <td className={k.qs != null && k.qs <= 4 ? "bad" : ""}>{k.qs ?? "–"}/10 · {LPX[k.lpx ?? ""] ?? "–"}</td>
-                    <td title={k.url ?? ""}>{k.url ? gaPath(k.url) : "–"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : <p className="panel-note">No keyword with spend has a below-average landing page rating.</p>}
+        <DataTable
+          rows={weak}
+          rowKey={(k) => `${k.campaign}|${k.text}|${k.match}`}
+          file={`weak-landing-keywords-${days}d`}
+          limit={10}
+          cols={[
+            { label: "Keyword", get: (k) => k.text, cell: (k) => <>{k.text} <em>({k.match.toLowerCase()})</em></>, wrap: true },
+            { label: "Campaign", get: (k) => k.campaign, wrap: true },
+            { label: "Spend", get: (k) => +k.cost.toFixed(2), cell: (k) => <b>{$(k.cost)}</b> },
+            { label: "Quality Score", get: (k) => k.qs, cell: (k) => `${k.qs ?? "–"}/10 · ${LPX[k.lpx ?? ""] ?? "–"}`, cls: (k) => (k.qs != null && k.qs <= 4 ? "bad" : undefined) },
+            { label: "Lands on", get: (k) => k.url, cell: (k) => (k.url ? <PageLink url={k.url} /> : "–") },
+          ]}
+          empty={<p className="panel-note">No keyword with spend has a below-average landing page rating.</p>}
+        />
       </section>
 
       <section className="panel" aria-label="Paid vs organic">
         <h2>Paid searches where you already rank in the top 3</h2>
         {!gsc ? (
-          <p className="panel-note">Connect Search Console on the first tab to compare what you pay for with where you already rank for free.</p>
+          <p className="panel-note">Connect Search Console to compare what you pay for with where you already rank for free.</p>
         ) : ov && ov.rows.length ? (
           <>
             <p className="panel-note"><b>{$(ov.cost)}</b> went on searches where your site is already in Google&rsquo;s top 3 organic results. Some of it may be saved; for your brand name it can still be worth keeping the ad, so competitors don&rsquo;t take the top spot.</p>
-            <div className="crawl-wrap">
-              <table className="crawl gd-t">
-                <thead><tr><th>Search</th><th>Ad spend</th><th>Ad clicks</th><th>Organic position</th><th>Organic clicks</th></tr></thead>
-                <tbody>
-                  {ov.rows.map((r) => (
-                    <tr key={r.term}>
-                      <td className="gd-wrap">{r.term}</td>
-                      <td><b>{$(r.cost)}</b></td>
-                      <td>{n0(r.clicks)}</td>
-                      <td className="good">{r.position.toFixed(1)}</td>
-                      <td>{n0(r.organicClicks)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <DataTable
+              rows={ov.rows}
+              rowKey={(r) => r.term}
+              file={`paid-vs-organic-${days}d`}
+              cols={[
+                { label: "Search", get: (r) => r.term, wrap: true },
+                { label: "Ad spend", get: (r) => +r.cost.toFixed(2), cell: (r) => <b>{$(r.cost)}</b> },
+                { label: "Ad clicks", get: (r) => r.clicks, cell: (r) => n0(r.clicks) },
+                { label: "Organic position", get: (r) => +r.position.toFixed(1), cls: () => "good" },
+                { label: "Organic clicks", get: (r) => r.organicClicks, cell: (r) => n0(r.organicClicks) },
+              ]}
+            />
           </>
         ) : <p className="panel-note">None of the searches you pay for are ones where you already rank in the top 3.</p>}
       </section>
@@ -343,46 +258,36 @@ function AdsView({ d, gsc, homeUrl, findings, onOpenArea }: { d: AdsData; gsc: G
           <h2>What your free Google traffic is worth</h2>
           <p className="panel-note">
             {val.rows.length > 0 && <>Your organic clicks on searches you also advertise on would have cost <b>{$(val.matched)}</b> as ads ({n0(val.matchedClicks)} clicks at your own cost per click). </>}
-            {val.rough != null && <>All {n0(gsc.totals.clicks)} organic clicks at your average cost per click ({$(val.avgCpc!, 2)}) come to roughly <b>{$(val.rough)}</b> a month. This is a rough figure: prices differ a lot between searches.</>}
+            {val.rough != null && <>All {n0(gsc.totals.clicks)} organic clicks over {days} days at your average cost per click ({$(val.avgCpc!, 2)}) come to roughly <b>{$(val.rough)}</b>. This is a rough figure: prices differ a lot between searches.</>}
           </p>
-          {val.rows.length > 0 && (
-            <div className="crawl-wrap">
-              <table className="crawl gd-t">
-                <thead><tr><th>Search</th><th>Organic clicks</th><th>Your cost per click</th><th>Worth as ads</th></tr></thead>
-                <tbody>
-                  {val.rows.map((r) => (
-                    <tr key={r.query}>
-                      <td className="gd-wrap">{r.query}</td>
-                      <td>{n0(r.clicks)}</td>
-                      <td>{$(r.cpc, 2)}</td>
-                      <td><b>{$(r.value)}</b></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          <DataTable
+            rows={val.rows}
+            rowKey={(r) => r.query}
+            file={`organic-value-${days}d`}
+            cols={[
+              { label: "Search", get: (r) => r.query, wrap: true },
+              { label: "Organic clicks", get: (r) => r.clicks, cell: (r) => n0(r.clicks) },
+              { label: "Your cost per click", get: (r) => +r.cpc.toFixed(2), cell: (r) => $(r.cpc, 2) },
+              { label: "Worth as ads", get: (r) => +r.value.toFixed(2), cell: (r) => <b>{$(r.value)}</b> },
+            ]}
+          />
         </section>
       )}
 
       {waste.length > 0 && (
         <section className="panel" aria-label="Searches with no conversions">
           <h2>Searches with spend and no conversions</h2>
-          <p className="panel-note">Searches people typed that got 5+ clicks and no conversions in 28 days. Check whether they match what you sell; if not, add them as negative keywords.</p>
-          <div className="crawl-wrap">
-            <table className="crawl gd-t">
-              <thead><tr><th>Search</th><th>Spend</th><th>Clicks</th></tr></thead>
-              <tbody>
-                {waste.map((t) => (
-                  <tr key={t.term}>
-                    <td className="gd-wrap">{t.term}</td>
-                    <td className="bad"><b>{$(t.cost)}</b></td>
-                    <td>{n0(t.clicks)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <p className="panel-note">Searches people typed that got 5+ clicks and no conversions in {days} days. Check whether they match what you sell; if not, add them as negative keywords.</p>
+          <DataTable
+            rows={waste}
+            rowKey={(t) => t.term}
+            file={`no-conversion-searches-${days}d`}
+            cols={[
+              { label: "Search", get: (t) => t.term, wrap: true },
+              { label: "Spend", get: (t) => +t.cost.toFixed(2), cell: (t) => <b>{$(t.cost)}</b>, cls: () => "bad" },
+              { label: "Clicks", get: (t) => t.clicks, cell: (t) => n0(t.clicks) },
+            ]}
+          />
         </section>
       )}
     </>

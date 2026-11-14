@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 /** Only same-site paths are accepted as a place to go after signing in (never another site). */
 function safeNext(value: string | string[] | undefined): string {
-  return typeof value === "string" && /^\/(?![/\\])[\w\-./?=&%]*$/.test(value) ? value : "/account";
+  return typeof value === "string" && /^\/(?![/\\])[\w\-./?=&%]*$/.test(value) ? value : "/dashboard";
 }
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string | string[]; forgot?: string | string[] }> }) {

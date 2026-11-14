@@ -56,11 +56,11 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 const back = (d: Date, n: number) => new Date(d.getTime() - n * 86_400_000);
 
 /** GA4 data is close to real time: the window ends yesterday. */
-export function ga4Ranges(now = new Date()) {
+export function ga4Ranges(now = new Date(), days = 28) {
   const end = back(now, 1);
-  const start = back(end, 27);
+  const start = back(end, days - 1);
   const pEnd = back(start, 1);
-  return { range: { start: day(start), end: day(end) }, prevRange: { start: day(back(pEnd, 27)), end: day(pEnd) } };
+  return { range: { start: day(start), end: day(end) }, prevRange: { start: day(back(pEnd, days - 1)), end: day(pEnd) } };
 }
 
 type Report = { dimensionHeaders?: { name: string }[]; metricHeaders?: { name: string }[]; rows?: { dimensionValues?: { value?: string }[]; metricValues?: { value?: string }[] }[] };
@@ -93,8 +93,9 @@ function split(rows: Row[], key: (r: Row) => string) {
   return { now, prev };
 }
 
-export async function fetchGa4(access: string, property: string, name: string | null): Promise<Ga4Data> {
-  const { range, prevRange } = ga4Ranges();
+/** `days`: 7, 28 or 90. */
+export async function fetchGa4(access: string, property: string, name: string | null, days = 28): Promise<Ga4Data> {
+  const { range, prevRange } = ga4Ranges(new Date(), days);
   const both = [{ startDate: range.start, endDate: range.end, name: "now" }, { startDate: prevRange.start, endDate: prevRange.end, name: "prev" }];
   const m = (...names: string[]) => names.map((n) => ({ name: n }));
   const d = (...names: string[]) => names.map((n) => ({ name: n }));
@@ -109,6 +110,15 @@ export async function fetchGa4(access: string, property: string, name: string | 
     ],
   });
   const [tot, daily, pages, chans, pageChans] = (reply.reports ?? []).map(rowsOf);
+  // Device and country in a second batch (a batch holds at most 5 reports). Optional: a failure leaves them out.
+  const extra = await gJson<{ reports?: Report[] }>(access, `${DATA}/${property}:batchRunReports`, {
+    requests: [
+      { dateRanges: [both[0]], dimensions: d("deviceCategory"), metrics: m("sessions", "engagedSessions"), limit: 10, ...desc },
+      { dateRanges: [both[0]], dimensions: d("country"), metrics: m("sessions", "engagedSessions"), limit: 10, ...desc },
+    ],
+  }).catch(() => ({ reports: [] as Report[] }));
+  const [devRows, countryRows] = (extra.reports ?? []).map(rowsOf);
+  const splitOf = (rows: Row[] | undefined, dim: string) => (rows ?? []).map((r) => ({ key: r.dims[dim], sessions: r.m.sessions, engaged: r.m.engagedSessions })).filter((r) => r.key && r.key !== "(not set)");
 
   // With two date ranges and no other dimension, each row carries only the range name.
   const t = split(tot ?? [], () => "all");
@@ -131,6 +141,9 @@ export async function fetchGa4(access: string, property: string, name: string | 
   return {
     property,
     name,
+    days,
+    devices: splitOf(devRows, "deviceCategory"),
+    countries: splitOf(countryRows, "country"),
     range,
     prevRange,
     totals: totalsOf(t.now.get("all")),

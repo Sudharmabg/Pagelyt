@@ -96,6 +96,40 @@ export async function recover(email: string, redirectTo: string): Promise<void> 
   await call("recover", { email }, redirectTo);
 }
 
+/** Checks the 6-digit code from a password-reset email. On success the person holds a short recovery session. */
+export async function verifyRecoveryCode(email: string, code: string): Promise<VerifyResult> {
+  const { status, json } = await call("verify", { type: "recovery", email, token: code });
+  if (status === 200 && isTokens(json)) return { ok: true, session: { access_token: json.access_token, refresh_token: json.refresh_token, expires_in: Number(json.expires_in) || undefined } };
+  return status >= 400 && status < 500 && status !== 429 ? { ok: false, reason: "wrong" } : { ok: false, reason: "unavailable" };
+}
+
+export type PasswordResult = { ok: true } | { ok: false; reason: "weak" | "same" | "reauth" | "unavailable" };
+
+/** Sets a new password for the account the access token belongs to. */
+export async function setPassword(accessToken: string, password: string): Promise<PasswordResult> {
+  try {
+    const r = await fetch(`${base()}/auth/v1/user`, {
+      method: "PUT",
+      headers: { apikey: anon()!, authorization: `Bearer ${accessToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ password }),
+    });
+    if (r.ok) return { ok: true };
+    const code = codeOf((await r.json().catch(() => ({}))) as Record<string, unknown>);
+    if (code === "weak_password") return { ok: false, reason: "weak" };
+    if (code === "same_password") return { ok: false, reason: "same" };
+    if (code === "reauthentication_needed" || code === "reauthentication_not_valid") return { ok: false, reason: "reauth" };
+    console.error(`password: Supabase answered ${r.status} ${code || "(no code)"}`);
+    return { ok: false, reason: "unavailable" };
+  } catch {
+    return { ok: false, reason: "unavailable" };
+  }
+}
+
+/** Ends every other session of this account (other browsers and devices). This one stays signed in. */
+export async function signOutOthers(accessToken: string): Promise<void> {
+  await fetch(`${base()}/auth/v1/logout?scope=others`, { method: "POST", headers: { apikey: anon()!, authorization: `Bearer ${accessToken}` } }).catch(() => {});
+}
+
 /** Reads a small JSON body. Returns null for anything oversized, malformed or not an object. */
 export async function readJson(req: Request, maxBytes = 4096): Promise<Record<string, unknown> | null> {
   const len = Number(req.headers.get("content-length") ?? 0);

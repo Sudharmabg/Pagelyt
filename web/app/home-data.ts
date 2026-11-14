@@ -28,6 +28,7 @@ export const COMPARE: { row: string; cells: [Mark, string][] }[] = [
   { row: "Time to first report", cells: [["yes", "Minutes"], ["part", "Minutes, after setup"], ["no", "Days to weeks"]] },
   { row: "AI search (GEO) readiness", cells: [["yes", "Included"], ["part", "Rarely"], ["part", "Depends on the agency"]] },
   { row: "Speed, SEO, security and accessibility in one place", cells: [["yes", "One scan"], ["no", "Separate tools"], ["part", "Sometimes"]] },
+  { row: "Search Console, Analytics and Ads data on every fix", cells: [["yes", "Professional & Business"], ["part", "Separate dashboards"], ["part", "Manual exports"]] },
   { row: "Fixes in plain English, ranked by impact", cells: [["yes", "Yes"], ["no", "Raw data to interpret"], ["yes", "Yes"]] },
   { row: "Ongoing monitoring", cells: [["yes", "On paid plans"], ["yes", "Yes"], ["no", "One-off"]] },
 ];

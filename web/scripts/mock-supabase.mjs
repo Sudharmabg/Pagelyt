@@ -16,7 +16,7 @@ const CONFIRM_EMAIL = process.env.MOCK_CONFIRM === "on";
 
 const users = new Map(); // email -> { id, email, password, confirmed, meta }
 const sessions = new Map(); // access token -> email
-const tables = { site_owners: [], site_claims: [], scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [], ai_prompts: [], ai_runs: [], uptime_checks: [], admins: [], requests: [], google_connections: [], google_links: [], google_cache: [] };
+const tables = { site_owners: [], site_claims: [], scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [], ai_prompts: [], ai_runs: [], uptime_checks: [], admins: [], requests: [], google_connections: [], google_links: [], google_cache: [], booking_settings: [], booking_blocks: [], bookings: [] };
 // MOCK_ADMIN_EMAILS=a@x.test,b@x.test seeds the admins table, so those accounts can open /admin once signed up.
 for (const email of (process.env.MOCK_ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)) tables.admins.push({ email, created_at: new Date().toISOString() });
 // The account plan for every new profile. MOCK_PLAN=professional lets you try the paid-only agency features.
@@ -129,7 +129,8 @@ http
       u.last_sign_in_at = new Date().toISOString();
       return send(res, 200, tokensFor(u));
     }
-    if (p === "/auth/v1/recover") { log.recovers = (log.recovers || []).concat(body.email); log.recoverRedirect = url.searchParams.get("redirect_to"); return send(res, 200, {}); }
+    if (p === "/auth/v1/recover") { log.recovers = (log.recovers || []).concat(body.email); log.recoverRedirect = url.searchParams.get("redirect_to"); if (users.has(body.email)) log.recoverCode = newCode(body.email); return send(res, 200, {}); }
+    if (p === "/auth/v1/logout") { log.logouts = (log.logouts || []).concat(url.searchParams.get("scope") || "local"); return send(res, 204, {}); }
     if (p === "/auth/v1/resend") { log.resends.push(body.email); const u = users.get(body.email); if (u && !u.confirmed) newCode(body.email); return send(res, 200, {}); }
     if (p === "/auth/v1/verify") {
       const u = users.get(body.email);
@@ -178,7 +179,7 @@ http
           if (ignore && rows.some((x) => ignore.every((c) => String(x[c]) === String(r[c])))) continue;
           if (hit) saved.push(Object.assign(hit, r));
           else {
-            const row = { id: crypto.randomUUID(), created_at: new Date().toISOString(), ...(m[1] === "profiles" ? { plan: MOCK_PLAN, account_type: null } : {}), ...(m[1] === "requests" ? { status: "new" } : {}), ...(m[1] === "sites" ? { cadence: "none", uptime: false, next_run_at: null, brand_terms: [], competitors: [], ai_track: false } : {}), ...r };
+            const row = { id: crypto.randomUUID(), created_at: new Date().toISOString(), ...(m[1] === "profiles" ? { plan: MOCK_PLAN, account_type: null } : {}), ...(m[1] === "requests" ? { status: "new" } : {}), ...(m[1] === "bookings" ? { status: "confirmed", meet_url: null } : {}), ...(m[1] === "sites" ? { cadence: "none", uptime: false, next_run_at: null, brand_terms: [], competitors: [], ai_track: false } : {}), ...r };
             rows.push(row);
             saved.push(row);
           }
@@ -268,7 +269,8 @@ function mockGoogle(req, res, url, body) {
     let rows;
     if (!dims.length) { const all = urls.map(page); const c = all.reduce((a, x) => a + x.clicks, 0); const i = all.reduce((a, x) => a + x.impressions, 0); rows = [{ clicks: c, impressions: i, ctr: c / i, position: all.reduce((a, x) => a + x.position * x.impressions, 0) / i }]; }
     else if (dims[0] === "page") rows = urls.map(page);
-    else if (dims[0] === "date") { rows = []; const d0 = new Date(body.startDate); for (let k = 0; k < 28; k++) { const d = new Date(d0.getTime() + k * 86400000).toISOString().slice(0, 10); const imp = Math.round(800 + hashN(d) * 600); rows.push({ keys: [d], clicks: Math.round(imp * 0.04), impressions: imp, ctr: 0.04, position: 9 }); } }
+    else if (dims[0] === "device" || dims[0] === "country") { const keys = dims[0] === "device" ? ["MOBILE", "DESKTOP", "TABLET"] : ["ind", "usa", "gbr", "can", "aus", "deu"]; const share = dims[0] === "device" ? [0.62, 0.33, 0.05] : [0.41, 0.22, 0.14, 0.09, 0.08, 0.06]; const all = urls.map(page); const c = all.reduce((a, x) => a + x.clicks, 0); const i = all.reduce((a, x) => a + x.impressions, 0); rows = keys.map((k, n) => ({ keys: [k], clicks: Math.round(c * share[n]), impressions: Math.round(i * share[n]), ctr: c / i, position: 8 + n })); }
+    else if (dims[0] === "date") { rows = []; const d0 = new Date(body.startDate); const nd = Math.round((new Date(body.endDate) - d0) / 86400000) + 1; for (let k = 0; k < nd; k++) { const d = new Date(d0.getTime() + k * 86400000).toISOString().slice(0, 10); const imp = Math.round(800 + hashN(d) * 600); rows.push({ keys: [d], clicks: Math.round(imp * 0.04), impressions: imp, ctr: 0.04, position: 9 }); } }
     else { const words = ["pricing", "reviews", "near me", "how to", "best", "alternatives", "login", "contact"]; rows = urls.flatMap((u) => words.slice(0, 3 + Math.floor(hashN(u) * 5)).map((w) => { const r = hashN(u + w); const imp = Math.round(20 + r * 900); const pos = 1.5 + hashN(w + u) * 24; return { keys: [`${h.split(".")[0]} ${w}`, u], clicks: Math.round(imp * (pos < 10 ? 0.15 / pos : 0.005)), impressions: imp, ctr: pos < 10 ? 0.15 / pos : 0.005, position: pos }; })); }
     return send(res, 200, { rows, responseAggregationType: "byPage" });
   }
@@ -311,7 +313,8 @@ function mockGoogle(req, res, url, body) {
         const val = (m, pth, ch, scale = 1) => { const sess = pth == null ? paths.reduce((a, x) => a + visits(x, prev, ch), 0) : visits(pth, prev, ch); const eng = pth == null ? 0.58 : engagedShare(pth); const v = { sessions: sess, engagedSessions: Math.round(sess * eng), activeUsers: Math.round(sess * 0.78), newUsers: Math.round(sess * 0.52), screenPageViews: Math.round(sess * 1.9), averageSessionDuration: 95 + hashN(String(pth) + rn) * 60, keyEvents: Math.round(sess * 0.021) }[m] ?? 0; return String(Math.round(v * scale * 100) / 100); };
         const row = (dv, mv) => rows.push({ dimensionValues: [...dv, ...(two ? [rn] : [])].map((value) => ({ value })), metricValues: mv.map((value) => ({ value })) });
         if (!dims.length) row([], mets.map((m) => val(m, null, null)));
-        else if (dims[0] === "date") { const d0 = new Date(q.dateRanges[0].startDate); for (let k = 0; k < 28; k++) { const d = new Date(d0.getTime() + k * 86400000).toISOString().slice(0, 10); row([d.replaceAll("-", "")], mets.map((m) => val(m, null, null, (0.8 + hashN(d) * 0.4) / 28))); } }
+        else if (dims[0] === "date") { const d0 = new Date(q.dateRanges[0].startDate); const nd = Math.round((new Date(q.dateRanges[0].endDate) - d0) / 86400000) + 1; for (let k = 0; k < nd; k++) { const d = new Date(d0.getTime() + k * 86400000).toISOString().slice(0, 10); row([d.replaceAll("-", "")], mets.map((m) => val(m, null, null, (0.8 + hashN(d) * 0.4) / 28))); } }
+        else if (dims[0] === "deviceCategory" || dims[0] === "country") { const keys = dims[0] === "deviceCategory" ? ["mobile", "desktop", "tablet"] : ["India", "United States", "United Kingdom", "Canada", "Australia"]; const share = dims[0] === "deviceCategory" ? [0.58, 0.37, 0.05] : [0.44, 0.21, 0.15, 0.1, 0.1]; keys.forEach((k, n) => row([k], mets.map((m) => val(m, null, null, share[n])))); }
         else if (dims[0] === "sessionDefaultChannelGroup") for (const ch of CH) row([ch], mets.map((m) => String(paths.reduce((a, x) => a + Number(val(m, x, ch)), 0))));
         else if (dims.length === 2) for (const pth of paths) for (const ch of CH) row([pth, ch], mets.map((m) => val(m, pth, ch)));
         else for (const pth of paths) row([pth], mets.map((m) => val(m, pth, null)));
@@ -386,6 +389,17 @@ function mockAds(req, res, path, body, gaHosts) {
 function mockOpenAI(res, body) {
   const input = String(body.input || "");
   const reply = (insights) => send(res, 200, { id: `resp_${crypto.randomUUID()}`, object: "response", status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify({ insights }) }] }] });
+  // The Search Console analysis: built from its SEARCH PAGES table.
+  if (input.includes("SEARCH PAGES (")) {
+    const sp = [...input.matchAll(/^(\/[^ |]*) \| clicks (\d+) \(before (\d+)\) \| impressions (\d+) \| position ([\d.]+)(?: \| issues (.+))?$/gm)].map((m) => ({ path: m[1], now: +m[2], before: +m[3], imp: +m[4], pos: +m[5], issues: m[6] ? m[6].split(", ") : [] }));
+    const hot = sp.find((x) => x.issues.length) ?? sp[0];
+    const near = sp.find((x) => x.pos >= 8 && x.pos <= 20);
+    return reply([
+      hot && { title: `${hot.path} gets ${hot.now} Google clicks and has issues in this report`, detail: `It is one of your most-clicked pages in search, so the problems found there reach the most searchers.`, action: `Fix the issues on ${hot.path} first, then request indexing in Search Console.`, priority: "high", pages: [hot.path], findings: hot.issues.slice(0, 2) },
+      near && { title: `${near.path} sits at position ${near.pos.toFixed(1)}, just off page one`, detail: `It has ${near.imp} impressions; a stronger title and a few internal links could move it onto page one.`, action: `Rewrite the title of ${near.path} around its main search and link to it from your homepage.`, priority: "medium", pages: [near.path], findings: [] },
+      { title: "Most of your clicks come from mobile", detail: "Mobile searchers bring the majority of clicks, so mobile speed and layout issues matter most.", action: "Work through the mobile performance issues in this report first.", priority: "medium", pages: [], findings: [] },
+    ].filter(Boolean));
+  }
   // The Google Ads analysis: built from its LANDING PAGES table and the summary lines.
   if (input.includes("LANDING PAGES (")) {
     const lps = [...input.matchAll(/^(\/[^ |]*) \| spend (\S+) \| clicks (\d+) \| conversions ([\d.]+)(?: \| issues (.+))?$/gm)].map((m) => ({ path: m[1], spend: m[2], clicks: +m[3], conv: +m[4], issues: m[5] ? m[5].split(", ") : [] }));

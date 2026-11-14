@@ -16,6 +16,8 @@ export type AdsKeyword = { text: string; match: string; campaign: string; qs: nu
 export type AdsTerm = { term: string; cost: number; clicks: number; impressions: number; conversions: number };
 export type AdsData = {
   customer: string;
+  /** Length of the window in days (7, 28 or 90). Older caches have none: 28. */
+  days?: number;
   name: string | null;
   currency: string;
   range: { start: string; end: string };

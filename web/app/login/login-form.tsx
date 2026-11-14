@@ -5,7 +5,7 @@ import { useState } from "react";
 import { adoptSession, claimAndFindReport, type SessionTokens } from "@/lib/pending";
 import { CodeForm } from "../code-form";
 import { supabaseBrowser } from "@/lib/supabase-browser";
-import { checkEmail } from "@/lib/validate";
+import { checkCode, checkEmail, checkPassword, passwordsMatch } from "@/lib/validate";
 import { useTurnstile } from "../use-turnstile";
 
 async function post(path: string, body: Record<string, unknown>): Promise<{ status: number; json: Record<string, unknown> }> {
@@ -20,9 +20,10 @@ async function post(path: string, body: Record<string, unknown>): Promise<{ stat
 const msg = (j: Record<string, unknown>, fallback: string) => (typeof j.error === "string" ? j.error : fallback);
 
 /* Email and password sign-in, with "Forgot password?". Everything goes through our rate-limited /api/auth routes. */
-/** Agencies on a paid plan start on the agency dashboard unless a specific page was requested. */
+/** Signing in opens the dashboard (the newest report). Agencies on a paid plan start on the agency dashboard
+    instead, unless a specific page was requested. */
 async function landing(next: string, accessToken: string): Promise<string> {
-  if (next !== "/account") return next;
+  if (next !== "/dashboard") return next;
   try {
     const r = await fetch("/api/account/type", { headers: { authorization: `Bearer ${accessToken}` } });
     const a = r.ok ? ((await r.json()) as { paid?: boolean; accountType?: string | null }) : null;
@@ -35,11 +36,12 @@ async function landing(next: string, accessToken: string): Promise<string> {
 export function LoginForm({ next, startForgot }: { next: string; startForgot: boolean }) {
   const router = useRouter();
   const sb = supabaseBrowser();
-  const [mode, setMode] = useState<"signin" | "forgot" | "sent">(startForgot ? "forgot" : "signin");
+  const [mode, setMode] = useState<"signin" | "forgot" | "code">(startForgot ? "forgot" : "signin");
   const [email, setEmail] = useState("");
   const [err, setErr] = useState("");
   const [unverified, setUnverified] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [wait, setWait] = useState(0);
   const { box: humanBox, siteKey: humanKey, token: humanToken, reset: resetHuman } = useTurnstile(mode === "signin");
 
   const fail = (m: string) => {
@@ -84,9 +86,49 @@ export function LoginForm({ next, startForgot }: { next: string; startForgot: bo
     setBusy(false);
     if (r.status === 200) {
       setEmail(em.value);
-      return setMode("sent");
+      startWait();
+      return setMode("code");
     }
     setErr(msg(r.json, "We couldn't send that just now. Please try again."));
+  };
+
+  // "Send a new code" waits a minute between emails (the server allows one a minute per address).
+  const startWait = () => {
+    setWait(60);
+    const t = window.setInterval(() => setWait((w) => (w <= 1 ? (window.clearInterval(t), 0) : w - 1)), 1000);
+  };
+
+  const resendReset = async () => {
+    setErr("");
+    const r = await post("/api/auth/forgot", { email, website: "" });
+    if (r.status === 429) return setErr("Please wait a minute before asking for another code.");
+    if (r.status !== 200) return setErr("We couldn't send a code just now. Please try again.");
+    startWait();
+  };
+
+  const reset = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const c = checkCode(f.get("code"));
+    if (!c.ok) return setErr(c.error);
+    const pw = checkPassword(f.get("password"), email);
+    if (!pw.ok) return setErr(pw.error);
+    const mismatch = passwordsMatch(String(f.get("password")), String(f.get("confirm") ?? ""));
+    if (mismatch) return setErr(mismatch);
+    setErr("");
+    setBusy(true);
+    const r = await post("/api/auth/reset", { email, code: c.value, password: pw.value });
+    const session = r.json.session as SessionTokens | undefined;
+    if (r.status !== 200 || !session) {
+      setBusy(false);
+      return setErr(msg(r.json, "We couldn't reset your password just now. Please try again."));
+    }
+    if (!sb || !(await adoptSession(sb, session))) {
+      setBusy(false);
+      return setErr("Your password is saved, but we couldn't sign you in. Please sign in with it.");
+    }
+    await claimAndFindReport(sb);
+    router.push(await landing(next, session.access_token));
   };
 
   if (!sb) {
@@ -100,13 +142,32 @@ export function LoginForm({ next, startForgot }: { next: string; startForgot: bo
 
   const honeypot = <input className="lm-hp" name="website" type="text" tabIndex={-1} autoComplete="off" aria-hidden="true" />;
 
-  if (mode === "sent") {
+  if (mode === "code") {
     return (
-      <div className="panel auth-card" role="status">
-        <h2>Check your inbox</h2>
-        <p className="panel-note">If an account exists for <strong>{email}</strong>, we&rsquo;ve sent a link to choose a new password. It works once and expires soon.</p>
-        <button type="button" className="lm-link" onClick={() => setMode("signin")}>Back to sign in</button>
-      </div>
+      <form className="panel auth-card auth-code" onSubmit={reset} noValidate>
+        <h2>Enter your code</h2>
+        <p className="panel-note">If an account exists for <strong>{email}</strong>, we&rsquo;ve emailed it a 6-digit code. Enter it with your new password. The code works once and expires in an hour.</p>
+        <div className="tf">
+          <label htmlFor="rs-code">6-digit code</label>
+          <input id="rs-code" className="code-in" name="code" inputMode="numeric" autoComplete="one-time-code" maxLength={9} required autoFocus />
+        </div>
+        <div className="tf">
+          <label htmlFor="rs-pw">New password</label>
+          <input id="rs-pw" name="password" type="password" autoComplete="new-password" minLength={8} maxLength={72} required />
+        </div>
+        <div className="tf">
+          <label htmlFor="rs-cf">Confirm new password</label>
+          <input id="rs-cf" name="confirm" type="password" autoComplete="new-password" minLength={8} maxLength={72} required />
+        </div>
+        <p className="lm-fine">At least 8 characters. Other browsers and devices will be signed out.</p>
+        {err && <p className="lm-err" role="alert">{err}</p>}
+        <button type="submit" className="btn" disabled={busy}>{busy ? "Saving…" : "Save password and sign in"}</button>
+        <p className="lm-fine">
+          Didn&rsquo;t get it? Check spam, or{" "}
+          <button type="button" className="lm-link" disabled={wait > 0} onClick={() => void resendReset()}>{wait > 0 ? `send a new code in ${wait}s` : "send a new code"}</button>.
+        </p>
+        <button type="button" className="lm-link" onClick={() => { setMode("signin"); setErr(""); }}>Back to sign in</button>
+      </form>
     );
   }
 
@@ -114,14 +175,14 @@ export function LoginForm({ next, startForgot }: { next: string; startForgot: bo
     return (
       <form className="panel auth-card" onSubmit={forgot} noValidate>
         <h2>Reset your password</h2>
-        <p className="panel-note">Enter your email and we&rsquo;ll send a link to choose a new one. Signed up before passwords existed? Use this to set your first password.</p>
+        <p className="panel-note">Enter your email and we&rsquo;ll send a 6-digit code to choose a new password. Signed up before passwords existed? Use this to set your first password.</p>
         <div className="tf">
           <label htmlFor="fg-email">Email</label>
           <input id="fg-email" name="email" type="email" autoComplete="email" inputMode="email" maxLength={254} required />
         </div>
         {honeypot}
         {err && <p className="lm-err" role="alert">{err}</p>}
-        <button type="submit" className="btn" disabled={busy}>{busy ? "Sending…" : "Email me a reset link"}</button>
+        <button type="submit" className="btn" disabled={busy}>{busy ? "Sending…" : "Email me a code"}</button>
         <button type="button" className="lm-link" onClick={() => { setMode("signin"); setErr(""); }}>Back to sign in</button>
       </form>
     );

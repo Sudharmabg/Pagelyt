@@ -69,7 +69,7 @@ export function Reset() {
     return (
       <div className="panel auth-card" role="status">
         <h2>Password updated</h2>
-        <p className="panel-note">You&rsquo;re signed in. <Link href="/account">Go to your account</Link>.</p>
+        <p className="panel-note">You&rsquo;re signed in. <Link href="/dashboard">Go to your dashboard</Link>.</p>
       </div>
     );
   }
@@ -91,7 +91,7 @@ export function Reset() {
         setBusy(false);
         if (error) return setErr(error.message.toLowerCase().includes("password") ? "That password isn't accepted. Please choose another." : "We couldn't update your password. Please try again.");
         setStage("done");
-        window.setTimeout(() => router.push("/account"), 1500);
+        window.setTimeout(() => router.push("/dashboard"), 1500);
       }}
     >
       <h2>Choose a new password</h2>

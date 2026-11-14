@@ -32,11 +32,11 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 const back = (d: Date, n: number) => new Date(d.getTime() - n * 86_400_000);
 
 /** Search Console data is final about 3 days later, so the window ends then. */
-export function ranges(now = new Date()) {
+export function ranges(now = new Date(), days = 28) {
   const end = back(now, 3);
-  const start = back(end, 27);
+  const start = back(end, days - 1);
   const pEnd = back(start, 1);
-  return { range: { start: day(start), end: day(end) }, prevRange: { start: day(back(pEnd, 27)), end: day(pEnd) } };
+  return { range: { start: day(start), end: day(end) }, prevRange: { start: day(back(pEnd, days - 1)), end: day(pEnd) } };
 }
 
 type Row = { keys?: string[]; clicks: number; impressions: number; ctr: number; position: number };
@@ -46,17 +46,21 @@ async function query(access: string, prop: string, body: Record<string, unknown>
   return d.rows ?? [];
 }
 
-export async function fetchGsc(access: string, property: string, scan: { url: string; findings: Finding[] }): Promise<GscData> {
-  const { range, prevRange } = ranges();
+/** `days`: 7, 28 or 90. URL Inspection runs only for the 28-day window (the other windows reuse its answers). */
+export async function fetchGsc(access: string, property: string, scan: { url: string; findings: Finding[] }, days = 28): Promise<GscData> {
+  const { range, prevRange } = ranges(new Date(), days);
   const span = (r: { start: string; end: string }) => ({ startDate: r.start, endDate: r.end });
-  const [pages, prevPages, queries, daily, tot, prevTot] = await Promise.all([
+  const [pages, prevPages, queries, daily, tot, prevTot, devices, countries] = await Promise.all([
     query(access, property, { ...span(range), dimensions: ["page"], rowLimit: 1000 }),
     query(access, property, { ...span(prevRange), dimensions: ["page"], rowLimit: 1000 }),
     query(access, property, { ...span(range), dimensions: ["query", "page"], rowLimit: 1000 }),
     query(access, property, { ...span(range), dimensions: ["date"], rowLimit: 100 }),
     query(access, property, { ...span(range) }),
     query(access, property, { ...span(prevRange) }),
+    query(access, property, { ...span(range), dimensions: ["device"], rowLimit: 10 }).catch(() => []),
+    query(access, property, { ...span(range), dimensions: ["country"], rowLimit: 10 }).catch(() => []),
   ]);
+  const splitOf = (rows: Row[]) => rows.map((r) => ({ key: r.keys?.[0] ?? "", clicks: r.clicks, impressions: r.impressions })).filter((r) => r.key).sort((a, b) => b.clicks - a.clicks || b.impressions - a.impressions);
 
   const prev = new Map(prevPages.map((r) => [r.keys?.[0] ?? "", r]));
   const pageRows: GscPage[] = pages.map((r) => {
@@ -74,13 +78,16 @@ export async function fetchGsc(access: string, property: string, scan: { url: st
 
   return {
     property,
+    days,
+    devices: splitOf(devices),
+    countries: splitOf(countries),
     range,
     prevRange,
     totals: { clicks: t.clicks, impressions: t.impressions, ctr: t.ctr, position: t.position, prevClicks: pt.clicks, prevImpressions: pt.impressions },
     daily: daily.map((r) => ({ date: r.keys?.[0] ?? "", clicks: r.clicks, impressions: r.impressions })).sort((a, b) => a.date.localeCompare(b.date)),
     pages: pageRows.sort((a, b) => b.impressions - a.impressions).slice(0, 500),
     queries: qRows,
-    inspections: await inspectPages(access, property, pickInspect(scan, pageRows)),
+    inspections: days === 28 ? await inspectPages(access, property, pickInspect(scan, pageRows)) : [],
   };
 }
 

@@ -25,7 +25,7 @@ const FAQ: [string, string][] = [
   ],
   [
     "Do all features work without integrations?",
-    "Some advanced features require third-party integrations or customer-authorised access, such as analytics and Google Search Console.",
+    "Yes. The audit, monitoring and reports work on their own. The Google data on Professional and Business needs read-only access to your Search Console, Google Analytics or Google Ads, which you connect from the dashboard.",
   ],
 ];
 
@@ -98,6 +98,13 @@ export default function PricingPage() {
                 Need expert guidance without a subscription?{" "}
                 <Link href="/consultation" style={{ color: "var(--i700)", fontWeight: 700 }}>
                   Book a standalone consultation
+                </Link>
+                .
+              </p>
+              <p>
+                Professional and Business work with Google Search Console, Google Analytics and Google Ads, read-only.{" "}
+                <Link href="/features/google-integrations" style={{ color: "var(--i700)", fontWeight: 700 }}>
+                  See what they add
                 </Link>
                 .
               </p>

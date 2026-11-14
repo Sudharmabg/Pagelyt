@@ -1,18 +1,18 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Spark } from "../ui";
 import { findingKey } from "@/lib/scan/score";
-import { MODULE_NAMES, type Finding, type ModuleKey } from "@/lib/scan/types";
+import { MODULE_NAMES, type Finding } from "@/lib/scan/types";
 import { byVisits, channelRows, findingsOnPath, ga4Drops, lowEngagement, rate, visitsMap, type Ga4Data, type Visits } from "@/lib/google/ga4-insights";
-import { Delta, GoogleMark } from "./google-data";
+import { change } from "@/lib/google/gsc-insights";
+import { Delta, GoogleMark, Skeleton, Steps } from "./google-data";
+import { DataTable, FindingLink, FindingList, InsightsPanel, PageLink, SplitBars, deviceName, n0, type Col } from "./google-kit";
 import type { AiInsights, GoogleState } from "./use-google";
 
 /* The Analytics tab of ★ Google data: Connect Google Analytics, pick the GA4 property, then the AI's insights (on a
    button), the 28-day report, visitors and engagement per issue, and the drop detective (pages that lost visits,
    through which channel, with the issues found on them). */
 
-const n0 = (n: number) => Math.round(n).toLocaleString("en-GB");
 const p0 = (n: number) => `${Math.round(n * 100)}%`;
 const dur = (s: number) => (s >= 60 ? `${Math.floor(s / 60)}m ${Math.round(s % 60)}s` : `${Math.round(s)}s`);
 
@@ -26,9 +26,9 @@ const NOTICE: Record<string, { text: string; bad?: boolean }> = {
   failed: { text: "Google Analytics couldn't be connected just now. Please try again.", bad: true },
 };
 
-type Props = { g: GoogleState; scan: { id: string; url: string; host: string }; findings: Finding[]; onOpenArea: (m: ModuleKey) => void; notice: string | null };
+type Props = { g: GoogleState; scan: { id: string; url: string; host: string }; findings: Finding[]; notice: string | null };
 
-export function AnalyticsTab({ g, scan, findings, onOpenArea, notice }: Props) {
+export function AnalyticsTab({ g, scan, findings, notice }: Props) {
   const s = g.status!;
   const note = notice && NOTICE[notice];
   const head = (
@@ -44,6 +44,7 @@ export function AnalyticsTab({ g, scan, findings, onOpenArea, notice }: Props) {
         {head}
         <section className="panel gd-connect">
           <h2>Connect Google Analytics</h2>
+          <Steps at={0} />
           <p className="panel-note">See how many real visitors each problem in this report reaches, which pages are losing visitors and why, and let AI read your numbers and tell you what to do next.</p>
           <ul className="gd-gets">
             <li><b>Visitors per issue</b> Visits and engagement on the pages each finding affects</li>
@@ -61,13 +62,14 @@ export function AnalyticsTab({ g, scan, findings, onOpenArea, notice }: Props) {
 
   if (!s.ga4Property) return <>{head}<Ga4Picker g={g} host={scan.host} /></>;
 
-  const c = s.ga4Cache;
+  const c = g.inRange.ga4;
+  if (g.inRange.loading || (!c?.data && (g.busy === "refresh" || g.busy === "ga4refresh" || g.busy === "link"))) return <>{head}<Skeleton label="Fetching your Google Analytics numbers…" /></>;
   if (!c?.data)
     return (
       <>
         {head}
-        <p className="panel sec-empty">{g.busy === "refresh" || g.busy === "ga4refresh" || g.busy === "link" ? "Fetching your Google Analytics numbers…" : c?.error ?? "No Google Analytics data yet."}</p>
-        {g.busy !== "ga4refresh" && <Footer g={g} fetchedAt={undefined} />}
+        <p className="panel sec-empty">{c?.error ?? "No Google Analytics data yet."}</p>
+        <Footer g={g} fetchedAt={undefined} />
       </>
     );
 
@@ -75,8 +77,8 @@ export function AnalyticsTab({ g, scan, findings, onOpenArea, notice }: Props) {
     <>
       {head}
       {c.error && <p className="panel gd-note bad" role="alert">{c.error} Showing the numbers from {new Date(c.fetchedAt).toLocaleDateString("en-GB")}.</p>}
-      <AiPanel g={g} scanId={scan.id} findings={findings} onOpenArea={onOpenArea} />
-      <Ga4View d={c.data} findings={findings} onOpenArea={onOpenArea} />
+      <InsightsPanel title="AI insights from your Analytics" source="Analytics" ai={g.ai} busy={g.busy === "analyse"} error={g.aiError} findings={findings} onRun={(force) => void g.analyse(scan.id, force)} />
+      <Ga4View d={c.data} findings={findings} />
       <Footer g={g} fetchedAt={c.fetchedAt} />
     </>
   );
@@ -92,6 +94,7 @@ function Ga4Picker({ g, host }: { g: GoogleState; host: string }) {
   return (
     <section className="panel">
       <h2>Which Google Analytics property is {host}?</h2>
+      <Steps at={1} />
       {!props ? (
         <p className="panel-note">Loading your Analytics properties…</p>
       ) : props.length === 0 ? (
@@ -119,63 +122,11 @@ function Footer({ g, fetchedAt }: { g: GoogleState; fetchedAt?: string }) {
     <>
       <p className="gd-foot">
         <span>Google Analytics · {s.ga4Name ?? s.ga4Property}{s.email ? ` · ${s.email}` : ""}{fetchedAt ? ` · updated ${new Date(fetchedAt).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}` : ""}</span>
-        <button type="button" className="fnd-link" onClick={() => void g.refresh(true, "ga4")} disabled={g.busy === "ga4refresh"}>{g.busy === "ga4refresh" ? "Refreshing…" : "Refresh now"}</button>
+        <button type="button" className="fnd-link" onClick={() => void (g.days === 28 ? g.refresh(true, "ga4") : g.setDays(g.days, true))} disabled={g.busy === "ga4refresh" || g.busy === "range"}>{g.busy === "ga4refresh" || g.busy === "range" ? "Refreshing…" : "Refresh now"}</button>
         <button type="button" className="fnd-link" onClick={() => setChanging((v) => !v)}>{changing ? "Keep this property" : "Change property"}</button>
       </p>
       {changing && <Ga4Picker g={g} host={s.ga4Name ?? "this site"} />}
     </>
-  );
-}
-
-const PRIORITY = { high: "Important", medium: "Worth a look", low: "Minor" } as const;
-
-/** The AI's insights, or the button that asks for them. */
-function AiPanel({ g, scanId, findings, onOpenArea }: { g: GoogleState; scanId: string; findings: Finding[]; onOpenArea: (m: ModuleKey) => void }) {
-  const ai = g.ai;
-  const busy = g.busy === "analyse";
-  const byId = useMemo(() => new Map(findings.map((f) => [f.id, f])), [findings]);
-  return (
-    <section className="panel gd-ai" aria-label="AI insights" aria-busy={busy}>
-      <div className="gd-ai-top">
-        <h2><span aria-hidden="true">✦</span> AI insights from your Analytics</h2>
-        {ai && (
-          <button type="button" className="dash-btn" onClick={() => void g.analyse(scanId, true)} disabled={busy}>{busy ? "Analysing…" : "Analyse again"}</button>
-        )}
-      </div>
-      {!ai ? (
-        <>
-          <p className="panel-note">AI reads your last 28 days of Analytics next to this report and writes a few plain-English findings, each with a next step. It takes about half a minute.</p>
-          <button type="button" className="dash-btn primary" onClick={() => void g.analyse(scanId)} disabled={busy}>{busy ? "Analysing your numbers…" : "Analyse with AI"}</button>
-        </>
-      ) : (
-        <>
-          <ol className="gd-ins">
-            {ai.insights.map((i) => (
-              <li key={i.title} className={`p-${i.priority}`}>
-                <span className="gd-ins-p">{PRIORITY[i.priority]}</span>
-                <h3>{i.title}</h3>
-                <p>{i.detail}</p>
-                <p className="gd-ins-do"><b>Next step:</b> {i.action}</p>
-                {(i.pages.length > 0 || i.findings.length > 0) && (
-                  <p className="gd-ins-refs">
-                    {i.pages.map((p) => <code key={p}>{p}</code>)}
-                    {i.findings.map((id) => {
-                      const f = byId.get(id);
-                      return f ? <button key={id} type="button" className="fnd-link" onClick={() => onOpenArea(f.module)}>{f.title}</button> : null;
-                    })}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ol>
-          <p className="gd-fine">
-            Written by AI on {new Date(ai.at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })} from your Analytics and this report. Check before acting.
-            {!ai.current && " Your Analytics numbers have updated since: analyse again for the latest."}
-          </p>
-        </>
-      )}
-      {g.aiError && <p className="gd-note bad" role="alert">{g.aiError}</p>}
-    </section>
   );
 }
 
@@ -200,128 +151,120 @@ export function AiOverviewCard({ ai, onOpen }: { ai: AiInsights; onOpen: () => v
   );
 }
 
-const coverOf = (x: Visits) => (x.scope === "site" ? "whole site" : x.scope === "homepage" ? "homepage" : `${x.pages} page${x.pages === 1 ? "" : "s"}`);
 
-function Ga4View({ d, findings, onOpenArea }: { d: Ga4Data; findings: Finding[]; onOpenArea: (m: ModuleKey) => void }) {
+const coverOf = (x: Visits) => (x.scope === "site" ? "whole site" : x.scope === "homepage" ? "homepage" : `${x.pages} page${x.pages === 1 ? "" : "s"}`);
+const chg = (c: number | null) => (c == null ? "new" : `${c > 0 ? "+" : ""}${c}%`);
+const chgCls = (c: number | null) => (c == null ? undefined : c <= -20 ? "bad" : c >= 20 ? "good" : undefined);
+
+function Ga4View({ d, findings }: { d: Ga4Data; findings: Finding[] }) {
+  const days = d.days ?? 28;
   const v = useMemo(() => visitsMap(findings, d, findingKey), [findings, d]);
-  const ranked = useMemo(() => byVisits(findings, v, findingKey).filter((f) => (v.get(findingKey(f))?.sessions ?? 0) > 0).slice(0, 10), [findings, v]);
+  const ranked = useMemo(() => byVisits(findings, v, findingKey).filter((f) => (v.get(findingKey(f))?.sessions ?? 0) > 0), [findings, v]);
   const chans = useMemo(() => channelRows(d), [d]);
-  const dr = useMemo(() => ga4Drops(d), [d]);
-  const low = useMemo(() => lowEngagement(d), [d]);
+  const dr = useMemo(() => ga4Drops(d, 30), [d]);
+  const low = useMemo(() => lowEngagement(d, 20), [d]);
   const T = d.totals, P = d.prev;
+  const visits = (f: Finding) => v.get(findingKey(f))!;
+
+  const issueCols: Col<Finding>[] = [
+    { label: "Issue", get: (f) => f.title, cell: (f) => <FindingLink f={f} />, wrap: true },
+    { label: "Area", get: (f) => MODULE_NAMES[f.module] },
+    { label: "Visits", get: (f) => visits(f).sessions, cell: (f) => <b>{n0(visits(f).sessions)}</b> },
+    { label: "Engaged", get: (f) => rate(visits(f).engaged, visits(f).sessions), cell: (f) => p0(rate(visits(f).engaged, visits(f).sessions)), cls: (f) => (rate(visits(f).engaged, visits(f).sessions) < 0.4 ? "bad" : undefined) },
+    { label: "Covers", get: (f) => coverOf(visits(f)) },
+  ];
+  const pageCols: Col<Ga4Data["pages"][number]>[] = [
+    { label: "Page", get: (p) => p.path, cell: (p) => <PageLink url={p.path} /> },
+    { label: "Visits", get: (p) => p.sessions, cell: (p) => <b>{n0(p.sessions)}</b> },
+    { label: "Change", get: (p) => change(p.sessions, p.prevSessions), cell: (p) => chg(change(p.sessions, p.prevSessions)), cls: (p) => chgCls(change(p.sessions, p.prevSessions)) },
+    { label: "Engaged", get: (p) => rate(p.engaged, p.sessions), cell: (p) => p0(rate(p.engaged, p.sessions)) },
+    { label: "Page views", get: (p) => p.views, cell: (p) => n0(p.views) },
+    { label: "Issues", get: (p) => findingsOnPath(p.path, findings).length, cls: (p) => (findingsOnPath(p.path, findings).length ? "bad" : undefined) },
+  ];
+
   return (
     <>
-      <section className="panel gd-totals" aria-label="Visitors, last 28 days">
-        <h2>Visitors, last 28 days</h2>
-        <p className="panel-note">{d.range.start} to {d.range.end}, against the 28 days before.{d.name ? ` Property: ${d.name}.` : ""}</p>
+      <section className="panel gd-totals" aria-label={`Visitors, last ${days} days`}>
+        <h2>Visitors, last {days} days</h2>
+        <p className="panel-note">{d.range.start} to {d.range.end}, against the {days} days before.{d.name ? ` Property: ${d.name}.` : ""}</p>
         <ul className="sec-stats">
-          <li><b>{n0(T.sessions)}</b><span>visits</span><Delta now={T.sessions} before={P.sessions} /></li>
-          <li><b>{n0(T.users)}</b><span>visitors ({n0(T.newUsers)} new)</span><Delta now={T.users} before={P.users} /></li>
+          <li><b>{n0(T.sessions)}</b><span>visits</span><Delta now={T.sessions} before={P.sessions} days={days} /></li>
+          <li><b>{n0(T.users)}</b><span>visitors ({n0(T.newUsers)} new)</span><Delta now={T.users} before={P.users} days={days} /></li>
           <li><b>{p0(rate(T.engaged, T.sessions))}</b><span>engaged visits (was {p0(rate(P.engaged, P.sessions))})</span></li>
-          <li><b>{dur(T.avgDuration)}</b><span>average visit</span><Delta now={T.avgDuration} before={P.avgDuration} /></li>
-          <li><b>{n0(T.views)}</b><span>page views</span><Delta now={T.views} before={P.views} /></li>
-          <li><b>{n0(T.keyEvents)}</b><span>key events</span><Delta now={T.keyEvents} before={P.keyEvents} /></li>
+          <li><b>{dur(T.avgDuration)}</b><span>average visit</span><Delta now={T.avgDuration} before={P.avgDuration} days={days} /></li>
+          <li><b>{n0(T.views)}</b><span>page views</span><Delta now={T.views} before={P.views} days={days} /></li>
+          <li><b>{n0(T.keyEvents)}</b><span>key events</span><Delta now={T.keyEvents} before={P.keyEvents} days={days} /></li>
         </ul>
-        {d.daily.length > 2 && (
-          <div className="gd-spark" role="img" aria-label={`Daily visits, from ${n0(d.daily[0].sessions)} to ${n0(d.daily[d.daily.length - 1].sessions)}`}>
-            <Spark data={d.daily.map((x) => x.sessions)} color="var(--d-accent)" height={70} />
+        {(d.devices?.length || d.countries?.length) ? (
+          <div className="gd-splits">
+            <SplitBars title="Visits by device" unit="visits" rows={(d.devices ?? []).map((x) => ({ key: deviceName(x.key), value: x.sessions }))} />
+            <SplitBars title="Visits by country" unit="visits" rows={(d.countries ?? []).map((x) => ({ key: x.key, value: x.sessions }))} />
           </div>
-        )}
-        {chans.length > 0 && (
-          <div className="crawl-wrap">
-            <table className="crawl gd-t">
-              <thead><tr><th>Channel</th><th>Visits</th><th>Share</th><th>Change</th><th>Engaged</th></tr></thead>
-              <tbody>
-                {chans.slice(0, 8).map((c) => (
-                  <tr key={c.channel}>
-                    <td>{c.channel}</td>
-                    <td><b>{n0(c.sessions)}</b></td>
-                    <td>{p0(c.share)}</td>
-                    <td className={c.change == null ? "" : c.change <= -20 ? "bad" : c.change >= 20 ? "good" : ""}>{c.change == null ? "new" : `${c.change > 0 ? "+" : ""}${c.change}%`}</td>
-                    <td>{p0(c.rate)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+        ) : null}
+        <h3 className="gd-sub">Where visits come from</h3>
+        <DataTable
+          rows={chans}
+          rowKey={(c) => c.channel}
+          file={`channels-${days}d`}
+          sort={{ col: 1 }}
+          limit={8}
+          cols={[
+            { label: "Channel", get: (c) => c.channel },
+            { label: "Visits", get: (c) => c.sessions, cell: (c) => <b>{n0(c.sessions)}</b> },
+            { label: "Share", get: (c) => c.share, cell: (c) => p0(c.share) },
+            { label: "Change", get: (c) => c.change, cell: (c) => chg(c.change), cls: (c) => chgCls(c.change) },
+            { label: "Engaged", get: (c) => c.rate, cell: (c) => p0(c.rate) },
+          ]}
+        />
       </section>
 
       <section className="panel" aria-label="Issues by visitors">
         <h2>Issues ranked by the visitors they reach</h2>
-        <p className="panel-note">Visits over 28 days on the pages each issue affects, and how many of them were engaged (10+ seconds, 2+ pages or a key event). Site-wide issues count the whole site.</p>
-        {ranked.length ? (
-          <div className="crawl-wrap">
-            <table className="crawl gd-t">
-              <thead><tr><th>Issue</th><th>Area</th><th>Visits</th><th>Engaged</th><th>Covers</th></tr></thead>
-              <tbody>
-                {ranked.map((f) => {
-                  const x = v.get(findingKey(f))!;
-                  const r = rate(x.engaged, x.sessions);
-                  return (
-                    <tr key={findingKey(f)}>
-                      <td className="gd-wrap"><button type="button" className="fnd-link" onClick={() => onOpenArea(f.module)}>{f.title}</button></td>
-                      <td>{MODULE_NAMES[f.module]}</td>
-                      <td><b>{n0(x.sessions)}</b></td>
-                      <td className={r < 0.4 ? "bad" : ""}>{p0(r)}</td>
-                      <td>{coverOf(x)}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : <p className="panel-note">None of this report&rsquo;s open issues are on pages with Analytics visits.</p>}
+        <p className="panel-note">Visits over {days} days on the pages each issue affects, and how many were engaged (10+ seconds, 2+ pages or a key event). Site-wide issues count the whole site. Click an issue to open it.</p>
+        <DataTable rows={ranked} cols={issueCols} file={`issues-by-visitors-${days}d`} sort={{ col: 2 }} limit={10} rowKey={findingKey} empty={<p className="panel-note">None of this report&rsquo;s open issues are on pages with Analytics visits.</p>} />
+      </section>
+
+      <section className="panel" aria-label="Top pages">
+        <h2>Top pages</h2>
+        <p className="panel-note">Your busiest pages. Click a page for its searches, visits, ad spend and issues.</p>
+        <DataTable rows={d.pages} cols={pageCols} file={`top-pages-visits-${days}d`} sort={{ col: 1 }} limit={10} rowKey={(p) => p.path} empty={<p className="panel-note">No page visits in this window.</p>} />
       </section>
 
       <section className="panel" aria-label="Drop detective">
         <h2>Drop detective: pages that lost visitors</h2>
-        <p className="panel-note">Down at least 30% on the 28 days before, with the channel that lost the most visits and the issues this scan found on the same page.</p>
-        {dr.length ? (
-          <div className="crawl-wrap">
-            <table className="crawl gd-t">
-              <thead><tr><th>Page</th><th>Before</th><th>Now</th><th>Lost mostly from</th><th>Issues on this page</th></tr></thead>
-              <tbody>
-                {dr.map((p) => {
-                  const on = findingsOnPath(p.path, findings);
-                  return (
-                    <tr key={p.path}>
-                      <td title={p.path}>{p.path}</td>
-                      <td>{n0(p.prevSessions)}</td>
-                      <td className="bad">{n0(p.sessions)}</td>
-                      <td>{p.channel ? `${p.channel} (−${n0(p.channelLost)})` : "–"}</td>
-                      <td className="gd-wrap">{on.length ? on.slice(0, 3).map((f) => f.title).join("; ") + (on.length > 3 ? ` +${on.length - 3} more` : "") : <em>None found by this scan</em>}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ) : <p className="panel-note">No page lost 30% or more of its visits.</p>}
+        <p className="panel-note">Down at least 30% on the {days} days before, with the channel that lost the most visits and the issues this scan found on the same page.</p>
+        <DataTable
+          rows={dr}
+          rowKey={(p) => p.path}
+          file={`lost-visitors-${days}d`}
+          limit={10}
+          cols={[
+            { label: "Page", get: (p) => p.path, cell: (p) => <PageLink url={p.path} /> },
+            { label: "Before", get: (p) => p.prevSessions, cell: (p) => n0(p.prevSessions) },
+            { label: "Now", get: (p) => p.sessions, cell: (p) => n0(p.sessions), cls: () => "bad" },
+            { label: "Lost mostly from", get: (p) => (p.channel ? `${p.channel} (−${n0(p.channelLost)})` : null), cell: (p) => (p.channel ? `${p.channel} (−${n0(p.channelLost)})` : "–") },
+            { label: "Issues on this page", get: (p) => findingsOnPath(p.path, findings).map((f) => f.title).join("; "), cell: (p) => <FindingList list={findingsOnPath(p.path, findings)} />, wrap: true, noSort: true },
+          ]}
+          empty={<p className="panel-note">No page lost 30% or more of its visits.</p>}
+        />
       </section>
 
       {low.length > 0 && (
         <section className="panel" aria-label="Low engagement">
           <h2>Busy pages that don&rsquo;t hold visitors</h2>
           <p className="panel-note">Pages with 50+ visits where far fewer visits are engaged than on the rest of the site ({p0(rate(T.engaged, T.sessions))}).</p>
-          <div className="crawl-wrap">
-            <table className="crawl gd-t">
-              <thead><tr><th>Page</th><th>Visits</th><th>Engaged</th><th>Issues on this page</th></tr></thead>
-              <tbody>
-                {low.map((p) => {
-                  const on = findingsOnPath(p.path, findings);
-                  return (
-                    <tr key={p.path}>
-                      <td title={p.path}>{p.path}</td>
-                      <td>{n0(p.sessions)}</td>
-                      <td className="bad">{p0(p.rate)}</td>
-                      <td className="gd-wrap">{on.length ? on.slice(0, 3).map((f) => f.title).join("; ") : <em>None found by this scan</em>}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <DataTable
+            rows={low}
+            rowKey={(p) => p.path}
+            file={`low-engagement-${days}d`}
+            limit={10}
+            cols={[
+              { label: "Page", get: (p) => p.path, cell: (p) => <PageLink url={p.path} /> },
+              { label: "Visits", get: (p) => p.sessions, cell: (p) => n0(p.sessions) },
+              { label: "Engaged", get: (p) => p.rate, cell: (p) => p0(p.rate), cls: () => "bad" },
+              { label: "Issues on this page", get: (p) => findingsOnPath(p.path, findings).map((f) => f.title).join("; "), cell: (p) => <FindingList list={findingsOnPath(p.path, findings)} />, wrap: true, noSort: true },
+            ]}
+          />
         </section>
       )}
     </>

@@ -8,6 +8,7 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 import type { AdminSite } from "@/lib/scan/admin";
 import { AdminAnalytics } from "./analytics";
 import { AdminRequests } from "./requests";
+import { AdminBookings } from "./bookings";
 
 /* Admin panel: run scheduled rescans, AI visibility checks and uptime pings by hand while the cron Worker is off.
    Rescans run one site at a time from this tab (each scan is a series of short requests), so keep it open until
@@ -39,7 +40,7 @@ export function AdminPanel() {
   const [sites, setSites] = useState<AdminSite[]>([]);
   const [mode, setMode] = useState("");
   const [msg, setMsg] = useState("");
-  const [tab, setTab] = useState<"ops" | "requests" | "analytics">("ops");
+  const [tab, setTab] = useState<"ops" | "bookings" | "requests" | "analytics">("ops");
   const [view, setView] = useState<View>("due");
   const [q, setQ] = useState("");
   const [scanJobs, setScanJobs] = useState<Record<string, Job>>({});
@@ -186,14 +187,14 @@ export function AdminPanel() {
       </header>
 
       <div className="adm-tabs" role="tablist" aria-label="Admin sections">
-        {(["ops", "requests", "analytics"] as const).map((t) => (
+        {(["ops", "bookings", "requests", "analytics"] as const).map((t) => (
           <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? "on" : undefined} onClick={() => setTab(t)}>
-            {t === "ops" ? "Operations" : t === "requests" ? "Requests" : "Analytics"}
+            {t === "ops" ? "Operations" : t === "bookings" ? "Bookings" : t === "requests" ? "Requests" : "Analytics"}
           </button>
         ))}
       </div>
 
-      {tab === "analytics" ? <AdminAnalytics call={call} /> : tab === "requests" ? <AdminRequests call={call} /> : <>
+      {tab === "analytics" ? <AdminAnalytics call={call} /> : tab === "bookings" ? <AdminBookings call={call} /> : tab === "requests" ? <AdminRequests call={call} /> : <>
       <ul className="ag-stats" aria-label="Summary">
         <li className={dueScans.length ? "bad" : undefined}><b>{dueScans.length}</b><span>Rescans due</span></li>
         <li className={dueAi.length ? "bad" : undefined}><b>{dueAi.length}</b><span>AI checks due</span></li>

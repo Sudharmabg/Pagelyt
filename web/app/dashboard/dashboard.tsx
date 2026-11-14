@@ -15,6 +15,7 @@ import { ActionModal, Tile } from "./action-modal";
 import { AGENCY_UPSELL, AgencyModal, useAccount } from "./agency-modal";
 import { Assistant } from "./assistant";
 import { GoogleData, type GoogleTab } from "./google-data";
+import { GoogleBanner } from "./google-banner";
 import { AiOverviewCard } from "./analytics-data";
 import { useGoogle } from "./use-google";
 import { byTraffic, trafficMap } from "@/lib/google/gsc-insights";
@@ -328,7 +329,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const [chat, setChat] = useState(false); // the small Ask Pagelyt widget, bottom right
   const siteId = useSiteId(scan.host, access === "owner");
   const google = useGoogle(siteId, access === "owner");
-  const [gTab, setGTab] = useState<GoogleTab>(() => (params.get("gtab") === "analytics" ? "ga4" : params.get("gtab") === "ads" ? "ads" : "gsc"));
+  const [gTab, setGTab] = useState<GoogleTab>(() => (params.get("gtab") === "analytics" ? "ga4" : params.get("gtab") === "ads" ? "ads" : params.get("gtab") === "search" ? "gsc" : "overview"));
 
   // Show the compact score bar once the hero has scrolled out of view.
   const watchHero = useCallback((el: HTMLElement | null) => {
@@ -412,6 +413,20 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     window.history.pushState(null, "", `${window.location.pathname}${s ? `?${s}` : ""}`);
     window.scrollTo({ top: 0 });
   }, []);
+  // From ★ Google data: open the finding's area and scroll to that exact finding, briefly highlighted.
+  const openFinding = useCallback((f: Finding) => {
+    setView(f.module);
+    const key = findingKey(f);
+    let tries = 0;
+    const find = () => {
+      const el = document.querySelector<HTMLElement>(`[data-k="${CSS.escape(key)}"]`);
+      if (!el) return void (++tries < 20 && window.setTimeout(find, 80));
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+      el.classList.add("fnd-flash");
+      window.setTimeout(() => el.classList.remove("fnd-flash"), 2200);
+    };
+    window.setTimeout(find, 60);
+  }, [setView]);
   const at = order.indexOf(view);
   const groupOf = (v: View) =>
     v === "overview" ? "Start" : v === "all" ? "Findings" : v in MODULE_NAMES ? "Areas" : INSIGHTS.some((s) => s.id === v) ? "From this scan" : STAR.some((s) => s.id === v) ? "Star features" : "Tools";
@@ -588,6 +603,8 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           </div>
         </section>
 
+        {access === "owner" && acct && <GoogleBanner g={google} paid={acct.paid} onOpen={() => { setGTab("overview"); setView("google"); }} />}
+
         <ul className="dash-cards dash-cards-13" aria-label="Scores by area and details from this scan">
           {modules.map((m, i) => (
             <li key={m.key} style={{ ["--i" as string]: i }}>
@@ -753,7 +770,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     else if (s.id === "assistant") content = access === "owner" ? <Assistant key={scan.id} scan={scan} paid={!!acct?.paid} /> : empty("The assistant needs accounts, which aren't switched on here.");
     else if (s.id === "google")
       content = access === "owner" ? (
-        <GoogleData g={google} scan={scan} siteId={siteId} findings={remaining} onSave={() => setView("monitor")} onOpenArea={setView} tab={gTab} onTab={setGTab} />
+        <GoogleData g={google} scan={scan} siteId={siteId} findings={remaining} onSave={() => setView("monitor")} onOpenFinding={openFinding} tab={gTab} onTab={setGTab} />
       ) : empty("Google data needs accounts, which aren't switched on here.");
     else if (s.id === "monitor") content = access === "local" ? empty("Saving sites needs accounts, which aren't switched on here.") : <SaveSite scanId={scan.id} host={scan.host} />;
     else if (s.id === "ai")
