@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "../toast";
+import { CopyButton } from "@/components/avara/CopyButtonBlock";
 import { useEffect, useId, useRef, useState } from "react";
 import { ModalX, onBackdrop } from "../modal-close";
 import type { ToolContext } from "@/lib/scan/tools-context";
@@ -22,20 +23,6 @@ export function Field({ label, hint, children }: { label: string; hint?: string;
 
 /** The generated file with Copy and Download. `scroll`: long lines scroll sideways instead of wrapping. */
 export function Output({ text, filename, scroll }: { text: string; filename: string; scroll?: boolean }) {
-  const [done, setDone] = useState("");
-  const flash = (m: string) => {
-    setDone(m);
-    window.setTimeout(() => setDone(""), 1800);
-  };
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      flash("Copied");
-      toast("Copied to your clipboard");
-    } catch {
-      flash("Copy blocked");
-    }
-  };
   const save = () => {
     const url = URL.createObjectURL(new Blob([text], { type: "text/plain" }));
     const a = document.createElement("a");
@@ -55,10 +42,7 @@ export function Output({ text, filename, scroll }: { text: string; filename: str
           <small>{text.split("\n").length} lines</small>
         </span>
         <span className="tout-act">
-          <button type="button" data-gate onClick={copy} className={done === "Copied" ? "done" : undefined}>
-            {done === "Copied" && <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}
-            {done || "Copy"}
-          </button>
+          <CopyButton value={text} size="sm" variant="ghost" data-gate className="av-dark rounded-full" onCopy={(_, ok) => ok && toast("Copied to your clipboard")} />
           <button type="button" data-gate onClick={save}>Download</button>
         </span>
       </div>

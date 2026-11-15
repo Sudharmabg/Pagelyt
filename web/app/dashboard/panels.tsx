@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "../toast";
+import { ToggleGroup, ToggleGroupItem } from "@/components/avara/ToggleGroupBlock";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Findings } from "../findings";
 import { findingKey, PENALTY, WEIGHTS } from "@/lib/scan/score";
@@ -76,11 +77,13 @@ export function FindingsExplorer({ findings, fixed, onToggleFixed, gains, traffi
           )}
         </div>
         <div className="fnd-chips" role="group" aria-label="Filter findings">
-          {SEV.map((s) => (
-            <button key={s.key} type="button" aria-pressed={sev === s.key} disabled={count(s.key) === 0} onClick={() => setSev(s.key)}>
-              {s.label} <span>{count(s.key)}</span>
-            </button>
-          ))}
+          <ToggleGroup variant="segmented" size="sm" aria-label="Priority" className="fnd-seg" value={sev} onValueChange={(v) => setSev(v as Severity | "all")}>
+            {SEV.map((s) => (
+              <ToggleGroupItem key={s.key} value={s.key} disabled={count(s.key) === 0}>
+                {s.label} <span className="fnd-seg-n">{count(s.key)}</span>
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
           <i className="fnd-sep" aria-hidden="true" />
           <button type="button" aria-pressed={hideFixed} onClick={() => setHideFixed((v) => !v)}>
             Hide fixed
@@ -623,13 +626,13 @@ export function VitalsPanel({ vitals }: { vitals: Vitals | null | undefined }) {
       <section className="panel vt-panel" aria-label="Speed summary" ref={ref}>
         <div className="panel-head">
           <h2>What visitors experience</h2>
-          <div className="seg" role="group" aria-label="Device">
+          <ToggleGroup variant="segmented" size="sm" aria-label="Device" value={shown} onValueChange={(v) => setDev(v as "mobile" | "desktop")}>
             {(["mobile", "desktop"] as const).map((d) => (
-              <button key={d} type="button" aria-pressed={shown === d} disabled={!vitals[d]} onClick={() => setDev(d)}>
+              <ToggleGroupItem key={d} value={d} disabled={!vitals[d]}>
                 {d === "mobile" ? "Phone" : "Desktop"}
-              </button>
+              </ToggleGroupItem>
             ))}
-          </div>
+          </ToggleGroup>
         </div>
         {run && sum && (
           <>

@@ -1,5 +1,6 @@
 "use client";
 
+import { PageLoader } from "@/app/page-loader";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { tone } from "../../ui";
@@ -131,7 +132,7 @@ export function AgencySites() {
   };
 
   if (!sb) return <div className="panel auth-card"><h1>Accounts aren’t switched on yet</h1><p className="panel-note">Add your Supabase URL and anon key to enable accounts. See DEPLOY.md.</p></div>;
-  if (state === "loading") return <p className="dash-loading" role="status">Loading your sites…</p>;
+  if (state === "loading") return <PageLoader text="Loading your sites…" />;
   if (state === "signin") {
     return (
       <div className="panel auth-card">

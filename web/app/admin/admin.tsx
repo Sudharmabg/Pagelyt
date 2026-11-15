@@ -1,5 +1,6 @@
 "use client";
 
+import { PageLoader } from "@/app/page-loader";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { tone } from "../ui";
@@ -154,7 +155,7 @@ export function AdminPanel() {
   };
 
   if (!sb) return <div className="panel auth-card"><h1>Accounts aren’t switched on yet</h1><p className="panel-note">Add your Supabase URL and anon key to use the admin panel. See DEPLOY.md.</p></div>;
-  if (state === "loading") return <p className="dash-loading" role="status">Loading…</p>;
+  if (state === "loading") return <PageLoader text="Loading…" />;
   if (state === "signin") {
     return (
       <div className="panel auth-card">

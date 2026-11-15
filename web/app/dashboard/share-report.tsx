@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "../toast";
+import { CopyButton } from "@/components/avara/CopyButtonBlock";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -29,7 +30,6 @@ export function ShareReport({ scanId, host, score, canEmail, onMade }: { scanId:
   const [busy, setBusy] = useState(false);
   const [made, setMade] = useState<Made | null>(null);
   const [err, setErr] = useState("");
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!sb) return;
@@ -77,7 +77,6 @@ export function ShareReport({ scanId, host, score, canEmail, onMade }: { scanId:
       if (!r.ok) throw new Error(j.error || "Could not create the link.");
       setMade({ link: `${window.location.origin}${j.path}`, sentTo: j.sentTo ?? null, mailFailed: sending && !j.emailed });
       onMade?.();
-      setCopied(false);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Could not create the link.");
     } finally {
@@ -85,17 +84,6 @@ export function ShareReport({ scanId, host, score, canEmail, onMade }: { scanId:
     }
   };
 
-  const copy = async () => {
-    if (!made) return;
-    try {
-      await navigator.clipboard.writeText(made.link);
-      setCopied(true);
-      toast("Client link copied");
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* the link is selectable */
-    }
-  };
 
   const again = () => {
     setMade(null);
@@ -130,7 +118,7 @@ export function ShareReport({ scanId, host, score, canEmail, onMade }: { scanId:
                 </label>
                 <div className="lm-act">
                   <a className="btn ghost" href={made.link} target="_blank" rel="noopener noreferrer">Open</a>
-                  <button type="button" className="btn" onClick={copy}>{copied ? "Copied" : "Copy link"}</button>
+                  <CopyButton value={made.link} label="Copy link" onCopy={(_, ok) => ok && toast("Client link copied")} />
                 </div>
                 <p className="lm-fine">
                   Links stay listed under <Link href="/account/brand">Account → Brand</Link>, where you can withdraw them.{" "}

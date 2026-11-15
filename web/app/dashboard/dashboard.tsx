@@ -3,6 +3,7 @@
 import { ActivityBell } from "./activity";
 import { FlapNum } from "../flap-num";
 import { toast } from "../toast";
+import { CopyButton } from "@/components/avara/CopyButtonBlock";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -15,6 +16,9 @@ import { WhyItMatters } from "./why-modal";
 import { SaveSite } from "./save-site";
 import { BrandShare } from "./brand-share";
 import { RescanButton } from "./rescan";
+import Button from "@/components/avara/Button";
+import { LoaderBlock } from "@/components/avara/LoaderBlock";
+import { BreadcrumbBlock, type BreadcrumbItem } from "@/components/avara/BreadcrumbBlock";
 import { ActionModal, Tile } from "./action-modal";
 import { AGENCY_UPSELL, AgencyModal, useAccount } from "./agency-modal";
 import { Assistant } from "./assistant";
@@ -342,7 +346,6 @@ function sectionStats(id: Extra, scan: StoredScan, prev: Snap | null, scans: num
 
 export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan: StoredScan; history?: Snap[]; savedFixed?: string[] | null; shots?: { now: string | null; prev: string | null }; canEmail?: boolean }) {
   const params = useSearchParams();
-  const [copied, setCopied] = useState(false);
   const [intro, setIntro] = useState(true); // staged reveal on first open only
   const access = useAccess(scan.id);
   const canEdit = access === "owner" || access === "local";
@@ -383,7 +386,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   }, []);
 
   // Share, Export and More open as modals; the browser's share sheet is offered where it exists (phones).
-  const [modal, setModal] = useState<null | "share" | "export" | "more">(null);
+  const [modal, setModal] = useState<null | "share" | "export" | "more" | "actions">(null);
   const [canShare, setCanShare] = useState(false);
   const [reportUrl, setReportUrl] = useState(""); // read when the modal opens (there is no window on the server)
   const openShare = () => {
@@ -506,6 +509,19 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const mod = isArea ? modules.find((m) => m.key === view)! : null;
   const section = SECTIONS.get(view) ?? null;
   const tool = isTool(view) ? TOOLS_BY_SLUG.get(view)! : null;
+  // Breadcrumb above the main area: site › group › current view. A crumb's "href" is a view id, opened in place.
+  const viewLabel =
+    view === "overview" ? "Overview" : view === "all" ? "All findings" : view in MODULE_NAMES ? MODULE_NAMES[view as ModuleKey]
+      : tool ? tool.name : INSIGHTS.find((s) => s.id === view)?.label ?? STAR.find((s) => s.id === view)?.label ?? "Report";
+  const crumbGroup = groupOf(view);
+  const crumbs: BreadcrumbItem[] = [
+    { label: scan.host, href: view === "overview" ? undefined : "overview" },
+    ...(crumbGroup === "Start" || crumbGroup === "Findings" ? [] : [{ label: crumbGroup }]),
+    ...(view === "overview" ? [] : [{ label: viewLabel }]),
+  ];
+  const CrumbLink = ({ href, className, children }: { href: string; className?: string; children: React.ReactNode }) => (
+    <button type="button" className={className} onClick={() => setView(href as View)}>{children}</button>
+  );
   const toolCtx = tool ? toolContext(scan.id, scan) : null;
   const needsPlan = (id: Extra) => PAID_ONLY.has(id) && access === "owner" && !!acct && !acct.paid;
   // The star features with a reason from this report each, in their fixed sidebar order.
@@ -536,16 +552,6 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     setPdfBusy(false);
   };
 
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(`${window.location.origin}${window.location.pathname}`);
-      toast("Report link copied");
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* clipboard unavailable: the URL is still in the address bar */
-    }
-  };
   const shareOut = (kind: "mail" | "wa") => {
     const msg = encodeURIComponent(`Website report for ${scan.host}: ${scan.overall}/100`);
     const href = encodeURIComponent(`${window.location.origin}${window.location.pathname}`);
@@ -735,31 +741,48 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           </div>
         </section>
 
-        <ul className="dash-cards dash-cards-13" aria-label="Scores by area and details from this scan">
-          {modules.map((m, i) => (
-            <li key={m.key} style={{ ["--i" as string]: i }}>
-              <button type="button" className={`dc-${tone(m.score)}`} onClick={() => setView(m.key)}>
-                <CountRing score={m.score} size={64} stroke={7} delay={700 + i * 150} enabled={intro} />
-                <span className="dc-name"><AreaIcon k={m.key} size={16} />{m.name}</span>
-                <Heat list={remaining.filter((f) => f.module === m.key)} />
-                <span className="dc-n">
-                  {countOf(m.key) === 0 ? "No open issues" : `${countOf(m.key)} open issue${countOf(m.key) === 1 ? "" : "s"}`}
-                </span>
-              </button>
-            </li>
-          ))}
+        <ul className="dash-cards dash-cards-13 dc2" aria-label="Scores by area and details from this scan">
+          {modules.map((m, i) => {
+            const t = tone(m.score);
+            const open = countOf(m.key);
+            return (
+              <li key={m.key} style={{ ["--i" as string]: i }}>
+                <button type="button" className={`dc-${t} dca-${m.key}`} onClick={() => setView(m.key)}>
+                  <span className="dc-head">
+                    <span className="dc-ico" aria-hidden="true"><AreaIcon k={m.key} size={18} /></span>
+                    <span className="dc-title">
+                      <span className="dc-name">{m.name}</span>
+                      <span className="dc-tone">{t === "good" ? "Good" : t === "warn" ? "Needs work" : "Fix first"}</span>
+                    </span>
+                    <CountRing score={m.score} size={52} stroke={6} delay={700 + i * 150} enabled={intro} />
+                  </span>
+                  <Heat list={remaining.filter((f) => f.module === m.key)} />
+                  <span className="dc-foot">
+                    <span className="dc-n">{open === 0 ? "No open issues" : `${open} open issue${open === 1 ? "" : "s"}`}</span>
+                    <span className="dc-go" aria-hidden="true">→</span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
           {INSIGHTS.map((s, i) => {
             const [main, sub] = statsOf(s.id);
             const t = main?.tone === "good" ? "good" : main?.tone === "ok" ? "warn" : main?.tone === "bad" ? "bad" : "none";
             return (
               <li key={s.id} className="dc-ins-li" style={{ ["--i" as string]: modules.length + i }}>
-                <button type="button" className={`dc-ins dc-${t}`} onClick={() => setView(s.id)}>
-                  <span className={`dc-stat${main && main.value.length > 4 ? " long" : ""}`} aria-hidden={main ? undefined : true}>
-                    {main ? <b>{main.value}</b> : <AreaIcon k={s.icon} size={22} />}
+                <button type="button" className={`dc-ins dc-${t} dca-${s.id}`} onClick={() => setView(s.id)}>
+                  <span className="dc-head">
+                    <span className="dc-ico" aria-hidden="true"><AreaIcon k={s.icon} size={18} /></span>
+                    <span className="dc-title"><span className="dc-name">{s.label}</span></span>
                   </span>
-                  <span className="dc-name"><AreaIcon k={s.icon} size={16} />{s.label}</span>
-                  <span className="dc-n">{main ? main.label : "Not measured in this scan"}</span>
-                  {sub && <span className={`dc-sub${sub.tone ? ` st-${sub.tone}` : ""}`}>{sub.value} {sub.label}</span>}
+                  <span className="dc-big">
+                    {main ? <b>{main.value}</b> : <b className="dc-dash" aria-hidden="true">—</b>}
+                    <span className="dc-n">{main ? main.label : "Not measured in this scan"}</span>
+                  </span>
+                  <span className="dc-foot">
+                    {sub ? <span className={`dc-sub${sub.tone ? ` st-${sub.tone}` : ""}`}>{sub.value} {sub.label}</span> : <span />}
+                    <span className="dc-go" aria-hidden="true">→</span>
+                  </span>
                 </button>
               </li>
             );
@@ -965,7 +988,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
         top={
           <div className="am-link">
             <input readOnly value={reportUrl} aria-label="Report link" onFocus={(e) => e.currentTarget.select()} />
-            <button type="button" className={`dash-btn primary${copied ? " ok" : ""}`} onClick={() => void copy()}>{copied ? "Copied ✓" : "Copy link"}</button>
+            <CopyButton value={reportUrl} label="Copy link" onCopy={(_, ok) => ok && toast("Report link copied")} />
           </div>
         }
       >
@@ -995,6 +1018,18 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
         <Tile icon="search" title="Search the report" text="Jump to any area, finding or action (Ctrl K)." onClick={() => { setModal(null); setPalette(true); }} />
         <Tile icon="keyboard" title="Keyboard shortcuts" text="Move through findings and tick them off without the mouse." onClick={() => { setModal(null); setHelp(true); }} />
       </ActionModal>
+      <ActionModal open={modal === "actions"} onClose={() => setModal(null)} icon="dots" title="Report actions" sub={scan.host}>
+        <Tile icon="search" title="Search the report" text="Jump to any area, finding or action." onClick={() => { setModal(null); setPalette(true); }} />
+        <Tile icon="share" title="Share" text="Send a view-only link or a branded report." onClick={() => { setModal(null); openShare(); }} />
+        <Tile icon="download" title={pdfBusy ? "Preparing PDF…" : "Export"} text="PDF, CSV and other copies of this report." onClick={() => setModal("export")} busy={pdfBusy} />
+        <Tile icon="dots" title="More you can do" text="Tools that build on this report, and shortcuts." onClick={() => setModal("more")} />
+        <Tile icon="overview" title="Scan another site" text="Start a fresh scan from the home page." href="/" tone="accent" />
+      </ActionModal>
+      {pdfBusy && (
+        <div className="pdf-busy" role="status">
+          <LoaderBlock variant="bar" size="lg" py={0} text="Preparing your PDF…" />
+        </div>
+      )}
       <PrintCover scan={scan} overall={potential} modules={modules} preparedFor={ownerName} />
       {party && <Confetti />}
       {access === "owner" && acct && acct.accountType === null && <AgencyModal onAnswered={setAcct} />}
@@ -1022,17 +1057,23 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           )}
         </div>
         <div className="dash-act">
-          <button type="button" className="dash-btn kbd-btn" onClick={() => setPalette(true)} aria-label="Search and jump (Ctrl K)">
+          <Button size="sm" className="dash-wide dash-ob kbd-ob" onClick={() => setPalette(true)} aria-label="Search and jump (Ctrl K)">
             Search <kbd>Ctrl K</kbd>
-          </button>
+          </Button>
           <ActivityBell scan={scan} snaps={snaps} />
-          {access === "owner" && <RescanButton url={scan.url} id={scan.id} running={params.get("scan")} />}
-          <button type="button" className="dash-btn ico-btn" onClick={openShare}><AreaIcon k="share" size={16} />Share</button>
-          <button type="button" className="dash-btn ico-btn" onClick={() => setModal("export")}><AreaIcon k="download" size={16} />{pdfBusy ? "Preparing PDF…" : "Export"}</button>
-          <button type="button" className="dash-btn ico-btn" onClick={() => setModal("more")}><AreaIcon k="dots" size={16} />More</button>
-          <Link href="/" className="dash-btn primary">
+          {/* On phones only this pair shows in the second row; everything else moves into the Actions sheet. */}
+          <div className="dash-act-main">
+            {access === "owner" && <RescanButton url={scan.url} id={scan.id} running={params.get("scan")} />}
+            <Button size="sm" className="dash-ob dash-actions-btn" onClick={() => setModal("actions")} aria-haspopup="dialog" iconLeft={<AreaIcon k="dots" size={16} />}>
+              Actions
+            </Button>
+          </div>
+          <Button size="sm" className="dash-wide dash-ob" onClick={openShare} iconLeft={<AreaIcon k="share" size={16} />}>Share</Button>
+          <Button size="sm" className="dash-wide dash-ob" onClick={() => setModal("export")} loading={pdfBusy} iconLeft={<AreaIcon k="download" size={16} />}>{pdfBusy ? "Preparing PDF…" : "Export"}</Button>
+          <Button size="sm" className="dash-wide dash-ob" onClick={() => setModal("more")} iconLeft={<AreaIcon k="dots" size={16} />}>More</Button>
+          <Button variant="slide-icon" tone="solid" size="sm" href="/" className="dash-wide dash-cta">
             Scan another site
-          </Link>
+          </Button>
         </div>
         <AuthLink compact />
       </header>
@@ -1065,6 +1106,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
         </nav>
 
         <main className="dash-main">
+          <BreadcrumbBlock items={crumbs} linkComponent={CrumbLink} className="dash-crumbs justify-start" />
           {body}
         </main>
       </div>

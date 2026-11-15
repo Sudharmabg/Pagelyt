@@ -1,5 +1,6 @@
 "use client";
 
+import { PageLoader } from "@/app/page-loader";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { fetchLatestReport } from "@/lib/use-latest-report";
@@ -26,7 +27,7 @@ export function OpenLatest() {
   }, [user, router]);
   return (
     <main className="dash-open">
-      <p className="dash-loading" role="status">Opening your dashboard…</p>
+      <PageLoader text="Opening your dashboard…" />
     </main>
   );
 }

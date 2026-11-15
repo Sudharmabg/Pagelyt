@@ -1,5 +1,6 @@
 "use client";
 
+import { LoaderBlock } from "@/components/avara/LoaderBlock";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { adoptSession, rememberVerifyEmail, type SessionTokens } from "@/lib/pending";
@@ -380,6 +381,7 @@ export function LeadModal({
       </div>
     ) : (
       <div className="lm-body">
+        <LoaderBlock variant="orbit" size="lg" py={4} className="lm-orbit" />
         <h2 id="lead-h">Opening your dashboard…</h2>
         <p className="lm-sub" role="status">
           {opening ? "Your scan has started. Next, enter the code we’ve emailed you to unlock the report." : `Your scan of ${host} is starting. You’ll see each area completed live.`}

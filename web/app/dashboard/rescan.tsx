@@ -4,6 +4,8 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { beginScan, stepScan } from "@/lib/run-scan";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { RefreshCw } from "lucide-react";
+import Button from "@/components/avara/Button";
 
 async function token(): Promise<string | undefined> {
   return (await supabaseBrowser()?.auth.getSession())?.data.session?.access_token;
@@ -62,9 +64,9 @@ export function RescanButton({ url, id, running }: { url: string; id: string; ru
 
   return (
     <>
-      <button type="button" className="dash-btn" onClick={go} disabled={busy} aria-live="polite">
+      <Button variant="slide-icon" size="sm" className="dash-cta" onClick={go} loading={busy} aria-live="polite" iconRight={<RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />}>
         {busy ? "Scanning…" : "Rescan"}
-      </button>
+      </Button>
       {err && <span className="lm-err" role="alert">{err}</span>}
     </>
   );

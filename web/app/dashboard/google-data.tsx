@@ -2,6 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { ChartColumn, LayoutGrid, Megaphone, Search } from "lucide-react";
+import { VerticalTabs } from "@/components/avara/VerticalTabs";
+import { LoaderBlock } from "@/components/avara/LoaderBlock";
+import { ToggleGroup, ToggleGroupItem } from "@/components/avara/ToggleGroupBlock";
 import { findingKey } from "@/lib/scan/score";
 import { MODULE_NAMES, type Finding, type ModuleKey } from "@/lib/scan/types";
 import { byTraffic, change, drops, findingsOn, lowCtr, notIndexed, strikingDistance, trafficMap, type GscData, type GscQuery, type Traffic } from "@/lib/google/gsc-insights";
@@ -62,27 +66,42 @@ export function GoogleData({ g, scan, siteId, findings, onSave, onOpenFinding, t
   const gaNotice = notice?.startsWith("ga4") ? notice.slice(3) : null;
   const adsNotice = notice?.startsWith("ads") ? notice.slice(3) : null;
   const linked = (s.gsc && !!s.property) || (s.ga4 && !!s.ga4Property) || (!!s.adsOn && !!s.ads && !!s.adsCustomer);
-  const TABS: [GoogleTab, string][] = [["overview", "Overview"], ["gsc", "Search Console"], ["ga4", "Analytics"], ...(s.adsOn === false ? [] : [["ads", "Google Ads"] as [GoogleTab, string]])];
+  const TABS: { id: GoogleTab; label: string; hint: string; icon: React.ElementType }[] = [
+    { id: "overview", label: "Overview", hint: "All your Google data at a glance", icon: LayoutGrid },
+    { id: "gsc", label: "Search Console", hint: "Searches, clicks and indexing", icon: Search },
+    { id: "ga4", label: "Analytics", hint: "Visitors and what they do", icon: ChartColumn },
+    ...(s.adsOn === false ? [] : [{ id: "ads" as GoogleTab, label: "Google Ads", hint: "Spend and landing pages", icon: Megaphone }]),
+  ];
+  const body = (k: GoogleTab) =>
+    k === "overview" ? (
+      <GoogleOverview g={g} scan={scan} findings={findings} onTab={onTab} />
+    ) : k === "gsc" ? (
+      <GscTab g={g} scan={scan} findings={findings} notice={gaNotice || adsNotice ? null : notice} />
+    ) : k === "ga4" ? (
+      <AnalyticsTab g={g} scan={scan} findings={findings} notice={gaNotice} />
+    ) : (
+      <AdsTab g={g} scan={scan} findings={findings} notice={adsNotice} />
+    );
   return (
     <GoogleNav.Provider value={nav}>
-      <div className="gd-bar">
-        <div className="gd-tabs" role="tablist" aria-label="Google data">
-          {TABS.map(([k, label]) => (
-            <button key={k} type="button" role="tab" aria-selected={tab === k} className={tab === k ? "on" : ""} onClick={() => onTab(k)}>{label}</button>
-          ))}
+      {linked && (
+        <div className="gd-bar gd-bar-av">
+          <RangePicker g={g} />
         </div>
-        {linked && <RangePicker g={g} />}
-      </div>
-      {g.inRange.error && <p className="panel gd-note bad" role="alert">{g.inRange.error}</p>}
-      {tab === "overview" ? (
-        <GoogleOverview g={g} scan={scan} findings={findings} onTab={onTab} />
-      ) : tab === "gsc" ? (
-        <GscTab g={g} scan={scan} findings={findings} notice={gaNotice || adsNotice ? null : notice} />
-      ) : tab === "ga4" ? (
-        <AnalyticsTab g={g} scan={scan} findings={findings} notice={gaNotice} />
-      ) : (
-        <AdsTab g={g} scan={scan} findings={findings} notice={adsNotice} />
       )}
+      {g.inRange.error && <p className="panel gd-note bad" role="alert">{g.inRange.error}</p>}
+      <VerticalTabs
+        tabs={TABS.map((t) => ({ ...t, content: body(t.id) }))}
+        orientation="vertical"
+        variant="segmented"
+        activeId={tab}
+        onActiveChange={(id) => onTab(id as GoogleTab)}
+        ariaLabel="Google data"
+        plain
+        className="gd-vtabs gap-5"
+        railClassName="md:w-52 lg:w-56 self-start md:sticky md:top-24"
+        contentClassName="p-0 md:p-0 border-0 rounded-none"
+      />
       {page && <PageDrill page={page} g={g} scan={scan} findings={findings} onClose={() => setPage(null)} />}
     </GoogleNav.Provider>
   );
@@ -91,13 +110,13 @@ export function GoogleData({ g, scan, siteId, findings, onSave, onOpenFinding, t
 function RangePicker({ g }: { g: GoogleState }) {
   const loading = g.busy === "range";
   return (
-    <div className="gd-range" role="group" aria-label="Date range">
-      {([7, 28, 90] as Days[]).map((d) => (
-        <button key={d} type="button" aria-pressed={g.days === d} className={g.days === d ? "on" : ""} onClick={() => void g.setDays(d)} disabled={loading}>
-          {d} days
-        </button>
-      ))}
-      {loading && <span className="gd-range-busy" role="status">Loading…</span>}
+    <div className="gd-range-av">
+      <ToggleGroup variant="segmented" size="sm" aria-label="Date range" value={String(g.days)} disabled={loading} onValueChange={(v) => void g.setDays(Number(v) as Days)}>
+        {([7, 28, 90] as Days[]).map((d) => (
+          <ToggleGroupItem key={d} value={String(d)}>{d} days</ToggleGroupItem>
+        ))}
+      </ToggleGroup>
+      {loading && <span className="gd-range-busy" role="status"><LoaderBlock variant="spinner" size="sm" py={0} className="flex-row gap-2" text="Loading…" /></span>}
     </div>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { PageLoader } from "@/app/page-loader";
 import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { useSignedIn } from "@/lib/use-signed-in";
@@ -87,7 +88,7 @@ export function ToolView({ slug, name }: { slug: ToolSlug; name: string }) {
     return null;
   };
 
-  if (signedIn && !authed && !loaded) return <p className="dash-loading" role="status">Loading your report…</p>;
+  if (signedIn && !authed && !loaded) return <PageLoader text="Loading your report…" />;
   return (
     <>
       <div className="tools" onSubmitCapture={onSubmitCapture} onClickCapture={onClickCapture}>

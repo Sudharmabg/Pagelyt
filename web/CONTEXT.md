@@ -275,12 +275,24 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 - `home-data.ts`: the copy for those sections (`ROTATOR`, `STATS`, `PROCESS`, `COMPARE`, `REVIEWS`, `FREE_TOOLS`). Pricing and FAQ live only on `/pricing` and `/faq`, not the home page. The reviews are samples: never mark them up as Review schema.
 - `art.tsx`, `arcs.tsx`, `arrow.tsx`: decorative art.
 - `main-cta.tsx`: `MainCta`, the site's main button. "Analyse My Website" for visitors, "Go to dashboard" (/dashboard) when signed in.
+- `home-checks.tsx`: `HomeChecks`, the homepage "What Pagelyt checks" section: Avara vertical tabs, one per feature in `features-data.ts` (lead, checks list, link to the feature page).
+- `page-loader.tsx`: `PageLoader`, the full-area wait (Avara orbit loader + text) used for signed-in pages and "Opening your dashboard…".
 - `welcome-back.tsx`: `WelcomeBack`, the signed-in bar above the home headline with the latest report and an Open dashboard button.
 - `dashboard/page.tsx` + `dashboard/open-latest.tsx`: /dashboard sends signed-in people to their newest report (or /account if none) and visitors to sign in, keeping the query string (`/dashboard?view=google&gtab=ads` opens that tab of the newest report).
 - `api/account/latest/route.ts`: GET the signed-in person's newest finished report (id, host, score).
 - `nav-mobile.tsx`, `scroll-top.tsx`, `json-ld.tsx`, `use-turnstile.ts`, `request-form.tsx`.
 - `admin/bookings.tsx`: `AdminBookings`, the admin Bookings tab (upcoming bookings with call link, move, done and cancel; bookable hours, notice, horizon, buffer; days off).
 - Styles are all in `globals.css`. Modals reuse `.lead-modal`; the share modal is `.share-modal`.
+
+## Avara UI components (`components/avara/`)
+
+Copied from avaraui.com (shadcn-style registry) and trimmed. They use Tailwind classes on shadcn tokens (`bg-primary`, `text-muted-foreground`…), which the token bridge at the top of `app/globals.css` maps to Pagelyt colours (`:root`, `.dash.dark`, `@theme inline`). `cn` lives in `lib/utils.ts` (clsx + tailwind-merge).
+- `Button.tsx`: default export `Button`, variants `slide-icon` (primary calls to action) and `outline` (secondary); `href` renders a next/link; `loading` shows a spinner.
+- `CopyButtonBlock.tsx` + `copy-button-hooks.ts`: `CopyButton`, `CopyField`, `useCopyToClipboard` (clipboard API with a textarea fallback).
+- `ToggleGroupBlock.tsx` + `toggle-group-theme.ts`: `ToggleGroup`, `ToggleGroupItem` (use `variant="segmented"` for view switches).
+- `BreadcrumbBlock.tsx` + `breadcrumb-theme.ts`: `BreadcrumbBlock` (pass `linkComponent={Link}`).
+- `VerticalTabs.tsx` + `vertical-tabs-theme.ts`: `VerticalTabs` (tabs with id, label, icon, content; `orientation="vertical"`).
+- `LoaderBlock.tsx` + `loader-theme.ts`: `LoaderBlock` (spinner, orbit, bar, dots, pulse, ring).
 
 ## Database (`supabase/migrations/`)
 

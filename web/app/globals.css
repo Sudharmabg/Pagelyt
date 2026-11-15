@@ -1,5 +1,39 @@
 @import "tailwindcss";
 
+/* Colour bridge for the Avara UI components (components/avara): they use shadcn's names (bg-primary,
+   text-muted-foreground, border-border, bg-card...). These point those names at Pagelyt's own colours, so the
+   components look like the rest of the site. The dashboard's dark mode re-points them below (.dash.dark). */
+:root {
+  --primary: #7a3fd0;
+  --primary-foreground: #ffffff;
+  --foreground: #1d1020;
+  --background: #ffffff;
+  --card: #ffffff;
+  --muted: #f3ecfb;
+  --muted-foreground: #5c4752;
+  --border: #e8e1f2;
+}
+.dash.dark {
+  --primary: #b79cf0;
+  --primary-foreground: #18212b;
+  --foreground: #e8eef4;
+  --background: #10161d;
+  --card: #1d2733;
+  --muted: #243140;
+  --muted-foreground: #9aa8b6;
+  --border: #2a3644;
+}
+@theme inline {
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --color-card: var(--card);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+}
+
 :root {
   /* Glacier Blue ramp (brand) */
   --i50: #f7f1ff;
@@ -89,17 +123,20 @@ h4 {
   text-wrap: balance;
   color: var(--n800);
 }
-button,
-input {
-  font: inherit;
-  color: inherit;
-}
-a {
-  color: inherit;
-}
-:focus-visible {
-  outline: 3px solid var(--i600);
-  outline-offset: 3px;
+/* In the base layer so Tailwind utilities (components/avara) can override them; every unlayered class rule still wins. */
+@layer base {
+  button,
+  input {
+    font: inherit;
+    color: inherit;
+  }
+  a {
+    color: inherit;
+  }
+  :focus-visible {
+    outline: 3px solid var(--i600);
+    outline-offset: 3px;
+  }
 }
 ::selection {
   background: var(--lime);
@@ -4117,11 +4154,11 @@ button:hover > .arr,
 .fnd .fb .fnd-link { justify-self: start; margin-top: .25rem; }
 .fnd-tools { display: flex; gap: .75rem; flex-wrap: wrap; margin-bottom: .9rem; }
 .fnd-chips { display: flex; gap: .4rem; flex-wrap: wrap; }
-.fnd-chips button { all: unset; box-sizing: border-box; cursor: pointer; padding: .35rem .8rem; border-radius: 999px; background: #fff; border: 1.5px solid #ddd5ca; font-size: .85rem; font-weight: 600; display: inline-flex; gap: .4rem; }
-.fnd-chips button span { opacity: .6; }
-.fnd-chips button[aria-pressed="true"] { background: #14202b; color: #fff; border-color: #14202b; }
-.fnd-chips button:disabled { opacity: .4; cursor: default; }
-.fnd-chips button:focus-visible, .fnd-search:focus-visible { outline: 2px solid #7c5cd6; outline-offset: 2px; }
+.fnd-chips button:not([data-toggle-item]) { all: unset; box-sizing: border-box; cursor: pointer; padding: .35rem .8rem; border-radius: 999px; background: #fff; border: 1.5px solid #ddd5ca; font-size: .85rem; font-weight: 600; display: inline-flex; gap: .4rem; }
+.fnd-chips button:not([data-toggle-item]) span { opacity: .6; }
+.fnd-chips button:not([data-toggle-item])[aria-pressed="true"] { background: #14202b; color: #fff; border-color: #14202b; }
+.fnd-chips button:not([data-toggle-item]):disabled { opacity: .4; cursor: default; }
+.fnd-chips button:not([data-toggle-item]):focus-visible, .fnd-search:focus-visible { outline: 2px solid #7c5cd6; outline-offset: 2px; }
 .fnd-search { font: inherit; font-size: .88rem; flex: 1; min-width: 160px; padding: .4rem .9rem; border: 1.5px solid #ddd5ca; border-radius: 999px; background: #fff; }
 .fnd-empty { text-align: center; opacity: .7; padding: 1.5rem 0; }
 
@@ -4172,7 +4209,7 @@ button:hover > .arr,
 .dash .fnd .ft { font-weight: 600; font-size: .95rem; }
 .dash .fnd .fm { font-size: .78rem; }
 .dash .fnd .fb { border-top: 1px solid #f0ebe3; margin: 0 1rem; padding: .85rem 0 1rem; }
-.fnd-chips button { background: #fff; border-color: #d9d2c7; }
+.fnd-chips button:not([data-toggle-item]) { background: #fff; border-color: #d9d2c7; }
 .dash-more { font-size: .88rem; }
 
 /* intro: arcs sweep in (colour stays final), numbers count up, blocks rise in */
@@ -4312,9 +4349,9 @@ button:hover > .arr,
 .tout { background: #14202b; color: #e8eef4; border-radius: 18px; overflow: hidden; min-width: 0; position: sticky; top: 1rem; }
 .tout-bar { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding: .7rem 1rem; background: #0e1720; font-size: .82rem; font-weight: 600; }
 .tout-act { display: flex; gap: .4rem; }
-.tout-act button { all: unset; cursor: pointer; padding: .3rem .8rem; border-radius: 999px; border: 1px solid #3a4a5a; font-size: .8rem; font-weight: 700; transition: background .15s; }
-.tout-act button:hover, .tout-act button[aria-pressed="true"] { background: #fff; color: #14202b; border-color: #fff; }
-.tout-act button:focus-visible, .tout pre:focus-visible { outline: 2px solid #b79cf0; outline-offset: 2px; }
+.tout-act button:not([data-state]) { all: unset; cursor: pointer; padding: .3rem .8rem; border-radius: 999px; border: 1px solid #3a4a5a; font-size: .8rem; font-weight: 700; transition: background .15s; }
+.tout-act button:not([data-state]):hover, .tout-act button[aria-pressed="true"] { background: #fff; color: #14202b; border-color: #fff; }
+.tout-act button:not([data-state]):focus-visible, .tout pre:focus-visible { outline: 2px solid #b79cf0; outline-offset: 2px; }
 .tout pre { margin: 0; padding: 1.1rem; font: .82rem/1.6 ui-monospace, "Cascadia Code", Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 480px; overflow: auto; }
 .tmeter { margin: -.5rem 0 0; font-size: .8rem; font-weight: 700; }
 .m-good { color: #1a7f4e; } .m-short, .m-long { color: #b25e00; } .m-na { color: #667085; }
@@ -4325,7 +4362,7 @@ button:hover > .arr,
 .serp-fav { width: 26px; height: 26px; border-radius: 50%; background: #e8eaed; display: grid; place-items: center; font-weight: 700; font-size: .75rem; color: #5f6368; flex: none; }
 .serp-title { color: #1a0dab; font-size: 1.2rem; line-height: 1.3; }
 .serp-desc { color: #4d5156; font-size: .9rem; line-height: 1.5; }
-@media (prefers-reduced-motion: reduce) { .ttabs button, .tout-act button { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .ttabs button, .tout-act button:not([data-state]) { transition: none; } }
 
 /* ---- tool pages (/tools/<slug>) and the directory ---- */
 .tcrumb { margin: .75rem 0 0; font-size: .9rem; font-weight: 600; color: #55616d; }
@@ -4598,8 +4635,8 @@ button:hover > .arr,
 .dash.dark .fnd-body .fwhy, .dash.dark .panel-note, .dash.dark .fv, .dash.dark .how-body, .dash.dark .vm-l { color: var(--dk-mute); }
 .dash.dark .fnd .fb, .dash.dark .fnd-body .fb { border-color: var(--dk-line); }
 .dash.dark .fnd-link { color: #b79cf0; }
-.dash.dark .fnd-chips button, .dash.dark .fnd-search, .dash.dark .seg { background: var(--dk-card); border-color: var(--dk-line); color: var(--dk-ink); }
-.dash.dark .fnd-chips button[aria-pressed="true"] { background: var(--dk-ink); color: var(--dk-bg); }
+.dash.dark .fnd-chips button:not([data-toggle-item]), .dash.dark .fnd-search, .dash.dark .seg { background: var(--dk-card); border-color: var(--dk-line); color: var(--dk-ink); }
+.dash.dark .fnd-chips button:not([data-toggle-item])[aria-pressed="true"] { background: var(--dk-ink); color: var(--dk-bg); }
 .dash.dark .seg button[aria-pressed="true"] { background: #2c3b4c; color: var(--dk-ink); box-shadow: none; }
 .dash.dark .vm, .dash.dark .chip, .dash.dark .dp-bar, .dash.dark .ba-track, .dash.dark .kbd-btn kbd, .dash.dark .cmdk kbd { background: #202c39; border-color: var(--dk-line); color: var(--dk-ink); }
 .dash.dark .dash-story { background: #261f3d; color: #d9ccf7; }
@@ -4972,7 +5009,7 @@ button:hover > .arr,
   .tout {
     position: static;
   }
-  .tout-act button {
+  .tout-act button:not([data-state]) {
     padding: .55rem 1rem;
   }
 }
@@ -7099,8 +7136,8 @@ html:not(.js) .pv-fix li { opacity: 1; transform: none; }
 .explorer .fnd-chips { flex-wrap: nowrap; overflow-x: auto; overscroll-behavior-x: contain; scroll-snap-type: x proximity; scrollbar-width: none; padding: 2px 2px 4px; margin: -2px -2px -4px;
   -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
 .explorer .fnd-chips::-webkit-scrollbar { display: none; }
-.explorer .fnd-chips button { flex: none; white-space: nowrap; scroll-snap-align: start; }
-.explorer .fnd-chips button:last-child { margin-right: 24px; }
+.explorer .fnd-chips button:not([data-toggle-item]) { flex: none; white-space: nowrap; scroll-snap-align: start; }
+.explorer .fnd-chips button:not([data-toggle-item]):last-child { margin-right: 24px; }
 .fnd-sep { flex: none; width: 1px; align-self: stretch; margin: .2rem .15rem; background: #ddd5ca; }
 .dash.dark .fnd-find .fnd-search { background: var(--dk-card); border-color: var(--dk-line); color: var(--dk-ink); }
 .dash.dark .fnd-find .fnd-clear { color: var(--dk-ink); }
@@ -7431,7 +7468,7 @@ html:not(.js) .pv-fix li { opacity: 1; transform: none; }
 .tout-dots { display: inline-flex; gap: 5px; }
 .tout-dots i { width: 9px; height: 9px; border-radius: 50%; background: #ff6b5f; }
 .tout-dots i:nth-child(2) { background: #ffbd2e; } .tout-dots i:nth-child(3) { background: #28c840; }
-.tout-act button { display: inline-flex; align-items: center; gap: .3rem; }
+.tout-act button:not([data-state]) { display: inline-flex; align-items: center; gap: .3rem; }
 .tout-act button.done { background: #28c840; border-color: #28c840; color: #0b1d10; animation: t-pop .3s var(--ease, ease-out); }
 @keyframes t-pop { 40% { transform: scale(1.12); } }
 
@@ -9294,3 +9331,236 @@ button[data-tip], a[data-tip] { cursor: pointer; }
 .vtl.close .vtl-pin.fcp em::after { content: ""; position: absolute; left: 50%; top: 100%; width: 1px; height: 20px; background: var(--d-mute); opacity: .5; }
 .vtl.close .vtl-pin.lcp em { transform: translateX(-50%); }
 .vtl-pin.lcp.same em { transform: translateX(-50%); }
+
+/* ===== Overview cards v2 (dashboard.tsx, ul.dc2): left-aligned head (icon chip, name, tone pill, ring), a full-width
+   severity bar, and a footer with the count and an "Open →" cue. The scan-detail cards share the same frame with a
+   big number instead of a ring. One surface, one radius, one shadow, one hover for all 13. */
+.dash .dc2 { gap: .85rem; }
+.dash .dc2 > li > button {
+  --tc: var(--d-mute); --tc-bg: var(--d-soft);
+  display: flex; flex-direction: column; align-items: stretch; justify-items: stretch; gap: .8rem;
+  text-align: left; padding: 1rem 1rem .85rem; border-radius: 18px;
+  background: var(--d-card); border: 1px solid var(--d-line); box-shadow: var(--d-shadow);
+}
+.dash .dc2 .dc-good { --tc: var(--d-good); --tc-bg: var(--d-good-bg); }
+.dash .dc2 .dc-warn { --tc: var(--d-ok); --tc-bg: var(--d-ok-bg); }
+.dash .dc2 .dc-bad { --tc: var(--d-bad); --tc-bg: var(--d-bad-bg); }
+/* the tone shows as a soft wash fading down from the top edge instead of a hairline */
+.dash .dc2 > li > button::before { height: 3px; background: var(--tc); opacity: .9; }
+.dash .dc2 > li > button::after { content: ""; position: absolute; inset: 0 0 auto; height: 64px; background: linear-gradient(var(--tc-bg), transparent); opacity: .7; pointer-events: none; }
+.dash .dc2 .dc-none::after { display: none; }
+.dash .dc2 > li > button > * { position: relative; z-index: 1; }
+.dc2 .dc-head { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "ico . ring" "title title title"; align-items: center; gap: .7rem .65rem; min-width: 0; }
+.dc2 .dc-head > .dc-ico { grid-area: ico; }
+.dc2 .dc-head > .dc-title { grid-area: title; }
+.dc2 .dc-head > .rg { grid-area: ring; }
+/* scan-detail cards have no ring: icon and name share one row */
+.dc2 .dc-ins .dc-head { grid-template-columns: auto minmax(0, 1fr); grid-template-areas: "ico title"; }
+.dc2 .dc-ico { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border-radius: 11px; background: var(--d-soft); color: var(--d-accent); transition: transform .2s var(--d-ease); }
+.dc2 .dc-title { min-width: 0; display: grid; justify-items: start; gap: .3rem; }
+.dc2 .dc-ins .dc-title { align-self: center; }
+.dash .dc2 .dc-name { display: block; font-weight: 700; font-size: .95rem; line-height: 1.2; color: var(--d-ink); }
+.dc2 .dc-tone { font-size: .7rem; font-weight: 700; letter-spacing: .02em; padding: .12rem .5rem; border-radius: 999px; background: var(--tc-bg); color: var(--tc); }
+.dc2 .dc-head > .rg b { font-size: .95rem; }
+.dash .dc2 .heat { width: 100%; height: 6px; margin: 0; background: var(--d-soft); }
+.dash .dc2 .heat.none { background: var(--d-good-bg); }
+.dc2 .dc-foot { margin-top: auto; display: flex; align-items: center; justify-content: space-between; gap: .5rem; padding-top: .65rem; border-top: 1px solid var(--d-line); }
+.dash .dc2 .dc-n { font-size: .8rem; opacity: 1; color: var(--d-mute); line-height: 1.35; }
+.dash .dc2 .dc-foot .dc-n { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.dc2 .dc-go { flex: none; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; font-size: .85rem; font-weight: 800; background: var(--d-soft); color: var(--d-accent); transition: background .2s, color .2s, transform .2s var(--d-ease); }
+.dc2 > li > button:hover .dc-go, .dc2 > li > button:focus-visible .dc-go { background: var(--d-grad, var(--d-accent)); color: #fff; transform: translateX(2px); }
+.dc2 > li > button:hover .dc-ico { transform: scale(1.06) rotate(-4deg); }
+/* scan-detail cards: the key number big and left-aligned, its label beside it */
+.dc2 .dc-big { display: flex; align-items: baseline; flex-wrap: wrap; gap: .2rem .55rem; }
+.dc2 .dc-big b { font-family: var(--fd); font-size: 2rem; line-height: 1; letter-spacing: -.03em; color: var(--tc); font-variant-numeric: tabular-nums; }
+.dc2 .dc-none .dc-big b { color: var(--d-mute); opacity: .5; }
+.dash .dc2 .dc-ins .dc-n { max-width: none; }
+.dash .dc2 .dc-sub { font-size: .78rem; }
+.dash .dc2 .dc-sub:not([class*="st-"]) { color: var(--d-mute); }
+@media (prefers-reduced-motion: reduce) { .dc2 .dc-go, .dc2 .dc-ico { transition: none; } .dc2 > li > button:hover .dc-ico, .dc2 > li > button:hover .dc-go { transform: none; } }
+@media (max-width: 560px) {
+  .dash .dc2 > li > button { padding: .85rem .8rem .75rem; gap: .65rem; }
+  .dc2 .dc-ico { width: 30px; height: 30px; border-radius: 9px; }
+  .dc2 .dc-head { gap: .55rem .5rem; }
+  .dc2 .dc-go { width: 22px; height: 22px; font-size: .75rem; }
+  .dc2 .dc-big b { font-size: 1.6rem; }
+}
+@media print { .dash .dc2 > li > button::after { display: none; } .dc2 .dc-go { display: none; } }
+
+/* Overview cards v2: each area (and each scan detail) has its own colour. --ac is the hue; the card takes a pale
+   wash of it, the icon chip is solid, and the bar, divider, arrow and hover border follow it. The score ring and
+   tone pill keep showing good / needs work / fix first. */
+.dca-health { --ac: #7a3fd0; } .dca-performance { --ac: #d9711b; } .dca-seo { --ac: #2f6fdb; } .dca-geo { --ac: #d0458f; }
+.dca-security { --ac: #128a7a; } .dca-accessibility { --ac: #3b8a22; } .dca-domain { --ac: #b7791f; } .dca-privacy { --ac: #4c4fd6; }
+.dca-speed { --ac: #e0603a; } .dca-pages { --ac: #0e8fb0; } .dca-images { --ac: #c0398a; } .dca-tech { --ac: #6b7a2a; } .dca-changes { --ac: #3f6d8f; }
+.dash .dc2 > li > button[class*="dca-"], .dash.dark .dc2 > li > button[class*="dca-"] {
+  --ac-ink: var(--ac);
+  background-color: color-mix(in srgb, var(--ac) 9%, var(--d-card));
+  border-color: color-mix(in srgb, var(--ac) 24%, var(--d-line));
+}
+.dash.dark .dc2 > li > button[class*="dca-"] { --ac-ink: color-mix(in srgb, var(--ac) 55%, #fff); background-color: color-mix(in srgb, var(--ac) 14%, var(--d-card)); }
+.dash .dc2 > li > button[class*="dca-"]:hover { border-color: color-mix(in srgb, var(--ac) 60%, transparent); box-shadow: 0 2px 4px rgba(48, 24, 96, .06), 0 18px 36px -20px color-mix(in srgb, var(--ac) 70%, transparent); }
+.dash .dc2 > li > button[class*="dca-"]::before { background: var(--ac); }
+.dash .dc2 > li > button[class*="dca-"]::after { display: none; }
+.dc2 [class*="dca-"] .dc-ico { background: var(--ac); color: #fff; box-shadow: 0 6px 14px -8px var(--ac); }
+.dash .dc2 [class*="dca-"] .heat { background: color-mix(in srgb, var(--ac) 16%, var(--d-card)); }
+.dash .dc2 [class*="dca-"] .heat.none { background: color-mix(in srgb, var(--d-good) 30%, var(--d-card)); }
+.dc2 [class*="dca-"] .dc-foot { border-top-color: color-mix(in srgb, var(--ac) 20%, var(--d-line)); }
+.dc2 [class*="dca-"] .dc-go { background: color-mix(in srgb, var(--ac) 15%, var(--d-card)); color: var(--ac-ink); }
+.dc2 > li > button[class*="dca-"]:hover .dc-go, .dc2 > li > button[class*="dca-"]:focus-visible .dc-go { background: var(--ac); color: #fff; }
+.dash .dc2 > li > button[class*="dca-"]:focus-visible { outline-color: var(--ac); }
+@media print { .dash .dc2 > li > button[class*="dca-"] { background: #fff; } }
+
+/* ===== Homepage cards, matched to the dashboard Overview cards =====
+   Same frame for the free tools grid, the hero stat tiles, the outcome cards and the guide cards: a pale wash of the
+   card's own colour, an 18px radius, a 3px colour edge along the top (it replaces the thick bottom ribbon), a soft
+   coloured shadow, a solid icon chip, and a divider above the footer with a round arrow chip that fills on hover.
+   Each group keeps its own colour variable: --tc (tools), --c (stats, outcomes), --gt (guides). */
+.tf-card, .stats-bar li, .story, .gcar-card {
+  --hc: var(--tc, var(--c, var(--gt, #7a3fd0)));
+  position: relative; overflow: hidden; border-radius: 18px;
+  background: color-mix(in srgb, var(--hc) 7%, #fff);
+  border: 1px solid color-mix(in srgb, var(--hc) 24%, #fff);
+  box-shadow: 0 1px 2px rgba(48, 24, 96, .05), 0 14px 30px -22px color-mix(in srgb, var(--hc) 65%, transparent);
+}
+.tf-card { --hc: var(--tc); } .stats-bar li, .story { --hc: var(--c); } .gcar-card { --hc: var(--gt); }
+.tf-card::after, .stats-bar li::after, .story::after { inset: 0 0 auto; height: 3px; background: var(--hc); }
+.gcar-card::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: var(--hc); }
+@media (hover: hover) {
+  .tf-card:hover, .stats-bar li:hover, .stats-bar li:nth-child(even):hover, .js .story-row.in > li.story:hover, .story:hover, .gcar-card:hover {
+    transform: translateY(-4px);
+    border-color: color-mix(in srgb, var(--hc) 55%, #fff);
+    box-shadow: 0 2px 4px rgba(48, 24, 96, .06), 0 22px 40px -22px color-mix(in srgb, var(--hc) 75%, transparent);
+  }
+}
+.tf-card:hover .tsample { box-shadow: 0 10px 22px -16px var(--tc); }
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .tf-card[data-tilt] { background: var(--glow), color-mix(in srgb, var(--tc) 7%, #fff); }
+}
+
+/* footers: a hairline divider, then the action on the left and a round arrow chip on the right */
+.tf-card .tf-go, .gcar-go { align-self: stretch; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--hc) 20%, #fff); font-size: 15px; font-weight: 700; color: var(--hc); }
+.tf-card .tf-go .arr, .gcar-go span { flex: none; box-sizing: border-box; display: grid; place-items: center; width: 30px; height: 30px; padding: 7px; border-radius: 50%; background: color-mix(in srgb, var(--hc) 14%, #fff); color: var(--hc); transition: background .2s, color .2s, transform .2s var(--ease), translate .2s var(--ease); }
+.tf-card:hover .tf-go .arr, .tf-card:focus-visible .tf-go .arr, .gcar-card:hover .gcar-go span, .gcar-card:focus-visible .gcar-go span { background: var(--hc); color: #fff; transform: translateX(3px); translate: 0 0; }
+.story-time { margin: auto 0 0; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--c) 20%, #fff); }
+
+/* tools grid */
+.tf-card { padding: 18px 18px 16px; }
+.tf-ic { width: 40px; height: 40px; border-radius: 12px; box-shadow: 0 8px 16px -10px var(--tc); }
+.tf-free { background: color-mix(in srgb, var(--tc) 10%, #fff); }
+
+/* hero stat tiles: solid icon chip, left-aligned like the dashboard, no tilt on hover */
+.stats-bar li { align-items: flex-start; text-align: left; gap: 4px; padding: 14px 14px 13px; }
+.stats-bar .st-ic { width: 32px; height: 32px; padding: 7px; border-radius: 10px; background: var(--d); stroke: #fff; box-shadow: 0 6px 14px -8px var(--d); }
+.stats-bar strong { margin-top: 6px; }
+
+/* outcome cards */
+.story { padding: 20px 20px 16px; }
+.story-ic { width: 40px; height: 40px; border-radius: 12px; }
+.story-found { border-radius: 14px; border-color: color-mix(in srgb, var(--c) 18%, #fff); }
+
+/* guide cards: the same frame; the carousel still eases the side cards back, but no longer twists them */
+.gcar-card { padding: 22px 22px 18px; background-image: none; }
+.gcar-tag { border-radius: 8px; }
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    @keyframes gcar-turn {
+      0% { transform: scale(.94); opacity: .6; }
+      50% { transform: none; opacity: 1; }
+      100% { transform: scale(.94); opacity: .6; }
+    }
+  }
+}
+@media (max-width: 640px) {
+  .stats-bar li { padding: 11px 12px; border-radius: 16px; }
+  .stats-bar .st-ic { width: 28px; height: 28px; padding: 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tf-card .tf-go .arr, .gcar-go span { transition: none; }
+  .tf-card:hover, .stats-bar li:hover, .story:hover, .gcar-card:hover, .tf-card:hover .tf-go .arr, .gcar-card:hover .gcar-go span { transform: none; }
+}
+
+/* ===== Phone dashboard header (≤720px): two tidy rows.
+   Row 1: logo, site, bell, account. Row 2: Rescan + Actions (the rest live in the Actions sheet).
+   Wider screens: the Actions button is hidden and .dash-act-main melts into the action row. */
+.dash-act-main { display: contents; }
+.dash-actions-btn { display: none !important; }
+@media (max-width: 720px) {
+  .dash .dash-top {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: .55rem .6rem;
+    padding: .6rem .9rem .7rem;
+  }
+  .dash .dash-top > .dash-logo { grid-column: 1; grid-row: 1; }
+  .dash .dash-top > .dash-logo img { height: 22px; width: auto; }
+  .dash .dash-top > .dash-site { grid-column: 2; grid-row: 1; min-width: 0; max-width: none; }
+  .dash .dash-top > .dash-site strong, .dash .dash-top > .dash-site span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dash .dash-top > .dash-site span { font-size: .72rem; }
+  .dash .dash-top > .dash-act { display: contents; }
+  .dash .dash-top .dash-wide { display: none !important; }
+  .dash .dash-top .bell-wrap { grid-column: 3; grid-row: 1; }
+  .dash .dash-top .dash-btn.bell { padding: .45rem .55rem; }
+  .dash .dash-top > .dash-act ~ * { grid-column: 4; grid-row: 1; }
+  .dash .dash-top .dash-act-main { grid-column: 1 / -1; grid-row: 2; display: flex; gap: .5rem; min-width: 0; }
+  .dash .dash-top .dash-act-main > button, .dash .dash-top .dash-act-main > a { flex: 1 1 0; width: auto; justify-content: center; }
+  .dash .dash-top .dash-actions-btn { display: inline-flex !important; }
+  .dash .dash-top .dash-act-main > .lm-err { flex-basis: 100%; }
+  .dash .dash-top .dash-act-main { flex-wrap: wrap; }
+}
+
+/* Avara buttons in the dashboard header and hero form */
+.dash-top .dash-ob, .dash-top .dash-cta { flex: none; white-space: nowrap; }
+.dash-top .kbd-ob kbd { font: 600 .68rem/1 var(--fb); padding: 3px 5px; border-radius: 5px; border: 1px solid var(--border); background: var(--muted); color: var(--muted-foreground); }
+@media (max-width: 1100px) { .dash-top .kbd-ob kbd { display: none; } }
+.url-form .url-cta { flex: none; align-self: center; border-radius: 14px; font-size: 17px; }
+@media (max-width: 640px) { .url-form .url-cta { margin-inline: auto; } }
+.dash-top .dash-btn.bell { min-height: 40px; border-radius: 8px; }
+@media (max-width: 720px) {
+  .dash .dash-top > .btn.sm { min-height: 36px; padding: .35rem .7rem; font-size: .82rem; }
+  .dash .dash-top > .dash-site strong { font-size: .95rem; }
+}
+
+/* Avara copy buttons sitting on the dark code/output boxes */
+.av-dark[data-state] { color: #e8eef4; border: 1px solid rgba(255, 255, 255, .2); background: rgba(255, 255, 255, .08); }
+.av-dark[data-state]:hover { background: rgba(255, 255, 255, .18); }
+.av-dark[data-state="copied"] { color: #8fe3b5; border-color: rgba(143, 227, 181, .45); }
+.guide-copy[data-state] { position: absolute; top: .6rem; right: .6rem; }
+
+/* Avara segmented toggles */
+.fnd-seg { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+.fnd-seg::-webkit-scrollbar { display: none; }
+.fnd-seg-n { opacity: .55; font-variant-numeric: tabular-nums; margin-left: .15rem; }
+.gd-range-av { display: inline-flex; align-items: center; gap: .6rem; }
+.explorer .fnd-seg { flex: none; overflow: visible; }
+/* Dashboard breadcrumb (Avara) above the main area */
+.dash-crumbs { margin: -.35rem 0 .6rem; }
+.dash-crumbs ol { padding-left: 0; }
+.dash-crumbs li > :is(a, button, span) { font-size: .82rem; }
+@media print { .dash-crumbs { display: none; } }
+.dash-crumbs li > button { cursor: pointer; }
+
+/* Avara vertical tabs: Google data panel and Account page */
+.acct-pane { display: grid; gap: 1rem; min-width: 0; }
+.acct-pane > .panel { margin: 0; }
+.gd-bar-av { justify-content: flex-end; }
+.gd-vtabs [role="tab"], .acct-vtabs [role="tab"] { padding-block: .7rem; }
+
+/* Homepage "What Pagelyt checks" (Avara vertical tabs) */
+.home-checks { max-width: 1040px; margin-inline: auto; text-align: left; }
+.home-checks [role="tab"] { font-size: .95rem; }
+.hc-pane { display: grid; gap: 1.1rem; }
+.hc-lead { margin: 0; font-size: 1.05rem; color: var(--n700, #3a2b36); line-height: 1.55; }
+.hc-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: .6rem .9rem; }
+.hc-list li { display: flex; gap: .55rem; align-items: flex-start; font-size: .95rem; color: var(--n800); line-height: 1.4; padding: .7rem .8rem; border-radius: 12px; background: color-mix(in oklab, var(--primary) 6%, #fff); border: 1px solid color-mix(in oklab, var(--primary) 14%, #fff); }
+.hc-list li > span { flex: none; display: grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--primary); color: #fff; font-size: .7rem; font-weight: 800; margin-top: 1px; }
+.hc-more { justify-self: start; font-weight: 700; color: var(--primary); text-decoration: none; }
+.hc-more:hover { text-decoration: underline; }
+.home-checks [role="tab"], .gd-vtabs [role="tab"], .acct-vtabs [role="tab"] { text-align: left; }
+
+/* Avara loaders */
+.pdf-busy { position: fixed; left: 50%; bottom: 1.25rem; translate: -50% 0; z-index: 70; padding: .9rem 1.4rem; border-radius: 16px; background: var(--card); border: 1px solid var(--border); box-shadow: 0 18px 44px -18px rgba(30, 10, 60, .4); animation: bell-open .26s var(--ease, ease-out) both; }
+.lm-orbit { padding-bottom: .4rem !important; }
+.gd-range-busy > div { display: inline-flex; }
+@media print { .pdf-busy { display: none; } }
