@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "../toast";
+import { CopyButton } from "@/components/avara/CopyButtonBlock";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
@@ -130,7 +131,6 @@ const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "n
 function ShareTab({ scanId, host, score, canEmail, owner, onBrand, onSample }: { scanId: string; host: string; score: number; canEmail: boolean; owner: boolean; onBrand: () => void; onSample: () => void }) {
   const [brand, setBrand] = useState<BrandRow | null | undefined>(() => (supabaseBrowser() ? undefined : null));
   const [links, setLinks] = useState<Link_[]>([]);
-  const [copied, setCopied] = useState("");
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
@@ -146,14 +146,6 @@ function ShareTab({ scanId, host, score, canEmail, owner, onBrand, onSample }: {
   }, [scanId, owner, tick]);
 
   const url = (t: string) => `${window.location.origin}/r/${t}`;
-  const copy = async (t: string) => {
-    try {
-      await navigator.clipboard.writeText(url(t));
-      setCopied(t);
-      toast("Share link copied");
-      window.setTimeout(() => setCopied(""), 1800);
-    } catch { /* the link is still on screen to copy by hand */ }
-  };
   const withdraw = async (t: string) => {
     const { error } = (await supabaseBrowser()?.from("shared_reports").update({ revoked: true }).eq("token", t)) ?? {};
     if (!error) setLinks((x) => x.map((l) => (l.token === t ? { ...l, revoked: true } : l)));
@@ -215,7 +207,7 @@ function ShareTab({ scanId, host, score, canEmail, owner, onBrand, onSample }: {
                   {!off && (
                     <span className="bs-l-act">
                       <a className="dash-btn" href={url(l.token)} target="_blank" rel="noopener noreferrer">Open</a>
-                      <button type="button" className="dash-btn" onClick={() => void copy(l.token)}>{copied === l.token ? "Copied" : "Copy"}</button>
+                      <CopyButton value={url(l.token)} size="sm" variant="outline" onCopy={(_, ok) => ok && toast("Share link copied")} />
                       <button type="button" className="fnd-link" onClick={() => void withdraw(l.token)}>Withdraw</button>
                     </span>
                   )}

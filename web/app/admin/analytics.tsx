@@ -1,5 +1,6 @@
 "use client";
 
+import { PageLoader } from "@/app/page-loader";
 import { useEffect, useState } from "react";
 import type { Analytics } from "@/lib/scan/analytics";
 
@@ -104,7 +105,7 @@ export function AdminAnalytics({ call }: { call: Caller }) {
   );
 
   if (err) return <>{range}<p className="acct-msg" role="alert">{err}</p></>;
-  if (!data) return <>{range}<p className="dash-loading" role="status">Loading analytics…</p></>;
+  if (!data) return <>{range}<PageLoader text="Loading analytics…" /></>;
 
   const { window: w, totals: t } = data;
   const tiles: [string, string | number, string?][] = [

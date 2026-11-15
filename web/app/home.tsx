@@ -1,8 +1,9 @@
 "use client";
 
-import { Arrow } from "./arrow";
 
 import Link from "next/link";
+import Button from "@/components/avara/Button";
+import { HomeChecks } from "./home-checks";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Arcs, Funnel } from "./art";
@@ -138,9 +139,9 @@ export default function Home({ guides = [] }: { guides?: GuideCard[] }) {
         value={url}
         onChange={(e) => setUrl(e.target.value)}
       />
-      <button className="btn" type="submit">
-        Get free audit <Arrow />
-      </button>
+      <Button variant="slide-icon" tone="solid" size="lg" type="submit" className="url-cta">
+        Get free audit
+      </Button>
     </form>
   );
 
@@ -238,6 +239,21 @@ export default function Home({ guides = [] }: { guides?: GuideCard[] }) {
       <section className="sec tight" aria-label="From numbers to answers">
         <div className="container" data-r>
           <Funnel />
+        </div>
+      </section>
+
+      {/* 3a. WHAT PAGELYT CHECKS: vertical tabs, one per feature */}
+      <section className="sec" id="checks" aria-labelledby="checks-h">
+        <div className="container">
+          <div className="head-center" data-r>
+            <h2 className="title" id="checks-h">
+              What Pagelyt checks.
+            </h2>
+            <p className="lead">Pick an area to see exactly what goes into your report.</p>
+          </div>
+          <div data-r style={{ ["--d" as string]: 1 }}>
+            <HomeChecks />
+          </div>
         </div>
       </section>
 

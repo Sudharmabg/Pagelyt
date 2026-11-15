@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { LoaderBlock } from "@/components/avara/LoaderBlock";
 import { downloadPdf } from "@/lib/download-pdf";
 
 /* On a shared link, asks the server for a branded PDF (when the sharing account is on a paid plan);
@@ -15,7 +16,7 @@ export function PrintButton({ token }: { token?: string }) {
   };
   return (
     <button type="button" className="br-print" onClick={go} disabled={busy}>
-      {busy ? "Preparing PDF…" : "Download PDF"}
+      {busy ? <LoaderBlock variant="spinner" size="sm" py={0} className="flex-row gap-2" text="Preparing PDF…" /> : "Download PDF"}
     </button>
   );
 }

@@ -16,10 +16,13 @@
     "@cloudflare/puppeteer": "^1.0.4",
     "@supabase/supabase-js": "^2.119.0",
     "cheerio": "^1.2.0",
+    "clsx": "^2.1.1",
     "jpeg-js": "^0.4.4",
+    "lucide-react": "^1.73.0",
     "next": "16.4.5",
     "react": "19.3.0",
     "react-dom": "19.3.0",
+    "tailwind-merge": "^3.7.0",
     "tldts": "7.4.19"
   },
   "devDependencies": {

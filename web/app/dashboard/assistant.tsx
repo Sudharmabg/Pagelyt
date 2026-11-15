@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "../toast";
+import { CopyButton } from "@/components/avara/CopyButtonBlock";
 import Link from "next/link";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
@@ -92,27 +93,8 @@ function starters(scan: StoredScan): Group[] {
 }
 
 function CopyBtn({ text }: { text: string }) {
-  const [done, setDone] = useState(false);
   return (
-    <button
-      type="button"
-      className="asst-tool"
-      onClick={() => {
-        void navigator.clipboard?.writeText(text).then(() => {
-          setDone(true);
-          toast("Answer copied");
-          window.setTimeout(() => setDone(false), 1600);
-        });
-      }}
-      aria-label={done ? "Copied" : "Copy answer"}
-    >
-      {done ? (
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-      ) : (
-        <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2.5" /><path d="M16 8V6.5A2.5 2.5 0 0 0 13.5 4h-7A2.5 2.5 0 0 0 4 6.5v7A2.5 2.5 0 0 0 6.5 16H8" /></svg>
-      )}
-      <span>{done ? "Copied" : "Copy"}</span>
-    </button>
+    <CopyButton value={text} size="sm" variant="ghost" className="h-7 px-2 text-xs text-muted-foreground" onCopy={(_, ok) => ok && toast("Answer copied")} />
   );
 }
 

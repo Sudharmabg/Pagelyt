@@ -1,6 +1,9 @@
 "use client";
 
+import { PageLoader } from "@/app/page-loader";
 import Link from "next/link";
+import { FileText, Globe, Link2, ShieldCheck, UserRound } from "lucide-react";
+import { VerticalTabs } from "@/components/avara/VerticalTabs";
 import { PRICING_ON } from "../site-config";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -116,7 +119,7 @@ export function Account() {
       </div>
     );
   }
-  if (email === undefined) return <p className="dash-loading" role="status">Loading…</p>;
+  if (email === undefined) return <PageLoader text="Loading…" />;
   if (email === null) {
     return (
       <div className="panel auth-card">
@@ -158,115 +161,148 @@ export function Account() {
 
       <p className="acct-msg" role="status" aria-live="polite">{msg}</p>
 
-      <div className="acct-cols">
-        <div className="acct-main">
-          <section className="panel" aria-labelledby="acct-scan-h">
-            <h2 id="acct-scan-h">Scan a site</h2>
-            <form className="acct-add" onSubmit={(e) => { e.preventDefault(); if (newUrl.trim()) void scan(newUrl.trim(), "new"); }}>
-              <label className="sr-only" htmlFor="acct-url">Website address</label>
-              <input id="acct-url" className="fnd-search" placeholder="https://yourwebsite.com" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} />
-              <button className="btn sm" type="submit" disabled={!!busy}>{busy === "new" ? "Scanning…" : "Scan now"}</button>
-            </form>
-            <p className="panel-note">Open a finished report and choose &ldquo;Save this site&rdquo; to schedule rescans and uptime checks.</p>
-          </section>
+      <VerticalTabs
+        orientation="vertical"
+        variant="segmented"
+        plain
+        ariaLabel="Account sections"
+        className="acct-vtabs gap-6"
+        railClassName="md:w-56 lg:w-60 self-start md:sticky md:top-24"
+        contentClassName="p-0 md:p-0 border-0 rounded-none"
+        tabs={[
+          {
+            id: "sites",
+            label: "Sites",
+            hint: "Scan, save and schedule",
+            icon: Globe,
+            content: (
+              <div className="acct-pane">
+                <section className="panel" aria-labelledby="acct-scan-h">
+                  <h2 id="acct-scan-h">Scan a site</h2>
+                  <form className="acct-add" onSubmit={(e) => { e.preventDefault(); if (newUrl.trim()) void scan(newUrl.trim(), "new"); }}>
+                    <label className="sr-only" htmlFor="acct-url">Website address</label>
+                    <input id="acct-url" className="fnd-search" placeholder="https://yourwebsite.com" value={newUrl} onChange={(e) => setNewUrl(e.target.value)} />
+                    <button className="btn sm" type="submit" disabled={!!busy}>{busy === "new" ? "Scanning…" : "Scan now"}</button>
+                  </form>
+                  <p className="panel-note">Open a finished report and choose &ldquo;Save this site&rdquo; to schedule rescans and uptime checks.</p>
+                </section>
 
-          <section className="panel" aria-labelledby="acct-sites-h">
-            <h2 id="acct-sites-h">Saved sites</h2>
-            {sites.length === 0 ? (
-              <p className="panel-note">No saved sites yet. Scan a site above, then save it from its report.</p>
-            ) : (
-              <ul className="acct-cards">
-                {sites.map((s) => {
-                  const score = scoreOf(s.last_scan_id);
-                  const last = lastOf(s.last_scan_id);
-                  return (
-                    <li key={s.id} className="acct-card">
-                      <div className="ac-top">
-                        <span className={`ac-score ${scoreBand(score)}`} aria-label={score ? `Score ${score}` : "No score yet"}>{score ?? "–"}</span>
-                        <div className="ac-name">
-                          <strong>{s.host}</strong>
-                          <span className="panel-note">{last ? `Last scanned ${new Date(last).toLocaleDateString("en-GB", { dateStyle: "medium" })}` : "Not scanned recently"} · {s.uptime ? `Uptime ${uptimePct(s.id)}` : "Uptime off"}</span>
-                        </div>
-                      </div>
-                      <div className="as-links">
-                        {s.last_scan_id && <Link className="fnd-link" href={`/dashboard/${s.last_scan_id}`}>Latest report</Link>}
-                        {s.last_scan_id && <Link className="fnd-link" href={`/dashboard/${s.last_scan_id}?view=google`}>Google data</Link>}
-                        <Link className="fnd-link" href={`/account/visibility/${s.id}`}>AI visibility</Link>
-                      </div>
-                      <div className="ac-ctl">
-                        <label className="as-f">
-                          Rescan
-                          <select value={s.cadence} onChange={(e) => update(s.id, { cadence: e.target.value as Cadence })}>
-                            <option value="none">Never</option>
-                            <option value="daily">Daily</option>
-                            <option value="weekly">Weekly</option>
-                            <option value="monthly">Monthly</option>
-                          </select>
-                        </label>
-                        <label className="as-f check">
-                          <input type="checkbox" checked={s.uptime} onChange={(e) => update(s.id, { uptime: e.target.checked })} />
-                          Uptime
-                        </label>
-                        <label className="as-f check" title="Email me when a scheduled rescan finds a score drop or a new high-priority issue">
-                          <input type="checkbox" checked={s.alerts} disabled={s.cadence === "none"} onChange={(e) => update(s.id, { alerts: e.target.checked })} />
-                          Alerts
-                        </label>
-                        <span className="ac-btns">
-                          <button type="button" className="dash-btn" disabled={!!busy} onClick={() => scan(s.url, s.id)}>{busy === s.id ? "Scanning…" : "Scan now"}</button>
-                          <button type="button" className="dash-btn ghost" onClick={() => { if (window.confirm(`Remove ${s.host} from your saved sites? Its reports stay.`)) void remove(s.id); }} aria-label={`Remove ${s.host}`}>Remove</button>
-                        </span>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
-
-          <section className="panel" aria-labelledby="acct-rep-h">
-            <h2 id="acct-rep-h">Recent reports</h2>
-            {scans.length === 0 ? (
-              <p className="panel-note">Reports you create while signed in show up here.</p>
-            ) : (
-              <ul className="acct-scans">
-                {scans.map((r) => (
-                  <li key={r.id}>
-                    <Link href={`/dashboard/${r.id}`}>{r.host}</Link>
-                    <span>{new Date(r.created_at).toLocaleDateString("en-GB", { dateStyle: "medium" })}</span>
-                    <b className={r.status === "done" ? scoreBand(r.overall) : ""}>{r.status === "done" ? (r.overall ?? "–") : r.status}</b>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
-
-        <aside className="acct-side">
-          {acct && (
-            <section className="panel" aria-labelledby="acct-plan-h">
-              <h2 id="acct-plan-h">Plan and profile</h2>
-              <p className="acct-planline"><b>{planName}</b>{acct.paid ? " · paid plan" : " · free"}</p>
-              <label className="as-f">
-                I am
-                <select value={acct.accountType ?? ""} onChange={(e) => e.target.value && void setType(e.target.value as "agency" | "owner")}>
-                  {acct.accountType === null && <option value="">Choose…</option>}
-                  <option value="owner">Looking after my own website</option>
-                  <option value="agency">An agency or freelancer with client sites</option>
-                </select>
-              </label>
-              {acct.accountType === "agency" && !acct.paid && <p className="panel-note">The agency dashboard comes with any paid plan.</p>}
-              <div className="acct-links">
-                <Link className="fnd-link" href="/account/brand">Brand settings</Link>
-                {!acct.paid && PRICING_ON && <Link className="fnd-link" href="/pricing">Compare plans</Link>}
-                <Link className="fnd-link" href="/consultation">Book a consultation</Link>
+                <section className="panel" aria-labelledby="acct-sites-h">
+                  <h2 id="acct-sites-h">Saved sites</h2>
+                  {sites.length === 0 ? (
+                    <p className="panel-note">No saved sites yet. Scan a site above, then save it from its report.</p>
+                  ) : (
+                    <ul className="acct-cards">
+                      {sites.map((s) => {
+                        const score = scoreOf(s.last_scan_id);
+                        const last = lastOf(s.last_scan_id);
+                        return (
+                          <li key={s.id} className="acct-card">
+                            <div className="ac-top">
+                              <span className={`ac-score ${scoreBand(score)}`} aria-label={score ? `Score ${score}` : "No score yet"}>{score ?? "–"}</span>
+                              <div className="ac-name">
+                                <strong>{s.host}</strong>
+                                <span className="panel-note">{last ? `Last scanned ${new Date(last).toLocaleDateString("en-GB", { dateStyle: "medium" })}` : "Not scanned recently"} · {s.uptime ? `Uptime ${uptimePct(s.id)}` : "Uptime off"}</span>
+                              </div>
+                            </div>
+                            <div className="as-links">
+                              {s.last_scan_id && <Link className="fnd-link" href={`/dashboard/${s.last_scan_id}`}>Latest report</Link>}
+                              {s.last_scan_id && <Link className="fnd-link" href={`/dashboard/${s.last_scan_id}?view=google`}>Google data</Link>}
+                              <Link className="fnd-link" href={`/account/visibility/${s.id}`}>AI visibility</Link>
+                            </div>
+                            <div className="ac-ctl">
+                              <label className="as-f">
+                                Rescan
+                                <select value={s.cadence} onChange={(e) => update(s.id, { cadence: e.target.value as Cadence })}>
+                                  <option value="none">Never</option>
+                                  <option value="daily">Daily</option>
+                                  <option value="weekly">Weekly</option>
+                                  <option value="monthly">Monthly</option>
+                                </select>
+                              </label>
+                              <label className="as-f check">
+                                <input type="checkbox" checked={s.uptime} onChange={(e) => update(s.id, { uptime: e.target.checked })} />
+                                Uptime
+                              </label>
+                              <label className="as-f check" title="Email me when a scheduled rescan finds a score drop or a new high-priority issue">
+                                <input type="checkbox" checked={s.alerts} disabled={s.cadence === "none"} onChange={(e) => update(s.id, { alerts: e.target.checked })} />
+                                Alerts
+                              </label>
+                              <span className="ac-btns">
+                                <button type="button" className="dash-btn" disabled={!!busy} onClick={() => scan(s.url, s.id)}>{busy === s.id ? "Scanning…" : "Scan now"}</button>
+                                <button type="button" className="dash-btn ghost" onClick={() => { if (window.confirm(`Remove ${s.host} from your saved sites? Its reports stay.`)) void remove(s.id); }} aria-label={`Remove ${s.host}`}>Remove</button>
+                              </span>
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </section>
               </div>
-            </section>
-          )}
-
-          <GoogleAccount />
-          <Security email={email} onSignOut={() => void sb.auth.signOut()} />
-        </aside>
-      </div>
+            ),
+          },
+          {
+            id: "reports",
+            label: "Reports",
+            hint: "Your recent scans",
+            icon: FileText,
+            content: (
+              <div className="acct-pane">
+                <section className="panel" aria-labelledby="acct-rep-h">
+                  <h2 id="acct-rep-h">Recent reports</h2>
+                  {scans.length === 0 ? (
+                    <p className="panel-note">Reports you create while signed in show up here.</p>
+                  ) : (
+                    <ul className="acct-scans">
+                      {scans.map((r) => (
+                        <li key={r.id}>
+                          <Link href={`/dashboard/${r.id}`}>{r.host}</Link>
+                          <span>{new Date(r.created_at).toLocaleDateString("en-GB", { dateStyle: "medium" })}</span>
+                          <b className={r.status === "done" ? scoreBand(r.overall) : ""}>{r.status === "done" ? (r.overall ?? "–") : r.status}</b>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              </div>
+            ),
+          },
+          {
+            id: "plan",
+            label: "Plan and profile",
+            hint: "Your plan and account type",
+            icon: UserRound,
+            content: (
+              <div className="acct-pane">
+                {acct && (
+                  <section className="panel" aria-labelledby="acct-plan-h">
+                    <h2 id="acct-plan-h">Plan and profile</h2>
+                    <p className="acct-planline"><b>{planName}</b>{acct.paid ? " · paid plan" : " · free"}</p>
+                    <label className="as-f">
+                      I am
+                      <select value={acct.accountType ?? ""} onChange={(e) => e.target.value && void setType(e.target.value as "agency" | "owner")}>
+                        {acct.accountType === null && <option value="">Choose…</option>}
+                        <option value="owner">Looking after my own website</option>
+                        <option value="agency">An agency or freelancer with client sites</option>
+                      </select>
+                    </label>
+                    {acct.accountType === "agency" && !acct.paid && <p className="panel-note">The agency dashboard comes with any paid plan.</p>}
+                    <div className="acct-links">
+                      <Link className="fnd-link" href="/account/brand">Brand settings</Link>
+                      {!acct.paid && PRICING_ON && <Link className="fnd-link" href="/pricing">Compare plans</Link>}
+                      <Link className="fnd-link" href="/consultation">Book a consultation</Link>
+                    </div>
+                  </section>
+                )}
+                {!acct && <p className="panel sec-empty">Loading your plan…</p>}
+              </div>
+            ),
+          },
+          { id: "google", label: "Google", hint: "Connected Google account", icon: Link2, content: <div className="acct-pane"><GoogleAccount /></div> },
+          { id: "security", label: "Security", hint: "Password and sign out", icon: ShieldCheck, content: <div className="acct-pane"><Security email={email} onSignOut={() => void sb.auth.signOut()} /></div> },
+        ]}
+      />
     </div>
   );
 }

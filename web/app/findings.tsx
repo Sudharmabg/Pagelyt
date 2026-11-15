@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "./toast";
+import { CopyButton } from "@/components/avara/CopyButtonBlock";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { GUIDES } from "@/lib/scan/guides";
@@ -83,15 +84,13 @@ function FindingDrawer({
   f,
   fixed,
   onToggleFixed,
-  onCopy,
-  copied,
+  copyText,
   onClose,
 }: {
   f: Finding;
   fixed: boolean;
   onToggleFixed?: () => void;
-  onCopy: () => void;
-  copied: boolean;
+  copyText: string;
   onClose: () => void;
 }) {
   const ref = useRef<HTMLDialogElement>(null);
@@ -149,7 +148,7 @@ function FindingDrawer({
               {fixed ? "Reopen this issue" : "Mark as fixed"}
             </button>
           )}
-          <button type="button" className="btn ghost" onClick={onCopy}>{copied ? "Copied" : "Copy for my developer"}</button>
+          <CopyButton value={copyText} variant="outline" label="Copy for my developer" onCopy={(_, ok) => toast(ok ? "Fix copied for your developer" : "Your browser blocked copying", ok ? undefined : { tone: "err" })} />
           {GUIDES[f.id] && (
             <Link className="fnd-link" href={`/fix/${f.id}`} target="_blank">Step-by-step guide</Link>
           )}
@@ -186,19 +185,9 @@ function Item({
   spend?: AdSpend;
 }) {
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
   const k = findingKey(f);
 
-  const copyFix = async () => {
-    try {
-      await navigator.clipboard.writeText(`${f.title}\nWhy it matters: ${f.why}\nHow to fix: ${f.fix}${evidenceText(f) ? `\nEvidence:${f.pages?.rows.length ? "\n" : " "}${evidenceText(f)}` : ""}`);
-      setCopied(true);
-      toast("Fix copied for your developer");
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      toast("Your browser blocked copying", { tone: "err" });
-    }
-  };
+  const fixText = `${f.title}\nWhy it matters: ${f.why}\nHow to fix: ${f.fix}${evidenceText(f) ? `\nEvidence:${f.pages?.rows.length ? "\n" : " "}${evidenceText(f)}` : ""}`;
 
   return (
     <li data-k={k} className={`fnd sev-${f.severity}${fixed ? " is-fixed" : ""}`} style={{ ["--i" as string]: index }}>
@@ -243,8 +232,7 @@ function Item({
               f={f}
               fixed={fixed}
               onToggleFixed={onToggleFixed ? () => onToggleFixed(k) : undefined}
-              onCopy={copyFix}
-              copied={copied}
+              copyText={fixText}
               onClose={() => setOpen(false)}
             />
           )}
