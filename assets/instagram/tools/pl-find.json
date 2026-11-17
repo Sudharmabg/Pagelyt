@@ -1,0 +1,5 @@
+{ "auth": { "origin": "http://localhost:3100", "key": "sb-localhost-auth-token", "tokensUrl": "http://localhost:54321/__tokens?email=alex@example.test" },
+  "jobs": [
+    { "url": "http://localhost:3100/dashboard", "out": "../shots/peerlist/x-dash.png", "width": 1440, "height": 1200, "scale": 1, "wait": 3000,
+      "eval": "for(let i=0;i<40&&!/dashboard\/./.test(location.pathname);i++) await new Promise(r=>setTimeout(r,1000)); await new Promise(r=>setTimeout(r,4000)); return location.href+' | '+[...document.querySelectorAll('a')].map(a=>a.getAttribute('href')).filter(h=>/dashboard\//.test(h||'')).join(' ')" }
+  ] }

@@ -1,0 +1,59 @@
+{
+ "jobs": [
+  {
+   "url": "../../peerlist/launch-images.html",
+   "out": "../../peerlist/pagelyt-peerlist-1.png",
+   "width": 1600,
+   "height": 900,
+   "scale": 1,
+   "wait": 2500,
+   "clip": {
+    "selector": "#p1"
+   }
+  },
+  {
+   "url": "../../peerlist/launch-images.html",
+   "out": "../../peerlist/pagelyt-peerlist-2.png",
+   "width": 1600,
+   "height": 900,
+   "scale": 1,
+   "wait": 2500,
+   "clip": {
+    "selector": "#p2"
+   }
+  },
+  {
+   "url": "../../peerlist/launch-images.html",
+   "out": "../../peerlist/pagelyt-peerlist-3.png",
+   "width": 1600,
+   "height": 900,
+   "scale": 1,
+   "wait": 2500,
+   "clip": {
+    "selector": "#p3"
+   }
+  },
+  {
+   "url": "../../peerlist/launch-images.html",
+   "out": "../../peerlist/pagelyt-peerlist-4.png",
+   "width": 1600,
+   "height": 900,
+   "scale": 1,
+   "wait": 2500,
+   "clip": {
+    "selector": "#p4"
+   }
+  },
+  {
+   "url": "../../peerlist/launch-images.html",
+   "out": "../../peerlist/pagelyt-peerlist-5.png",
+   "width": 1600,
+   "height": 900,
+   "scale": 1,
+   "wait": 2500,
+   "clip": {
+    "selector": "#p5"
+   }
+  }
+ ]
+}

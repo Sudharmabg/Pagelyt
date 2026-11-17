@@ -1,90 +1,74 @@
 "use client";
 
-import { PageLoader } from "@/app/page-loader";
+import Link from "next/link";
 import { useEffect, useState } from "react";
-import type { Analytics } from "@/lib/scan/analytics";
+import { PageLoader } from "@/app/page-loader";
+import type { Analytics, FeatureRow, LeadRow, ScanLogRow, StuckRow, UserRow } from "@/lib/scan/analytics";
+import { DataTable, Score, fmtDate, fmtDay, type Caller, type Col } from "./kit";
 
-/* Admin analytics tab: headline numbers, daily activity, the sign-up funnel and breakdowns.
-   One series per chart, so no legends; every value is also in a table or a label. */
+/* Admin analytics tab: headline numbers, and the rows behind each one in a table you can search, sort and
+   download. Pressing a number opens its table. No charts. */
 
-export type Caller = <T>(path: string) => Promise<{ ok: boolean; status: number; json: T & { error?: string } }>;
+type Table = "users" | "scans" | "leads" | "stuck" | "features";
+const TABLES: [Table, string][] = [["users", "Users"], ["scans", "Scan log"], ["leads", "Leads"], ["stuck", "Stuck sign-ups"], ["features", "Feature use"]];
+const RANGES: [number, string][] = [[7, "7 days"], [30, "30 days"], [90, "90 days"], [0, "All time"]];
 
-const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
 const pct = (a: number, b: number) => (b ? `${Math.round((a / b) * 100)}%` : "–");
+const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
-/** Daily column chart with a hover/focus readout. */
-function DailyBars({ title, rows, get }: { title: string; rows: Analytics["daily"]; get: (r: Analytics["daily"][number]) => number }) {
-  const [hover, setHover] = useState<number | null>(null);
-  const W = 640, H = 150, top = 14, bottom = 22;
-  const max = Math.max(1, ...rows.map(get));
-  const slot = W / rows.length;
-  const bw = Math.max(2, slot - 2); // 2px gap between columns
-  const y = (v: number) => H - bottom - (v / max) * (H - top - bottom);
-  const total = rows.reduce((a, r) => a + get(r), 0);
-  const h = hover != null ? rows.at(hover) : undefined;
-  const label = (i: number) => i === 0 || i === rows.length - 1 || (rows.length > 10 && i === Math.floor(rows.length / 2));
+const USERS: Col<UserRow>[] = [
+  { label: "Email", text: (r) => r.email, cell: (r) => <span className="adm-owner">{r.email}</span> },
+  { label: "Signed up", text: (r) => r.created, cell: (r) => fmtDay(r.created) },
+  { label: "Email verified", text: (r) => (r.verified ? "Yes" : "No"), cell: (r) => (r.verified ? "Yes" : <b className="t-bad">No</b>) },
+  { label: "Last sign-in", text: (r) => r.lastSignIn, cell: (r) => fmtDate(r.lastSignIn) },
+  { label: "Plan", text: (r) => cap(r.plan) },
+  { label: "Account type", text: (r) => cap(r.type) },
+  { label: "Saved sites", text: (r) => r.sites },
+  { label: "Scans in period", text: (r) => r.scans },
+];
 
-  return (
-    <figure className="adm-chart">
-      <figcaption>
-        <span>{title}</span>
-        <b>{h ? <>{get(h)} <small>on {fmtDay(h.day)}</small></> : <>{total} <small>total</small></>}</b>
-      </figcaption>
-      <svg viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${title} per day, ${total} in total, peak ${max}`} onMouseLeave={() => setHover(null)}>
-        <line x1="0" x2={W} y1={H - bottom} y2={H - bottom} className="adm-axis" />
-        <text x="0" y={top - 4} className="adm-tick">{max}</text>
-        {rows.map((r, i) => {
-          const x = i * slot + (slot - bw) / 2;
-          const v = get(r);
-          const yy = y(v);
-          const hgt = H - bottom - yy;
-          const rad = Math.min(4, bw / 2, hgt);
-          return (
-            <g key={r.day}>
-              {v > 0 && (
-                <path
-                  className={`adm-bar${hover === i ? " on" : ""}`}
-                  d={`M${x},${H - bottom} V${yy + rad} Q${x},${yy} ${x + rad},${yy} H${x + bw - rad} Q${x + bw},${yy} ${x + bw},${yy + rad} V${H - bottom} Z`}
-                />
-              )}
-              {label(i) && <text x={x + bw / 2} y={H - 6} textAnchor={i === 0 ? "start" : i === rows.length - 1 ? "end" : "middle"} className="adm-tick">{fmtDay(r.day)}</text>}
-              {/* Full-height hit target, larger than the mark */}
-              <rect x={i * slot} y={0} width={slot} height={H - bottom} fill="transparent" onMouseEnter={() => setHover(i)} tabIndex={-1} />
-            </g>
-          );
-        })}
-      </svg>
-    </figure>
-  );
-}
+const SCANS: Col<ScanLogRow>[] = [
+  { label: "Scanned", text: (r) => r.at, cell: (r) => fmtDate(r.at) },
+  { label: "Website", text: (r) => r.host, cell: (r) => <strong>{r.host}</strong> },
+  { label: "Email", text: (r) => r.email, cell: (r) => <span className="adm-owner">{r.email ?? "–"}</span> },
+  { label: "Status", text: (r) => cap(r.status), cell: (r) => (r.status === "failed" ? <b className="t-bad">Failed</b> : cap(r.status)) },
+  { label: "Score", text: (r) => r.score, cell: (r) => <Score v={r.score} /> },
+  { label: "Failure reason", text: (r) => r.error, cell: (r) => <span className="adm-msg">{r.error ?? "–"}</span> },
+  { label: "Report", text: () => null, noCsv: true, cell: (r) => r.status === "done" && <Link className="fnd-link" href={`/dashboard/${r.id}`} target="_blank">Report</Link> },
+];
 
-/** Horizontal bars with the value and an optional share, for funnels and breakdowns. */
-function BarList({ rows, of }: { rows: { label: string; n: number }[]; of?: number }) {
-  const max = Math.max(1, ...rows.map((r) => r.n));
-  if (!rows.length) return <p className="panel-note">No data yet.</p>;
-  return (
-    <ul className="adm-bars">
-      {rows.map((r) => (
-        <li key={r.label}>
-          <span className="adm-bars-l">{r.label}</span>
-          <span className="adm-bars-track">{r.n > 0 && <span className="adm-bars-fill" style={{ width: `${(r.n / max) * 100}%` }} />}</span>
-          <span className="adm-bars-n">{r.n}{of != null && <small>{pct(r.n, of)}</small>}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
+const LEADS: Col<LeadRow>[] = [
+  { label: "Date", text: (r) => r.at, cell: (r) => fmtDate(r.at) },
+  { label: "Name", text: (r) => r.name },
+  { label: "Email", text: (r) => r.email, cell: (r) => <a className="fnd-link" href={`mailto:${r.email}`}>{r.email}</a> },
+  { label: "Website", text: (r) => r.host },
+  { label: "Has an account", text: (r) => (r.hasAccount ? "Yes" : "No") },
+];
+
+const STUCK: Col<StuckRow>[] = [
+  { label: "Email", text: (r) => r.email, cell: (r) => <a className="fnd-link" href={`mailto:${r.email}`}>{r.email}</a> },
+  { label: "Signed up", text: (r) => r.created, cell: (r) => fmtDate(r.created) },
+];
+
+const FEATURES: Col<FeatureRow>[] = [
+  { label: "Feature", text: (r) => r.what },
+  { label: "Account", text: (r) => r.who, cell: (r) => <span className="adm-owner">{r.who}</span> },
+  { label: "Website", text: (r) => r.site },
+  { label: "Date", text: (r) => r.at, cell: (r) => fmtDate(r.at) },
+];
 
 export function AdminAnalytics({ call }: { call: Caller }) {
   const [days, setDays] = useState(30);
   const [data, setData] = useState<Analytics | null>(null);
   const [err, setErr] = useState("");
+  const [table, setTable] = useState<Table>("users");
+  const [onlyNew, setOnlyNew] = useState(false); // Users: only accounts created in the period
 
   useEffect(() => {
     let live = true;
     call<Analytics>(`/api/admin/analytics?days=${days}`).then((r) => {
       if (!live) return;
-      if (r.ok) {
+      if (r.ok && r.json.rows) {
         setData(r.json);
         setErr("");
       } else setErr(r.json.error || "Could not load analytics.");
@@ -96,10 +80,8 @@ export function AdminAnalytics({ call }: { call: Caller }) {
 
   const range = (
     <div className="adm-view" role="group" aria-label="Time range">
-      {[7, 30, 90].map((d) => (
-        <button key={d} type="button" className={`dash-btn${days === d ? " primary" : ""}`} aria-pressed={days === d} onClick={() => setDays(d)}>
-          {d} days
-        </button>
+      {RANGES.map(([d, label]) => (
+        <button key={d} type="button" className={`dash-btn${days === d ? " primary" : ""}`} aria-pressed={days === d} onClick={() => setDays(d)}>{label}</button>
       ))}
     </div>
   );
@@ -107,75 +89,70 @@ export function AdminAnalytics({ call }: { call: Caller }) {
   if (err) return <>{range}<p className="acct-msg" role="alert">{err}</p></>;
   if (!data) return <>{range}<PageLoader text="Loading analytics…" /></>;
 
-  const { window: w, totals: t } = data;
-  const tiles: [string, string | number, string?][] = [
-    ["Scans", w.scans, `${w.hosts} sites · ${pct(w.failed, w.scans)} failed`],
-    ["Leads", w.leads, `${pct(w.leads, w.anonymous)} of anonymous scans`],
-    ["Sign-ups", data.usersAvailable ? w.signups : "–", data.usersAvailable ? `${t.users} accounts in total` : "Auth API unavailable"],
-    ["Active users", data.usersAvailable ? w.active : "–", "Signed in during the period"],
-    ["Paid accounts", t.paid, `${pct(t.paid, t.users || t.paid)} of accounts`],
-    ["Saved sites", t.sites, `${w.sitesSaved} new · ${t.scheduled} scheduled`],
+  const { window: w, totals: t, rows } = data;
+  const open = (to: Table, fresh = false) => () => {
+    setTable(to);
+    setOnlyNew(fresh);
+    document.getElementById("adm-rows")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const tiles: [string, string | number, string, () => void][] = [
+    ["Scans", w.scans, `${w.hosts} websites · ${w.failed} failed (${pct(w.failed, w.scans)})`, open("scans")],
+    ["Leads", w.leads, `${rows.leads.filter((l) => !l.hasAccount).length} without an account`, open("leads")],
+    ["Sign-ups", data.usersAvailable ? w.signups : "–", data.usersAvailable ? `${t.users} accounts in total` : "Auth API unavailable", open("users", true)],
+    ["Active users", data.usersAvailable ? w.active : "–", "Signed in during the period", open("users")],
+    ["Stuck sign-ups", data.usersAvailable ? rows.stuck.length : "–", "Accounts that never entered the email code", open("stuck")],
+    ["Paid accounts", t.paid, `${pct(t.paid, t.users || t.paid)} of accounts`, open("users")],
+    ["Saved sites", t.sites, `${w.sitesSaved} new · ${t.scheduled} scheduled`, open("features")],
+    ["Feature use", w.shares + w.comparisons, `${w.shares} shares · ${w.comparisons} comparisons · ${w.aiRuns} AI answers`, open("features")],
   ];
+  const users = onlyNew ? rows.users.filter((u) => u.inPeriod) : rows.users;
 
   return (
     <div className="adm-an">
-      <div className="ag-tools">{range}<p className="panel-note">Since {fmtDay(data.daily[0].day)} (UTC)</p></div>
+      <div className="ag-tools">{range}<p className="panel-note">{data.since ? `Since ${fmtDay(data.since)}` : "Everything so far"}</p></div>
 
-      <ul className="adm-tiles" aria-label="Headline numbers">
-        {tiles.map(([label, n, sub]) => (
-          <li key={label}><span>{label}</span><b>{n}</b>{sub && <small>{sub}</small>}</li>
+      <ul className="adm-tiles adm-tiles-btn" aria-label="Headline numbers">
+        {tiles.map(([label, n, sub, go]) => (
+          <li key={label}>
+            <button type="button" onClick={go} aria-label={`${label}: ${n}. Show the rows.`}>
+              <span>{label}</span><b>{n}</b><small>{sub}</small>
+            </button>
+          </li>
         ))}
       </ul>
 
-      <section className="panel" aria-label="Daily activity">
-        <h2>Daily activity</h2>
-        <DailyBars title="Scans" rows={data.daily} get={(r) => r.scans} />
-        <DailyBars title="Leads" rows={data.daily} get={(r) => r.leads} />
-        {data.usersAvailable && <DailyBars title="Sign-ups" rows={data.daily} get={(r) => r.signups} />}
-        <details className="adm-table">
-          <summary>Show as a table</summary>
-          <div className="crawl-wrap">
-            <table className="crawl">
-              <thead><tr><th>Day</th><th>Scans</th><th>Leads</th>{data.usersAvailable && <th>Sign-ups</th>}</tr></thead>
-              <tbody>
-                {[...data.daily].reverse().map((d) => (
-                  <tr key={d.day}><td>{fmtDay(d.day)}</td><td>{d.scans}</td><td>{d.leads}</td>{data.usersAvailable && <td>{d.signups}</td>}</tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </details>
-      </section>
+      <section className="panel" id="adm-rows" aria-label="Rows behind the numbers">
+        <div className="adm-tabs adm-subtabs" role="tablist" aria-label="Tables">
+          {TABLES.map(([k, label]) => (
+            <button key={k} type="button" role="tab" aria-selected={table === k} className={table === k ? "on" : undefined} onClick={() => setTable(k)}>
+              {label} <small>{rows[k].length}</small>
+            </button>
+          ))}
+        </div>
 
-      <div className="adm-cols">
-        <section className="panel" aria-label="Funnel">
-          <h2>Funnel</h2>
-          <p className="panel-note">People at each step in this period, as a share of scans run.</p>
-          <BarList rows={data.funnel} of={data.funnel[0]?.n ?? 0} />
-        </section>
-        <section className="panel" aria-label="Most scanned sites">
-          <h2>Most scanned sites</h2>
-          <BarList rows={data.topHosts} />
-        </section>
-        <section className="panel" aria-label="Plans">
-          <h2>Plans</h2>
-          <BarList rows={data.plans} />
-        </section>
-        <section className="panel" aria-label="Account types">
-          <h2>Account types</h2>
-          <BarList rows={data.accountTypes} />
-        </section>
-      </div>
-
-      <section className="panel" aria-label="Feature use">
-        <h2>Feature use</h2>
-        <BarList rows={[
-          { label: "Shared reports created", n: w.shares },
-          { label: "Competitor comparisons", n: w.comparisons },
-          { label: "AI visibility answers", n: w.aiRuns },
-          { label: "Sites with AI tracking", n: t.aiTracked },
-          { label: "Sites with uptime on", n: t.uptime },
-        ]} />
+        {table === "users" && (
+          !data.usersAvailable ? <p className="panel-note">The account list is unavailable (the Supabase auth admin API did not answer).</p> : (
+            <DataTable
+              key={`users-${onlyNew}`}
+              rows={users}
+              cols={USERS}
+              rowKey={(r) => r.email}
+              name="users"
+              search="Filter by email, plan or type"
+              empty="No accounts yet."
+              tools={<label className="adm-check"><input type="checkbox" checked={onlyNew} onChange={(e) => setOnlyNew(e.target.checked)} /> Signed up in this period only</label>}
+            />
+          )
+        )}
+        {table === "scans" && (
+          <>
+            {w.scans > rows.scans.length && <p className="panel-note">Showing the newest {data.scanLogCap} of {w.scans} scans. Pick a shorter period to see older ones in full.</p>}
+            <DataTable rows={rows.scans} cols={SCANS} rowKey={(r) => r.id} name="scan-log" search="Filter by website, email or status" empty="No scans in this period." />
+          </>
+        )}
+        {table === "leads" && <DataTable rows={rows.leads} cols={LEADS} rowKey={(r) => `${r.at}${r.email}${r.host}`} name="leads" search="Filter by name, email or website" empty="No leads in this period." />}
+        {table === "stuck" && <DataTable rows={rows.stuck} cols={STUCK} rowKey={(r) => r.email} name="stuck-sign-ups" search="Filter by email" empty="Nobody is stuck: every account has confirmed its email." />}
+        {table === "features" && <DataTable rows={rows.features} cols={FEATURES} rowKey={(r) => `${r.what}${r.who}${r.site}${r.at}`} name="feature-use" search="Filter by feature, account or website" empty="No feature use yet." />}
       </section>
     </div>
   );

@@ -1,0 +1,5 @@
+{ "auth": { "origin": "http://localhost:3100", "key": "sb-localhost-auth-token", "tokensUrl": "http://localhost:54321/__tokens?email=alex@example.test" },
+  "jobs": [
+    { "url": "http://localhost:3100/dashboard/tsVsV1tr_zlB", "out": "../shots/peerlist/x-fix.png", "width": 1440, "height": 1400, "scale": 1, "wait": 6000,
+      "eval": "document.querySelector('nextjs-portal')?.remove(); for(let i=0;i<8;i++){ const no=[...document.querySelectorAll('button')].find(b=>/my own site/.test(b.textContent)); if(no){ no.click(); break; } await new Promise(r=>setTimeout(r,700)); } await new Promise(r=>setTimeout(r,1500)); document.querySelectorAll('button').forEach(b=>{ if(b.textContent.trim()==='Ask') b.style.display='none'; }); const t=[...document.querySelectorAll('button,a')].filter(b=>/How to fix/.test(b.textContent)); t[4].click(); await new Promise(r=>setTimeout(r,2500)); document.querySelectorAll('button').forEach(b=>{ if(b.textContent.trim()==='Ask') b.style.display='none'; }); window.scrollTo(0,0); return location.href+' | '+document.querySelector('[role=dialog]')?.innerText.slice(0,600)" }
+  ] }

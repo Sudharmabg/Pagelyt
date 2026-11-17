@@ -1,0 +1,48 @@
+{
+ "auth": {
+  "origin": "http://localhost:3100",
+  "key": "sb-localhost-auth-token",
+  "tokensUrl": "http://localhost:54321/__tokens?email=alex@example.test"
+ },
+ "jobs": [
+  {
+   "url": "http://localhost:3100/dashboard/tkw-LXGGBgrO?view=images",
+   "out": "../shots/post2/images.png",
+   "width": 1280,
+   "height": 1300,
+   "scale": 2,
+   "wait": 5000,
+   "eval": "document.querySelector(\"nextjs-portal\")?.remove(); for(let i=0;i<8;i++){ const no=[...document.querySelectorAll(\"button\")].find(b=>/my own site/.test(b.textContent)); if(no){ no.click(); break; } await new Promise(r=>setTimeout(r,700)); } await new Promise(r=>setTimeout(r,800)); document.querySelectorAll(\"button\").forEach(b=>{ if(b.textContent.trim()===\"Ask\") b.style.display=\"none\"; }); const h=[...document.querySelectorAll('h2,h3')].find(e=>/Images & page weight/.test(e.textContent)); let c=h; while(c && c.offsetHeight<200) c=c.parentElement; c.id='cap'; return c.offsetHeight;",
+   "clip": {
+    "selector": "#cap",
+    "pad": 12
+   }
+  },
+  {
+   "url": "http://localhost:3100/dashboard/tkw-LXGGBgrO?view=serp-preview",
+   "out": "../shots/post2/serp.png",
+   "width": 1280,
+   "height": 1300,
+   "scale": 2,
+   "wait": 5000,
+   "eval": "document.querySelector(\"nextjs-portal\")?.remove(); for(let i=0;i<8;i++){ const no=[...document.querySelectorAll(\"button\")].find(b=>/my own site/.test(b.textContent)); if(no){ no.click(); break; } await new Promise(r=>setTimeout(r,700)); } await new Promise(r=>setTimeout(r,800)); document.querySelectorAll(\"button\").forEach(b=>{ if(b.textContent.trim()===\"Ask\") b.style.display=\"none\"; }); const h=[...document.querySelectorAll('label,div,span')].find(e=>e.childElementCount===0 && e.textContent.trim()==='Page title'); let c=h; while(c && c.offsetWidth<850) c=c.parentElement; c.id='cap'; return c.offsetWidth+'x'+c.offsetHeight;",
+   "clip": {
+    "selector": "#cap",
+    "pad": 12
+   }
+  },
+  {
+   "url": "http://localhost:3100/dashboard/tkw-LXGGBgrO?view=ai-bot-checker",
+   "out": "../shots/post2/aibots.png",
+   "width": 1280,
+   "height": 1600,
+   "scale": 2,
+   "wait": 5000,
+   "eval": "document.querySelector(\"nextjs-portal\")?.remove(); for(let i=0;i<8;i++){ const no=[...document.querySelectorAll(\"button\")].find(b=>/my own site/.test(b.textContent)); if(no){ no.click(); break; } await new Promise(r=>setTimeout(r,700)); } await new Promise(r=>setTimeout(r,800)); document.querySelectorAll(\"button\").forEach(b=>{ if(b.textContent.trim()===\"Ask\") b.style.display=\"none\"; }); [...document.querySelectorAll(\"button\")].find(b=>/Check AI access/.test(b.textContent)).click(); let h; for(let i=0;i<40&&!h;i++){ h=[...document.querySelectorAll(\"*\")].find(e=>e.childElementCount===0&&/Every AI bot can read/.test(e.textContent)); if(!h) await new Promise(r=>setTimeout(r,1000)); } await new Promise(r=>setTimeout(r,1000)); document.querySelector(\"nextjs-portal\")?.remove(); for(let i=0;i<8;i++){ const no=[...document.querySelectorAll(\"button\")].find(b=>/my own site/.test(b.textContent)); if(no){ no.click(); break; } await new Promise(r=>setTimeout(r,700)); } await new Promise(r=>setTimeout(r,800)); document.querySelectorAll(\"button\").forEach(b=>{ if(b.textContent.trim()===\"Ask\") b.style.display=\"none\"; }); let c=h; while(c && c.offsetWidth<820) c=c.parentElement; c.id=\"cap\"; c.style.maxHeight=\"600px\"; c.style.overflow=\"hidden\"; return c.offsetWidth+\"x\"+c.offsetHeight;",
+   "clip": {
+    "selector": "#cap",
+    "pad": 12
+   }
+  }
+ ]
+}

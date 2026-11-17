@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pagelyt reel 4</title>
+<!-- Post 4: 18 s launch reel, 1080x1920 stage. Driven by window.setT(seconds) so every frame is exact.
+     Open with ?play to watch it in a browser; tools/record.mjs captures it frame by frame.
+     Instagram covers the top ~220px and bottom ~420px with its own UI, so key text stays between y=250 and y=1500. -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..900&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=block" rel="stylesheet">
+<style>
+  :root { --bg:#f8e5d4; --ink:#12303f; --body:#2c3f4a; --muted:#5d6b73; --purple:#6a30bd; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { width:1080px; height:1920px; overflow:hidden; background:var(--bg); font-family:Inter, system-ui, sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
+  #stage { position:relative; width:1080px; height:1920px; overflow:hidden; background:var(--bg); }
+  #stage::before { content:""; position:absolute; inset:0;
+    background-image:linear-gradient(to right, rgba(186,138,255,.16) 1px, transparent 1px), linear-gradient(to bottom, rgba(186,138,255,.16) 1px, transparent 1px);
+    background-size:60px 60px; mask-image:radial-gradient(ellipse 90% 60% at 50% 42%, #000 20%, transparent 85%); }
+  .arcs { position:absolute; left:-260px; top:1010px; width:1600px; height:620px; }
+  .scene { position:absolute; inset:0; opacity:0; will-change:opacity, transform; }
+
+  .brand { display:flex; align-items:center; justify-content:center; gap:16px; }
+  .brand svg { width:84px; height:51px; } .brand b { font:800 52px/1 Archivo; font-variation-settings:"wdth" 100; letter-spacing:-.02em; color:#2a1f3d; }
+  h1 { font:800 150px/.94 Archivo; font-variation-settings:"wdth" 72; letter-spacing:-.035em; text-align:center; }
+  h1 em, h2 em { font-style:normal; color:var(--purple); }
+  .cap { position:absolute; left:60px; right:60px; top:250px; text-align:center; }
+  .cap .n { display:inline-grid; place-items:center; width:64px; height:64px; border-radius:18px; font:800 32px/1 Archivo; color:#fff; background:var(--purple); }
+  .cap h2 { margin-top:22px; font:800 92px/.98 Archivo; font-variation-settings:"wdth" 72; letter-spacing:-.03em; }
+
+  /* scene 2: phone showing the real homepage */
+  .phone { position:absolute; left:50%; top:560px; width:724px; margin-left:-362px; padding:16px 16px 0; border-radius:84px 84px 0 0; background:#1b1426;
+           box-shadow:0 50px 110px rgba(18,48,63,.28); }
+  .phone .view { position:relative; height:1500px; border-radius:68px 68px 0 0; overflow:hidden; background:var(--bg); }
+  .phone .view img { position:absolute; left:0; top:0; width:100%; display:block; transform-origin:50% 55%; }
+  #typed { position:absolute; background:#fff; display:flex; align-items:center; font:400 30px/1 Inter; color:var(--ink); }
+  #typed .caret { width:3px; height:36px; background:var(--purple); margin-left:3px; }
+  #press { position:absolute; border-radius:22px; }
+  .cursor { position:absolute; width:54px; height:54px; z-index:5; }
+
+  /* scene 3: scanning */
+  .scan { position:absolute; left:90px; right:90px; top:560px; background:#fff; border-radius:40px; padding:44px 44px 40px;
+          box-shadow:0 40px 90px rgba(18,48,63,.16), 0 0 0 1px rgba(18,48,63,.05); }
+  .scan .t { font:700 34px/1 Inter; color:var(--muted); } .scan .t b { color:var(--ink); }
+  .scan .prog { margin-top:26px; height:16px; border-radius:99px; background:#f1e9f9; overflow:hidden; }
+  .scan .prog i { display:block; height:100%; width:0; border-radius:99px; background:linear-gradient(90deg,#ba8aff,#fe79a2,#febc77,#68cea7); }
+  .scan ul { margin-top:30px; list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .scan li { display:flex; align-items:center; gap:16px; padding:34px 22px; border-radius:22px; background:#faf6f1; font:600 34px/1 Inter; white-space:nowrap; }
+  .scan li .s { flex:none; width:42px; height:42px; border-radius:50%; border:4px solid #e6dcd2; display:grid; place-items:center; font:800 22px/1 Inter; color:transparent; }
+  .scan li.done .s { border-color:transparent; background:#1f9d6b; color:#fff; }
+
+  /* scene 4: score */
+  .score { position:absolute; left:60px; right:60px; top:500px; height:330px; border-radius:40px; padding:0 50px; display:flex; align-items:center; gap:44px; color:#fff;
+           background:radial-gradient(120% 140% at 100% 100%, #9a3fc4 0%, #5b2aa8 45%, #2c1a6e 100%); box-shadow:0 40px 80px rgba(60,26,120,.35); }
+  .score svg { flex:none; width:230px; height:230px; }
+  .score .num { font:800 92px/1 Archivo; font-variation-settings:"wdth" 90; }
+  .score small { display:block; font:700 22px/1 Inter; letter-spacing:.12em; opacity:.85; }
+  .score strong { display:block; margin-top:14px; font:800 64px/1 Archivo; font-variation-settings:"wdth" 72; letter-spacing:-.02em; }
+  .score p { margin-top:16px; font:500 28px/1.3 Inter; opacity:.9; } .score p b { color:#7df0c0; }
+  .grid { position:absolute; left:60px; right:60px; top:862px; height:1100px; overflow:hidden; }
+  .grid div { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .grid img { width:100%; display:block; border-radius:26px; box-shadow:0 0 0 1px rgba(18,48,63,.08); }
+
+  /* scene 5: fix */
+  .fix { position:absolute; left:60px; right:60px; top:560px; background:#fff; border-radius:36px; padding:38px 40px; box-shadow:0 30px 70px rgba(18,48,63,.14), 0 0 0 1px rgba(18,48,63,.05); }
+  .fix .tag { display:inline-block; padding:10px 18px; border-radius:99px; background:#fdecc8; color:#8a5300; font:700 24px/1 Inter; }
+  .fix h3 { margin-top:20px; font:800 50px/1.05 Archivo; font-variation-settings:"wdth" 78; letter-spacing:-.02em; }
+  .fix p { margin-top:16px; font:500 32px/1.35 Inter; color:var(--body); } .fix p b { color:#1f9d6b; }
+  .code { position:absolute; left:60px; right:60px; top:960px; border-radius:36px; overflow:hidden; box-shadow:0 40px 90px rgba(18,48,63,.3); }
+  .code img { width:100%; display:block; }
+  .hl { position:absolute; border:5px solid #ba8aff; border-radius:99px; opacity:0; }
+  .toast { position:absolute; left:50%; top:972px; transform:translateX(-50%); padding:22px 34px; border-radius:22px; background:#1f9d6b; color:#fff; font:700 36px/1 Inter; white-space:nowrap; box-shadow:0 20px 40px rgba(18,48,63,.3); opacity:0; }
+
+  /* end card */
+  .end h1 { margin-top:36px; font-size:128px; }
+  .end .pill { margin:56px auto 0; width:max-content; padding:34px 52px; border-radius:30px; background:var(--purple); color:#fff; text-align:center; box-shadow:0 30px 60px rgba(106,48,189,.38); }
+  .end .pill small { display:block; font:600 34px/1 Inter; opacity:.9; }
+  .end .pill b { display:block; margin-top:14px; font:800 104px/1 Archivo; font-variation-settings:"wdth" 80; letter-spacing:-.01em; }
+  .end p { margin-top:34px; text-align:center; font:600 38px/1.3 Inter; color:var(--body); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs><linearGradient id="gb" x1="0" x2="1"><stop offset="0" stop-color="#ba8aff"/><stop offset=".5" stop-color="#fe79a2"/><stop offset=".78" stop-color="#febc77"/><stop offset="1" stop-color="#68cea7"/></linearGradient></defs>
+  <symbol id="logo" viewBox="0 0 200 120"><path d="M22 108 A78 78 0 0 1 178 108" fill="none" stroke="url(#gb)" stroke-width="26" stroke-linecap="round"/><path d="M100 108 L146 62" stroke="#2a1f3d" stroke-width="12" stroke-linecap="round"/><circle cx="100" cy="108" r="14" fill="#2a1f3d"/></symbol>
+  <symbol id="ribbons" viewBox="0 0 1440 460" preserveAspectRatio="xMidYMid slice">
+    <path d="M -160 460 C 280 420, 940 20, 1600 30" stroke="#ba8aff" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 342, 940 54, 1600 126" stroke="#d3b6ff" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 264, 940 88, 1600 222" stroke="#68cea7" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 186, 940 122, 1600 318" stroke="#febc77" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 108, 940 156, 1600 414" stroke="#fe79a2" stroke-width="48" fill="none"/>
+  </symbol>
+  <symbol id="cur" viewBox="0 0 24 24"><path d="M4 2 L4 20 L9 15 L12.5 22 L15.5 20.6 L12 13.8 L19 13.8 Z" fill="#12303f" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div id="stage">
+  <svg class="arcs" id="arcs"><use href="#ribbons"/></svg>
+
+  <!-- 1 · hook (also the cover) -->
+  <section class="scene" id="sc1" style="padding-top:470px">
+    <div class="brand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <h1 style="margin-top:44px">Your website<br>is losing<br>visitors.<br><em>Here's why.</em></h1>
+  </section>
+
+  <!-- 2 · paste URL -->
+  <section class="scene" id="sc2">
+    <div class="cap"><span class="n">1</span><h2>Paste your URL</h2></div>
+    <div class="phone"><div class="view"><img id="homeImg" src="shots/phone-home.png" alt="">
+      <div id="typed"><span id="typedText"></span><span class="caret" id="caret"></span></div>
+      <div id="press"></div></div></div>
+    <svg class="cursor" id="cur2"><use href="#cur"/></svg>
+  </section>
+
+  <!-- 3 · scanning -->
+  <section class="scene" id="sc3">
+    <div class="cap"><span class="n">2</span><h2><em>8 areas</em> checked<br>in under a minute</h2></div>
+    <div class="scan" style="top:640px">
+      <p class="t">Scanning <b>yourbakery.com</b></p>
+      <div class="prog"><i id="prog"></i></div>
+      <ul id="areas">
+        <li><span class="s">✓</span>SEO</li>
+        <li><span class="s">✓</span>Speed</li>
+        <li><span class="s">✓</span>AI search</li>
+        <li><span class="s">✓</span>Security</li>
+        <li><span class="s">✓</span>Accessibility</li>
+        <li><span class="s">✓</span>Site health</li>
+        <li><span class="s">✓</span>Domain &amp; email</li>
+        <li><span class="s">✓</span>Privacy</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 4 · score -->
+  <section class="scene" id="sc4">
+    <div class="cap"><span class="n">3</span><h2>One <em>clear score</em></h2></div>
+    <div class="score" id="scoreCard">
+      <svg viewBox="0 0 230 230">
+        <circle cx="115" cy="115" r="92" fill="none" stroke="rgba(255,255,255,.16)" stroke-width="22"/>
+        <circle id="ring" cx="115" cy="115" r="92" fill="none" stroke="#2fa873" stroke-width="22" stroke-linecap="round" transform="rotate(-90 115 115)" stroke-dasharray="578" stroke-dashoffset="578"/>
+        <text id="num" class="num" x="115" y="147" text-anchor="middle" fill="#fff">0</text>
+      </svg>
+      <div><small>✦ WEBSITE INTELLIGENCE SCORE</small><strong>In great shape</strong><p>Fix 1 important item first: <b>+2 points</b></p></div>
+    </div>
+    <div class="grid"><div id="cards">
+      <img src="shots/reel4/area-3.png" alt=""><img src="shots/reel4/area-5.png" alt="">
+      <img src="shots/reel4/area-2.png" alt=""><img src="shots/reel4/area-4.png" alt="">
+      <img src="shots/reel4/area-1.png" alt=""><img src="shots/reel4/area-6.png" alt="">
+    </div></div>
+  </section>
+
+  <!-- 5 · fix -->
+  <section class="scene" id="sc5">
+    <div class="cap"><span class="n">4</span><h2>The fix, in<br><em>plain English</em></h2></div>
+    <div class="fix" id="fixCard" style="top:640px"><span class="tag">Security · Worth fixing</span>
+      <h3>Your site is missing 5 security headers</h3>
+      <p>Paste this into your <b>_headers</b> file. It's already filled in for your site.</p></div>
+    <div class="code" id="codeCard" style="top:1090px"><img src="shots/reel4/code.png" alt=""><div class="hl" id="hl5"></div></div>
+    <div class="toast" id="toast">✓ Copied</div>
+    <svg class="cursor" id="cur5"><use href="#cur"/></svg>
+  </section>
+
+  <!-- 6 · end -->
+  <section class="scene end" id="sc6" style="padding-top:400px">
+    <div class="brand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <h1>Free website<br>audit. <em>Fixes in<br>plain English.</em></h1>
+    <div class="pill"><small>Comment</small><b>PAGELYT</b></div>
+    <p>and I'll send you the link · pagelyt.dev</p>
+  </section>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const ramp = (t, a, b) => clamp((t - a) / (b - a));
+const ease = (x) => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2;
+const out = (x) => 1 - Math.pow(1 - x, 3);
+const back = (x) => { const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
+const lerp = (a, b, x) => a + (b - a) * x;
+
+const S = { sc1:[0,2.7], sc2:[2.5,6.1], sc3:[5.9,8.7], sc4:[8.5,12.1], sc5:[11.9,15.4], sc6:[15.2,18.5] };
+const DURATION = 18;
+
+function scene(id, t) {
+  const [a, b] = S[id], el = $(id);
+  const vin = a === 0 ? 1 : out(ramp(t, a, a + .35)), vout = 1 - ramp(t, b - .3, b);
+  const v = Math.min(vin, vout);
+  el.style.opacity = v;
+  el.style.transform = `translateY(${(1 - vin) * 40}px)`;
+  return v > 0;
+}
+
+// phone-home.png is 1170x2532 (3x of 390). Shown 692 wide inside the phone.
+const PK = 692 / 1170, PX = 194 + 0, PY = 576; // phone view's top-left on the stage
+function placeHome() {
+  const box = (x1, y1, x2, y2, el) => Object.assign(el.style, { left: x1*PK + "px", top: y1*PK + "px", width: (x2-x1)*PK + "px", height: (y2-y1)*PK + "px" });
+  box(120, 1250, 1060, 1372, $("typed"));
+  box(335, 1423, 835, 1553, $("press"));
+}
+
+function setT(t) {
+  const mid = t > 2.7 && t < 15.2;
+  $("arcs").style.transform = `translate(${Math.sin(t / 5) * 30}px, ${mid ? 330 : 0}px)`;
+  $("arcs").style.opacity = mid ? .3 : 1;
+
+  if (scene("sc1", t)) {
+    const h = $("sc1").querySelector("h1");
+    h.style.transform = `scale(${lerp(1, 1.04, ramp(t, 0, 2.7))})`;
+  }
+
+  if (scene("sc2", t)) {
+    const url = "yourbakery.com", n = Math.round(ramp(t, 3.1, 4.3) * url.length);
+    $("typedText").textContent = url.slice(0, n);
+    $("caret").style.opacity = t < 4.6 ? 1 : 0;
+    const bx = PX + 620 * PK, by = PY + 1490 * PK, m = ease(ramp(t, 4.3, 5));
+    const c = $("cur2"); c.style.left = lerp(860, bx, m) + "px"; c.style.top = lerp(1640, by, m) + "px";
+    c.style.transform = `scale(${t > 5.1 && t < 5.3 ? .82 : 1})`;
+    const p = ramp(t, 5.15, 5.8);
+    $("press").style.boxShadow = `0 0 0 ${p * 40}px rgba(106,48,189,${.5 * (1 - p)})`;
+    $("homeImg").style.transform = `scale(${1 + ease(ramp(t, 5.3, 6.1)) * .05})`;
+  }
+
+  if (scene("sc3", t)) {
+    $("prog").style.width = (ramp(t, 6.2, 8.1) * 100) + "%";
+    [...$("areas").children].forEach((li, i) => {
+      const at = 6.3 + i * .22, d = t >= at;
+      li.classList.toggle("done", d);
+      li.querySelector(".s").style.transform = `scale(${d ? lerp(1.35, 1, ramp(t, at, at + .2)) : 1})`;
+    });
+  }
+
+  if (scene("sc4", t)) {
+    const p = out(ramp(t, 8.8, 10.2)), v = Math.round(80 * p);
+    $("num").textContent = v;
+    $("ring").setAttribute("stroke-dashoffset", 578 * (1 - .8 * p));
+    [...$("cards").children].forEach((im, i) => {
+      const at = 9.6 + i * .16, q = ramp(t, at, at + .35);
+      im.style.opacity = clamp(q * 2); im.style.transform = `scale(${lerp(.86, 1, back(q))})`;
+    });
+
+  }
+
+  if (scene("sc5", t)) {
+    const q = out(ramp(t, 12.5, 12.9));
+    $("codeCard").style.opacity = q; $("codeCard").style.transform = `translateY(${(1 - q) * 40}px)`;
+    // code.png is 1054 wide shown at 960; Copy button centre is at (755, 51) in the crop
+    const k = 960 / 1054, bx = 60 + 755 * k, by = 1090 + 51 * k, m = ease(ramp(t, 13, 13.7));
+    const c = $("cur5"); c.style.left = lerp(820, bx, m) + "px"; c.style.top = lerp(1660, by, m) + "px"; c.style.opacity = ramp(t, 12.9, 13.1);
+    c.style.transform = `scale(${t > 13.8 && t < 14 ? .82 : 1})`;
+    Object.assign($("hl5").style, { left: (690 * k - 8) + "px", top: (22 * k - 8) + "px", width: (132 * k + 16) + "px", height: (58 * k + 16) + "px", opacity: ramp(t, 13.85, 14) });
+    const ts = $("toast"), a = out(ramp(t, 13.9, 14.25));
+    ts.style.opacity = a; ts.style.transform = `translateX(-50%) translateY(${(1 - a) * 20}px) scale(${lerp(.9, 1, a)})`;
+  }
+
+  if (scene("sc6", t)) {
+    const q = back(ramp(t, 15.7, 16.2));
+    $("sc6").querySelector(".pill").style.transform = `scale(${lerp(.8, 1, q)})`;
+    $("sc6").querySelector(".pill").style.opacity = ramp(t, 15.7, 15.9);
+  }
+}
+
+placeHome();
+window.setT = setT; window.DURATION = DURATION;
+setT(0);
+if (location.search.includes("play")) { const t0 = performance.now(); (function f() { const t = (performance.now() - t0) / 1000; setT(t % DURATION); requestAnimationFrame(f); })(); }
+</script>
+</body>
+</html>

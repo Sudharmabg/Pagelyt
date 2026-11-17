@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pagelyt Instagram carousel</title>
+<!-- Instagram carousel, 8 slides at 1080x1350 (4:5). Render with: node tools/shoot.mjs tools/carousel.json
+     Screenshots in shots/ are real captures of the site (pagelyt.dev scanned locally). -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>
+  :root { --ink:#1a1430; --cream:#fcebdd; --purple:#9b6bff; --pink:#ff7eb3; --orange:#ffad66; --teal:#34d1a9; --muted:#b9b0cf; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#000; font-family:Inter, system-ui, sans-serif; color:#fff; -webkit-font-smoothing:antialiased; }
+  .slide { position:relative; width:1080px; height:1350px; overflow:hidden; padding:64px 76px 56px; display:flex; flex-direction:column;
+    background:
+      radial-gradient(640px 520px at 0% 0%, rgba(155,107,255,.50), transparent 70%),
+      radial-gradient(600px 520px at 100% 100%, rgba(52,209,169,.26), transparent 70%),
+      radial-gradient(520px 420px at 100% 30%, rgba(255,126,179,.20), transparent 70%),
+      linear-gradient(155deg, #211840 0%, #1a1430 55%, #151124 100%); }
+  .slide::before { content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:radial-gradient(rgba(255,255,255,.06) 1.4px, transparent 1.6px); background-size:22px 22px;
+    mask-image:linear-gradient(180deg, #000, transparent 60%); }
+  .slide > * { position:relative; }
+  .slide + .slide { margin-top:40px; }
+
+  .top { display:flex; align-items:center; gap:12px; flex:none; }
+  .top svg { width:44px; }
+  .top b { font:800 28px/1 Archivo; letter-spacing:-.02em; }
+  .count { margin-left:auto; font:600 18px/1 Inter; color:var(--muted); letter-spacing:.06em; }
+
+  .kicker { margin-top:46px; font:700 17px/1 Inter; letter-spacing:.16em; text-transform:uppercase; color:var(--teal); }
+  h1 { margin-top:18px; font:800 70px/1.02 Archivo; letter-spacing:-.03em; }
+  h1 em, .grad { font-style:normal; background:linear-gradient(90deg,var(--purple),var(--pink) 55%,var(--orange)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .lead { margin-top:20px; font:400 27px/1.42 Inter; color:#d9d2ea; max-width:900px; }
+  .lead b { color:#fff; font-weight:600; }
+
+  .media { flex:1; min-height:0; margin-top:40px; position:relative; }
+  .win { border-radius:22px; overflow:hidden; background:#f7e3d3; border:1px solid rgba(255,255,255,.18);
+         box-shadow:0 40px 90px rgba(0,0,0,.5), 0 0 0 8px rgba(255,255,255,.04); }
+  .win .bar { height:46px; display:flex; align-items:center; gap:9px; padding:0 18px; background:#fff8f2; border-bottom:1px solid #ecd9c8; }
+  .win .bar i { width:13px; height:13px; border-radius:50%; background:#ff6b6b; } .win .bar i:nth-child(2){background:#ffc145} .win .bar i:nth-child(3){background:#3ed37d}
+  .win .bar span { margin-left:14px; flex:1; max-width:440px; height:28px; border-radius:8px; background:#f1e4d8; color:#6d5f7c; font:500 15px/28px Inter; padding:0 14px; }
+  .win img { display:block; width:100%; }
+
+  .chip { position:absolute; display:flex; align-items:center; gap:10px; padding:14px 20px; border-radius:16px; font:600 21px/1.1 Inter; color:#1a1430;
+          background:#fff; box-shadow:0 18px 40px rgba(0,0,0,.35); white-space:nowrap; }
+  .chip .d { width:12px; height:12px; border-radius:50%; flex:none; }
+
+  .foot { flex:none; margin-top:34px; display:flex; align-items:center; gap:10px; }
+  .dots { display:flex; gap:8px; }
+  .dots i { width:10px; height:10px; border-radius:99px; background:rgba(255,255,255,.22); }
+  .dots i.on { width:34px; background:linear-gradient(90deg,var(--purple),var(--pink)); }
+  .swipe { margin-left:auto; font:600 21px/1 Inter; color:var(--cream); display:flex; align-items:center; gap:10px; }
+  .note { font:500 16px/1.3 Inter; color:var(--muted); margin-left:22px; }
+
+  /* phone */
+  .phone { position:absolute; width:480px; border-radius:64px; padding:16px; background:#0d0a18;
+           box-shadow:0 0 0 2px #3a3150, 0 50px 110px rgba(0,0,0,.6), inset 0 0 0 2px #2a2340; }
+  .phone img { display:block; width:100%; border-radius:50px; }
+  .phone::after { content:""; position:absolute; top:30px; left:50%; width:120px; height:32px; margin-left:-60px; border-radius:20px; background:#0d0a18; }
+
+  /* slide 1 */
+  .s1 h1 { font-size:92px; margin-top:64px; }
+  .s1 .lead { max-width:470px; }
+  /* slide 2 steps */
+  .steps { display:grid; gap:22px; width:470px; margin-top:44px; }
+  .step { display:flex; gap:20px; padding:26px 26px; border-radius:22px; background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04)); border:1px solid rgba(255,255,255,.14); }
+  .step .n { flex:none; width:50px; height:50px; border-radius:14px; display:grid; place-items:center; font:800 24px Archivo; color:#1a1430; }
+  .step h3 { font:700 26px/1.15 Inter; }
+  .step p { margin-top:8px; font:400 20px/1.4 Inter; color:#cfc6e2; }
+
+  .areas { display:flex; flex-wrap:wrap; gap:10px; margin-top:24px; }
+  .areas span { font:600 18px/1 Inter; padding:11px 15px; border-radius:99px; background:rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.14); color:#ece6f7; }
+
+  /* last slide */
+  .s8 { text-align:center; align-items:center; }
+  .s8 .top { align-self:stretch; }
+  .s8 h1 { font-size:88px; margin-top:70px; }
+  .s8 .lead { margin-left:auto; margin-right:auto; max-width:760px; }
+  .url { margin-top:44px; display:inline-flex; align-items:center; gap:18px; font:800 54px/1 Archivo; letter-spacing:-.02em; color:#1a1430;
+         padding:30px 44px; border-radius:26px; background:linear-gradient(90deg, var(--cream), #fff); box-shadow:0 24px 60px rgba(0,0,0,.4); }
+  .url span { color:#7b4dff; }
+  .ticks { margin-top:48px; display:grid; grid-template-columns:1fr 1fr; gap:16px 40px; text-align:left; }
+  .ticks div { display:flex; align-items:center; gap:14px; font:500 25px/1.2 Inter; color:#e6e0f2; }
+  .ticks i { flex:none; width:32px; height:32px; border-radius:10px; display:grid; place-items:center; background:rgba(52,209,169,.18); color:var(--teal); font:800 18px Inter; font-style:normal; }
+  .actions { margin-top:auto; display:flex; gap:16px; justify-content:center; }
+  .actions span { font:600 20px/1 Inter; padding:16px 22px; border-radius:99px; border:1px solid rgba(255,255,255,.2); background:rgba(255,255,255,.06); }
+</style>
+</head>
+<body>
+
+<!-- reusable logo -->
+<svg width="0" height="0" style="position:absolute">
+  <defs><linearGradient id="gb" x1="0" x2="1"><stop offset="0" stop-color="#9b6bff"/><stop offset=".5" stop-color="#ff7eb3"/><stop offset=".78" stop-color="#ffad66"/><stop offset="1" stop-color="#34d1a9"/></linearGradient></defs>
+  <symbol id="logo" viewBox="0 0 200 120"><path d="M22 108 A78 78 0 0 1 178 108" fill="none" stroke="url(#gb)" stroke-width="26" stroke-linecap="round"/><path d="M100 108 L146 62" stroke="#fff" stroke-width="12" stroke-linecap="round"/><circle cx="100" cy="108" r="14" fill="#fff"/></symbol>
+</svg>
+
+<!-- 1 · cover -->
+<section class="slide s1" id="s1">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="count">1 / 8</span></div>
+  <h1>Is your website<br><em>quietly losing</em><br>you customers?</h1>
+  <p class="lead">Slow pages, hidden SEO gaps, invisible to ChatGPT. <b>Here's how to find out in about a minute.</b></p>
+  <div class="phone" style="right:64px; top:640px; transform:rotate(4deg)"><img src="shots/phone-overview.png" alt=""></div>
+  <div class="chip" style="left:76px; top:930px"><i class="d" style="background:var(--teal)"></i>8 areas checked</div>
+  <div class="chip" style="left:120px; top:1030px"><i class="d" style="background:var(--pink)"></i>Fixes ranked by impact</div>
+  <div class="chip" style="left:76px; top:1130px"><i class="d" style="background:var(--purple)"></i>Free to start</div>
+  <div class="foot" style="margin-top:auto"><div class="dots"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div></div>
+  <div class="swipe" style="position:absolute; right:76px; bottom:56px; background:rgba(26,20,48,.85); padding:14px 20px; border-radius:99px">Swipe <span>→</span></div>
+</section>
+
+<!-- 2 · how it works -->
+<section class="slide" id="s2">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="count">2 / 8</span></div>
+  <div class="kicker">How it works</div>
+  <h1>One URL in.<br><em>A full check-up out.</em></h1>
+  <div class="steps">
+    <div class="step"><span class="n" style="background:var(--purple)">1</span><div><h3>Paste your link</h3><p>No install, no code, no plugin.</p></div></div>
+    <div class="step"><span class="n" style="background:var(--pink)">2</span><div><h3>We check 8 areas</h3><p>SEO, speed, security, accessibility, AI search and more.</p></div></div>
+    <div class="step"><span class="n" style="background:var(--orange)">3</span><div><h3>Fix what matters first</h3><p>Every issue in plain English, ranked by impact.</p></div></div>
+  </div>
+  <div class="phone" style="right:70px; top:486px; width:380px; transform:rotate(-3deg)"><img src="shots/phone-home.png" alt=""></div>
+  <div class="foot" style="margin-top:auto"><div class="dots"><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></div><div class="swipe" style="background:rgba(26,20,48,.9); padding:14px 20px; border-radius:99px">Swipe →</div></div>
+</section>
+
+<!-- 3 · the score -->
+<section class="slide" id="s3">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="count">3 / 8</span></div>
+  <div class="kicker">One clear score</div>
+  <h1>Your whole site,<br><em>scored out of 100.</em></h1>
+  <div class="areas"><span>Website health</span><span>Performance</span><span>SEO</span><span>GEO / AI search</span><span>Security</span><span>Accessibility</span><span>Domain &amp; email</span><span>Privacy</span></div>
+  <div class="media">
+    <div class="win" style="height:100%"><div class="bar"><i></i><i></i><i></i><span>pagelyt.dev/dashboard</span></div><img src="shots/score.png" alt=""></div>
+    <div class="chip" style="right:-22px; top:30px"><i class="d" style="background:var(--teal)"></i>Our own site: 95/100</div>
+  </div>
+  <div class="foot"><div class="dots"><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i></div><span class="note">Real scan of pagelyt.dev</span><div class="swipe">Swipe →</div></div>
+</section>
+
+<!-- 4 · fixes -->
+<section class="slide" id="s4">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="count">4 / 8</span></div>
+  <div class="kicker">Fixes, not jargon</div>
+  <h1>Know exactly<br><em>what to fix first.</em></h1>
+  <p class="lead">Each issue says <b>what's wrong</b>, <b>why it matters</b> and <b>how long it takes</b>. Tick it off when it's done.</p>
+  <div class="media">
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>pagelyt.dev/dashboard</span></div><img src="shots/fixes.png" alt=""></div>
+    <div class="chip" style="right:-18px; top:-24px"><i class="d" style="background:var(--orange)"></i>Ranked by impact</div>
+    <div class="chip" style="right:40px; top:600px"><i class="d" style="background:var(--purple)"></i>Technical details for your developer</div>
+  </div>
+  <div class="foot"><div class="dots"><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i><i></i></div><div class="swipe">Swipe →</div></div>
+</section>
+
+<!-- 5 · google data -->
+<section class="slide" id="s5">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="count">5 / 8</span></div>
+  <div class="kicker">Works with Google</div>
+  <h1>See the traffic<br><em>behind every issue.</em></h1>
+  <p class="lead">Connect <b>Search Console</b>, <b>Analytics</b> and <b>Google Ads</b>. Fix the problems on the pages that bring you customers.</p>
+  <div class="media">
+    <div class="win" style="width:840px; height:270px"><div class="bar"><i></i><i></i><i></i><span>pagelyt.dev/dashboard · Google data</span></div><img src="shots/google-top.png" alt=""></div>
+    <div class="win" style="position:absolute; right:0; top:150px; width:760px; background:#fff"><img src="shots/google-fix.png" alt=""></div>
+    <div class="chip" style="right:-18px; top:122px"><i class="d" style="background:var(--teal)"></i>Biggest traffic first</div>
+  </div>
+  <div class="foot"><div class="dots"><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i><i></i></div><span class="note">Example data · read-only access</span><div class="swipe">Swipe →</div></div>
+</section>
+
+<!-- 6 · ask pagelyt -->
+<section class="slide" id="s6">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="count">6 / 8</span></div>
+  <div class="kicker">Ask Pagelyt</div>
+  <h1>Stuck on a fix?<br><em>Just ask.</em></h1>
+  <p class="lead">A built-in AI assistant that <b>knows your report</b> and our fix guides. Ask in plain words, get steps you can follow.</p>
+  <div class="media">
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>pagelyt.dev/dashboard</span></div><img src="shots/ask.png" alt=""></div>
+    <div class="chip" style="right:-18px; top:-24px"><i class="d" style="background:var(--pink)"></i>"What should I fix first?"</div>
+  </div>
+  <div class="foot"><div class="dots"><i></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i><i></i></div><div class="swipe">Swipe →</div></div>
+</section>
+
+<!-- 7 · free tools -->
+<section class="slide" id="s7">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="count">7 / 8</span></div>
+  <div class="kicker">Free tools</div>
+  <h1>12 free SEO &amp; AI tools.<br><em>Ready for your site.</em></h1>
+  <p class="lead">Check if <b>ChatGPT, Claude and Perplexity</b> can read your site, make an llms.txt, generate schema, preview Google results and more.</p>
+  <div class="media">
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>pagelyt.dev/tools</span></div><img src="shots/tools-cards.png" alt=""></div>
+    <div class="chip" style="right:-16px; top:-24px"><i class="d" style="background:var(--teal)"></i>0 installs needed</div>
+  </div>
+  <div class="foot"><div class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i class="on"></i><i></i></div><div class="swipe">Swipe →</div></div>
+</section>
+
+<!-- 8 · CTA -->
+<section class="slide s8" id="s8">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="count">8 / 8</span></div>
+  <h1>Your website,<br><em>scored &amp; explained.</em></h1>
+  <p class="lead">Run your first audit free. It takes about a minute.</p>
+  <div class="url">→ <span>pagelyt.dev</span></div>
+  <div class="ticks">
+    <div><i>✓</i>One score, 8 areas</div>
+    <div><i>✓</i>Fixes in plain English</div>
+    <div><i>✓</i>Google data built in</div>
+    <div><i>✓</i>12 free SEO &amp; AI tools</div>
+  </div>
+  <div class="win" style="width:780px; height:265px; margin-top:56px"><div class="bar"><i></i><i></i><i></i><span>pagelyt.dev/dashboard</span></div><img src="shots/score.png" alt=""></div>
+  <div class="actions"><span>🔗 Link in bio</span><span>🔖 Save for later</span><span>➕ Follow for website tips</span></div>
+  <div class="foot" style="margin-top:34px"><div class="dots"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i class="on"></i></div></div>
+</section>
+
+</body>
+</html>

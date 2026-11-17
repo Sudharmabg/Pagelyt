@@ -1,0 +1,16 @@
+{ "auth": { "origin": "http://localhost:3100", "key": "sb-localhost-auth-token", "tokensUrl": "http://localhost:54321/__tokens?email=alex@example.test" },
+  "jobs": [
+    { "url": "http://localhost:3100/dashboard/tsVsV1tr_zlB", "out": "../shots/peerlist/overview.png", "width": 1440, "height": 1100, "scale": 2, "wait": 6000,
+      "eval": "document.querySelector('nextjs-portal')?.remove(); for(let i=0;i<8;i++){ const no=[...document.querySelectorAll('button')].find(b=>/my own site/.test(b.textContent)); if(no){ no.click(); break; } await new Promise(r=>setTimeout(r,700)); } await new Promise(r=>setTimeout(r,2500)); document.querySelectorAll('button').forEach(b=>{ if(b.textContent.trim()==='Ask') b.style.display='none'; });",
+      "clip": {"x": 300, "y": 139, "width": 1128, "height": 888} },
+    { "url": "http://localhost:3100/dashboard/tsVsV1tr_zlB", "out": "../shots/peerlist/drawer.png", "width": 1440, "height": 900, "scale": 2, "wait": 6000,
+      "eval": "document.querySelector('nextjs-portal')?.remove(); for(let i=0;i<8;i++){ const no=[...document.querySelectorAll('button')].find(b=>/my own site/.test(b.textContent)); if(no){ no.click(); break; } await new Promise(r=>setTimeout(r,700)); } await new Promise(r=>setTimeout(r,1500)); document.querySelectorAll('button').forEach(b=>{ if(b.textContent.trim()==='Ask') b.style.display='none'; }); const t=[...document.querySelectorAll('button,a')].filter(b=>/How to fix/.test(b.textContent)); t[4].click(); await new Promise(r=>setTimeout(r,2500)); document.querySelectorAll('button').forEach(b=>{ if(b.textContent.trim()==='Ask') b.style.display='none'; });",
+      "clip": {"x": 880, "y": 0, "width": 560, "height": 450} },
+    { "url": "http://localhost:3100/dashboard/tsVsV1tr_zlB?view=security-headers-generator", "out": "../shots/peerlist/sec.png", "width": 1440, "height": 1800, "scale": 2, "wait": 7000,
+      "eval": "document.querySelector('nextjs-portal')?.remove(); for(let i=0;i<8;i++){ const no=[...document.querySelectorAll('button')].find(b=>/my own site/.test(b.textContent)); if(no){ no.click(); break; } await new Promise(r=>setTimeout(r,700)); } await new Promise(r=>setTimeout(r,2000)); document.querySelector('nextjs-portal')?.remove(); document.querySelectorAll('button').forEach(b=>{ if(b.textContent.trim()==='Ask') b.style.display='none'; }); return location.href",
+      "clip": {"x": 320, "y": 415, "width": 1088, "height": 1220} },
+    { "url": "http://localhost:3100/", "out": "../shots/peerlist/home.png", "width": 1440, "height": 900, "scale": 2, "wait": 5000,
+      "eval": "document.querySelector('nextjs-portal')?.remove();" },
+    { "url": "http://localhost:3100/tools", "out": "../shots/peerlist/x-tools.png", "width": 1440, "height": 3600, "scale": 1, "wait": 5000,
+      "eval": "document.querySelector('nextjs-portal')?.remove(); return [...document.querySelectorAll('h2,h3')].slice(0,30).map(h=>h.textContent.trim().slice(0,30)+'@'+Math.round(h.getBoundingClientRect().top)).join(' | ')" }
+  ] }

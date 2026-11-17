@@ -52,11 +52,13 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `guides.ts` | `GUIDES`, `GUIDE_AREAS`, `GUIDE_ORDER` | Fix guides keyed by finding id (why, steps, verify, dev snippet, tool link); area order and display order for `/fix` |
 | `history.ts` | `siteHistory`, `previousSnap`, `toSnap` | Score history per saved site |
 | `alerts.ts` | `alertAfterScan` | Emails the owner when the score drops, a new high-severity issue appears, or the site changes |
-| `store.ts` | `live`, `rest`, `createScan`, `getScanRow`, `updateScan`, `saveLead`, `claimScansByEmail`, `saveSite`, `dueSites`, `scheduleSiteScan`, `setScanFixed`, `rateLimit` | Scans, leads and sites storage (Supabase REST) |
+| `store.ts` | `live`, `rest`, `createScan`, `getScanRow`, `updateScan`, `inviteLocked` (an admin’s shared scan nobody has signed in to), `saveLead`, `claimScansByEmail`, `saveSite`, `dueSites`, `scheduleSiteScan`, `setScanFixed`, `rateLimit` | Scans, leads and sites storage (Supabase REST) |
 | `store-ext.ts` | `getPlan`, `canWhiteLabel`, `canTrackAi`, `BILLING_ON`, `getBrand`, `createShare`, `getShare`, `loadSharedReport`, AI prompt and run functions | White-label sharing, plan checks and AI visibility data |
 | `agency.ts` | `getAccount`, `setAccountType`, `isPaid`, `sitesOverview`, `createComparison`, `getComparison` | Agency account type, multi-site overview, competitor comparisons |
 | `admin.ts` | `startSiteRescan`, `runSiteAi`, `adminOverview`, `pingUptime`, `authUsers` | Operator actions (admin panel and cron) |
-| `analytics.ts` | `adminAnalytics` | Admin usage analytics |
+| `analytics.ts` | `adminAnalytics`, `Analytics`, `UserRow`, `ScanLogRow`, `LeadRow`, `StuckRow`, `FeatureRow` | Admin usage numbers for 7/30/90 days or all time (`days` 0), plus the rows behind them (users, scan log, leads, stuck sign-ups, feature use) |
+| `admin-data.ts` | `adminWebsites`, `adminHostDetail`, `adminInvites` | Admin lists: every scanned website with its emails and latest score, one website’s area scores and past scans, and the scans admins made to share |
+| `report-props.ts` | `reportProps`, `ReportProps`, `teaserOf`, `Teaser` | What `Dashboard` needs for a finished report (shared by the report page and `/api/admin/report`), and the scores-only teaser of a shared scan |
 | `tools-context.ts` | `toolContext`, `TOOL_FIXES` | Data the free tools pre-fill from a scan |
 
 ## Free tool checks (`lib/tools/`)
@@ -136,6 +138,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 | `scan` POST | Start a scan: validation, limits, site-ownership check, lead, row. A finished scan of the same URL from the last 10 minutes is reused, unless `siteId` is given or a signed-in user sends `fresh: true`. A bearer token the server no longer accepts gets 401 `code: "signed_out"` (the homepage then signs out locally and shows the form) |
 | `scan/[id]/step` POST | Run the next stage. Returns `{stage, done, label, areas}` |
 | `scan/[id]/fixed` PUT | Owner marks findings as fixed |
+| `scan/[id]/invite` POST | An admin’s shared scan: marks the link as opened, and gives the report (and the website, if free) to the first signed-in person who is not an admin. Answers `state`: signin, admin, yours, taken, wait, unverified |
 | `auth/signup`, `auth/login`, `auth/verify`, `auth/resend` | Sign-up, password sign-in, 6-digit code check, resend the code |
 | `auth/forgot`, `auth/reset` | Forgot password: email a 6-digit reset code, then code + new password (signs out other sessions, signs this browser in, emails a notice). `auth/forgot` answers 429 when Supabase rate-limits the email and 503 when it can't send (SMTP not set up), without saying whether the account exists |
 | `auth/password` POST | Change password from the account page (current password checked first) |
@@ -159,7 +162,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 | `request` POST | Contact form (and the old consultation request) |
 | `booking` GET, POST | Free start times for a 30/60/90-minute session; book one (no sign-in, Turnstile; 409 when taken), emails both sides |
 | `booking/manage` GET, POST | The visitor's link from the email (`id` + secret `t`): show the booking, cancel it |
-| `admin/*` | `ai`, `analytics`, `booking` (settings, days off, cancel, done, call link, move), `requests`, `scan`, `sites`, `uptime`; admin only (`admins` table) |
+| `admin/*` | `ai`, `analytics` (numbers and rows; `days` 0 = all time), `booking` (settings, days off, cancel, done, call link, move), `report` (any finished report in full, without claiming it), `requests`, `scan` (`siteId`: rescan a saved site; `url`: scan any website to share), `sites`, `uptime`, `websites` (all scanned websites; `?host=` one website’s scores; `?shared=1` the shared scans); admin only (`admins` table) |
 | `internal/*` | `due`, `start`, `ai-due`, `ai-run`; for the cron Worker |
 
 ## Pages and components (`app/`)
@@ -177,6 +180,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 - `auth-link.tsx`: account control in the header.
 
 **Dashboard (`dashboard/`):**
+- `invite-gate.tsx` (`InviteGate`): a scan an admin shared, before anyone has signed in to it. The server sends only the scores (`teaserOf`); this shows them with "Sign in to see the full report" (`LeadModal` with `tool` + `unlock`). The first person to sign in gets the report through `POST /api/scan/[id]/invite` and the page reloads as their dashboard; an admin sees the whole report here (`/api/admin/report`) without taking it. `/print/[id]` answers 404 while it is unclaimed.
 - `[id]/page.tsx`: server page. It shows `PendingDashboard` while the scan runs or the email code is missing, and `Dashboard` once the scan is done. `?new=1` means a signed-in visitor's fresh scan of a site they have no report for, saved to their account when it finishes. `?scan=<newId>` on an existing report means a rescan is running behind it (see `rescan.tsx`).
 - `pending.tsx` (`PendingDashboard`): the live scan in the dashboard layout. Area cards and sidebar go from "Checking…" to ✓ with their score, the overall ring builds from the finished areas, and a step list shows progress. It drives `stepScan`. While locked, the email code is asked for in a modal (`CodeModal`) over the live scan that cannot be closed.
 - `dashboard.tsx` (`Dashboard`): the main report.
@@ -224,7 +228,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 - `account/sites`: agency multi-site view.
 - `account/visibility/[siteId]`: AI visibility. `visibility.tsx` `Visibility({ siteId, embedded })`: run bar and summary tiles, then the questions beside "who ChatGPT names" and the settings. `embedded` is the same tool inside the dashboard's AI visibility view.
 
-**Admin:** `admin/`, with the panel, analytics and requests tabs.
+**Admin:** `admin/`. `admin.tsx` `AdminPanel` (tabs: Operations, Scan, Websites, Bookings, Requests, Analytics). `kit.tsx`: `Caller`, `DataTable` (search, sortable headers, show more, CSV download with formula-safe cells), `ScoresDialog` (one website’s overall, area and speed scores, issue counts and past scans), `Score`, `fmtDate`. `scan.tsx` `AdminScan` (scan a URL from the tab, copy the link, list of shared scans with opened / claimed by). `websites.tsx` `AdminWebsites` (every scanned website with its emails). `analytics.tsx` `AdminAnalytics` (number tiles that open their table; no charts). `requests.tsx`, `bookings.tsx`.
 
 **Marketing and content:**
 - `content.ts`: copy for nav, plans, FAQs, modules and sessions.
@@ -311,6 +315,7 @@ Copied from avaraui.com (shadcn-style registry) and trimmed. They use Tailwind c
 | 0011 | `google_links.ga4_property`, `ga4_name`; cache sources `ga4`, `ga4_ai`, `ads` |
 | 0012 | `google_links.ads_customer`, `ads_login`, `ads_name`; cache source `ads_ai` |
 | 0013 | Cache sources for 7/90-day windows and `gsc_ai`; `booking_settings`, `booking_blocks`, `bookings` |
+| 0014 | `scans.invite`, `invited_by`, `opened_at`, `claimed_at` (admin scans to share) |
 
 ## Dev mocks (`scripts/`)
 

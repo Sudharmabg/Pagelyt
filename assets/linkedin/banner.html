@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pagelyt LinkedIn banner</title>
+<!-- LinkedIn company cover: 1128x191 (rendered at 2x). Keep text clear of the bottom-left, where LinkedIn
+     overlays the page logo, and away from the far edges, which phones crop. -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Inter:wght@400;500;600&display=block" rel="stylesheet">
+<style>
+  :root {
+    --ink: #1a1430; --plum: #2c2340; --cream: #fcebdd;
+    --purple: #9b6bff; --pink: #ff7eb3; --orange: #ffad66; --teal: #34d1a9;
+    --muted: #b9b0cf;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 1128px; height: 191px; overflow: hidden; background: var(--ink); }
+  body { font-family: Inter, system-ui, sans-serif; color: #fff; -webkit-font-smoothing: antialiased; }
+
+  .banner {
+    position: relative; width: 1128px; height: 191px; overflow: hidden;
+    background:
+      radial-gradient(420px 260px at 8% -20%, rgba(155,107,255,.55), transparent 70%),
+      radial-gradient(380px 240px at 46% 130%, rgba(255,126,179,.30), transparent 70%),
+      radial-gradient(420px 260px at 100% 0%, rgba(52,209,169,.28), transparent 70%),
+      linear-gradient(120deg, #1f1738 0%, #1a1430 55%, #161226 100%);
+  }
+  /* faint dot grid */
+  .banner::before {
+    content: ""; position: absolute; inset: 0;
+    background-image: radial-gradient(rgba(255,255,255,.07) 1px, transparent 1.2px);
+    background-size: 14px 14px;
+    mask-image: linear-gradient(90deg, transparent 0%, #000 30%, #000 70%, transparent 100%);
+  }
+  /* big ghost gauge behind the left copy */
+  .ghost { position: absolute; left: 120px; top: 22px; width: 300px; opacity: .10; }
+
+  .left { position: absolute; left: 236px; top: 0; height: 191px; width: 440px;
+          display: flex; flex-direction: column; justify-content: center; }
+  .eyebrow { display: inline-flex; align-items: center; gap: 8px; font: 600 10.5px/1 Inter; letter-spacing: .14em;
+             text-transform: uppercase; color: var(--cream); opacity: .85; margin-bottom: 6px; }
+  .eyebrow i { width: 6px; height: 6px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 10px var(--teal); }
+  h1 { font: 800 31px/1.05 Archivo, sans-serif; letter-spacing: -.02em; }
+  h1 em { font-style: normal; background: linear-gradient(90deg, var(--purple), var(--pink) 55%, var(--orange));
+          -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sub { margin-top: 8px; font: 400 12.5px/1.4 Inter; color: var(--muted); }
+  .chips { display: flex; gap: 6px; margin-top: 12px; flex-wrap: nowrap; }
+  .chip { font: 500 10.5px/1 Inter; padding: 5px 9px; border-radius: 999px; color: #fff;
+          background: rgba(255,255,255,.07); border: 1px solid rgba(255,255,255,.12); white-space: nowrap; }
+  .chip.geo { border-color: rgba(52,209,169,.55); background: rgba(52,209,169,.14); }
+
+  .card { position: absolute; right: 56px; top: 15px; width: 372px; height: 161px; border-radius: 16px; padding: 13px 15px;
+          background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04));
+          border: 1px solid rgba(255,255,255,.14);
+          box-shadow: 0 18px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.12); }
+  .card-h { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .card-h b { font: 600 11.5px/1 Inter; color: var(--cream); letter-spacing: .01em; }
+  .card-h span { font: 600 9.5px/1 Inter; letter-spacing: .1em; text-transform: uppercase; color: var(--teal); }
+  .row { display: flex; align-items: center; gap: 10px; padding: 5px 0; }
+  .row + .row { border-top: 1px solid rgba(255,255,255,.08); }
+  .ico { flex: none; width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; }
+  .ico svg { width: 15px; height: 15px; }
+  .row .t { flex: 1; min-width: 0; }
+  .row .t b { display: block; font: 600 12.5px/1.15 Inter; }
+  .row .t small { display: block; font: 400 10.5px/1.25 Inter; color: var(--muted); }
+  .spark { flex: none; width: 64px; height: 20px; }
+
+  .url { position: absolute; right: 60px; bottom: 6px; font: 600 9.5px/1 Inter; color: var(--muted); letter-spacing: .06em; display: none; }
+</style>
+</head>
+<body>
+<div class="banner">
+  <svg class="ghost" viewBox="0 0 200 120" aria-hidden="true">
+    <defs><linearGradient id="g0" x1="0" x2="1"><stop offset="0" stop-color="#9b6bff"/><stop offset=".5" stop-color="#ff7eb3"/><stop offset=".78" stop-color="#ffad66"/><stop offset="1" stop-color="#34d1a9"/></linearGradient></defs>
+    <path d="M20 110 A80 80 0 0 1 180 110" fill="none" stroke="url(#g0)" stroke-width="22" stroke-linecap="round"/>
+  </svg>
+
+  <div class="left">
+    <div class="eyebrow"><i></i>Free website audit · pagelyt.dev</div>
+    <h1>Your website, <em>scored&nbsp;&amp;&nbsp;explained.</em></h1>
+    <p class="sub">One URL in. One clear score out. Fixes ranked by impact, in plain English.</p>
+    <div class="chips">
+      <span class="chip">SEO</span><span class="chip">Speed</span><span class="chip">Security</span>
+      <span class="chip">Accessibility</span><span class="chip geo">AI search (GEO)</span>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-h"><b>Your Google data, in one report</b><span>Connected</span></div>
+
+    <div class="row">
+      <div class="ico" style="background:rgba(155,107,255,.22)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#c7aaff" stroke-width="2.4" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/></svg>
+      </div>
+      <div class="t"><b>Search Console</b><small>Clicks, queries &amp; indexing</small></div>
+      <svg class="spark" viewBox="0 0 64 20"><polyline points="0,17 10,15 20,16 30,11 40,12 50,6 64,3" fill="none" stroke="#9b6bff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+
+    <div class="row">
+      <div class="ico" style="background:rgba(255,173,102,.22)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#ffc795" stroke-width="2.6" stroke-linecap="round"><path d="M6 20V13M12 20V8M18 20V4"/></svg>
+      </div>
+      <div class="t"><b>Google Analytics</b><small>Traffic, engagement &amp; conversions</small></div>
+      <svg class="spark" viewBox="0 0 64 20"><g fill="#ffad66"><rect x="2" y="11" width="7" height="9" rx="1.5"/><rect x="13" y="8" width="7" height="12" rx="1.5"/><rect x="24" y="12" width="7" height="8" rx="1.5"/><rect x="35" y="6" width="7" height="14" rx="1.5"/><rect x="46" y="3" width="7" height="17" rx="1.5"/></g></svg>
+    </div>
+
+    <div class="row">
+      <div class="ico" style="background:rgba(52,209,169,.20)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#7fe6c9" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><path d="M4 10v4h3l6 4V6L7 10H4z"/><path d="M17 9.5a3.5 3.5 0 0 1 0 5"/></svg>
+      </div>
+      <div class="t"><b>Google Ads</b><small>Spend, clicks &amp; landing-page quality</small></div>
+      <svg class="spark" viewBox="0 0 64 20"><polyline points="0,14 10,13 20,9 30,10 40,7 50,8 64,4" fill="none" stroke="#34d1a9" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+  </div>
+</div>
+</body>
+</html>

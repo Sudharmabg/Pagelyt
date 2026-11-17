@@ -71,6 +71,13 @@ password sign-in, so passwords stay hashed by Supabase Auth and are never stored
 Only a verified email in that table gets in. The table has row-level security with no policies, so the browser
 cannot read it or add itself; only the server's service-role key can.
 
+**Scan tab (scans to share).** Run `supabase/migrations/0014_invite_scans.sql` in the SQL editor before using it; until
+then the tab says so and every other scan works as before. An admin scans any website from the tab and copies the
+link. The link shows only the scores until somebody signs in through it: the first person to sign in (or sign up)
+becomes the report's owner, and the website becomes theirs too unless another account already holds it. Admins can
+open the full report of any scan without claiming it. The Websites tab lists every scanned website with its emails
+and scores; the Analytics tab shows the rows behind each number, with CSV downloads.
+
 ## Password accounts (modal sign-up, `/login`)
 
 Entering a website decides the form. The modal asks `/api/auth/site` whether that website (its **root domain**:

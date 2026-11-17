@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pagelyt Peerlist launch images</title>
+<!-- Peerlist Launchpad gallery, 5 images at 1600x900 (16:9), styled like the pagelyt.dev homepage.
+     Render with: node ../instagram/tools/shoot.mjs ../instagram/tools/peerlist.json -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..900&family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>
+  :root { --bg:#f8e5d4; --ink:#12303f; --body:#2c3f4a; --muted:#5d6b73; --purple:#6a30bd; --lav:#ba8aff; --teal:#68cea7; --orange:#febc77; --pink:#fe79a2; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#ccc; font-family:Inter, system-ui, sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
+  .img { position:relative; width:1600px; height:900px; overflow:hidden; background:var(--bg); display:flex; align-items:center; gap:56px; padding:0 72px 0 88px; }
+  .img + .img { margin-top:40px; }
+  .img::before { content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:linear-gradient(to right, rgba(186,138,255,.16) 1px, transparent 1px), linear-gradient(to bottom, rgba(186,138,255,.16) 1px, transparent 1px);
+    background-size:56px 56px; mask-image:radial-gradient(ellipse 70% 70% at 30% 40%, #000 20%, transparent 80%); }
+  .img > * { position:relative; z-index:1; }
+  .img > .arcs { position:absolute; z-index:0; }
+
+  .text { flex:none; width:560px; }
+  .brand { display:flex; align-items:center; gap:12px; }
+  .brand svg { width:46px; height:28px; }
+  .brand b { font:800 30px/1 Archivo; font-variation-settings:"wdth" 100; letter-spacing:-.02em; color:#2a1f3d; }
+  .kicker { margin-top:46px; display:inline-block; font:700 16px/1 Inter; letter-spacing:.14em; text-transform:uppercase; color:var(--purple);
+            padding:10px 14px; border-radius:999px; background:#efe4ff; border:1px solid #dcc8ff; }
+  h1 { margin-top:22px; font:800 88px/.95 Archivo; font-variation-settings:"wdth" 72; letter-spacing:-.035em; color:var(--ink); }
+  h1 em { font-style:normal; color:var(--purple); }
+  .lead { margin-top:24px; font:400 24px/1.45 Inter; color:var(--body); }
+  .lead b { color:var(--ink); font-weight:700; }
+  .pts { margin-top:28px; list-style:none; display:grid; gap:14px; }
+  .pts li { display:flex; align-items:center; gap:14px; font:600 21px/1.3 Inter; color:var(--ink); }
+  .pts li i { flex:none; width:30px; height:30px; border-radius:9px; display:grid; place-items:center; color:#fff; font:800 16px/1 Inter; font-style:normal; }
+  .url { position:absolute; left:88px; bottom:44px; font:600 18px/1 Inter; color:var(--muted); }
+  .url b { color:var(--purple); }
+
+  .shot { flex:1; min-width:0; position:relative; }
+  .win { border-radius:20px; overflow:hidden; background:#fff; box-shadow:0 40px 90px rgba(18,48,63,.16), 0 0 0 1px rgba(18,48,63,.06); }
+  .win .bar { height:42px; display:flex; align-items:center; gap:8px; padding:0 18px; background:#fffaf5; border-bottom:1px solid #f0e6dc; }
+  .win .bar i { width:12px; height:12px; border-radius:50%; background:#ff6b6b; } .win .bar i:nth-child(2){background:#ffc145} .win .bar i:nth-child(3){background:#3ed37d}
+  .win .bar span { margin-left:14px; width:380px; height:26px; border-radius:8px; background:#f6efe8; color:var(--muted); font:500 14px/26px Inter; padding:0 12px; }
+  .win .crop { overflow:hidden; position:relative; }
+  .win .crop img { display:block; width:100%; }
+  .win .crop.short::after { height:28px; }
+  .win .crop.fade::after { content:""; position:absolute; left:0; right:0; bottom:0; height:60px; background:linear-gradient(180deg, rgba(255,255,255,0), #fff); }
+  .chip { position:absolute; display:flex; align-items:center; gap:10px; padding:13px 18px; border-radius:16px; font:700 19px/1.1 Inter; color:#fff; background:var(--purple); box-shadow:0 16px 34px rgba(106,48,189,.35); z-index:3; }
+  .chip.teal { background:#16865e; box-shadow:0 16px 34px rgba(22,134,94,.3); }
+
+  /* 1 · cover */
+  .i1 { flex-direction:column; align-items:center; justify-content:flex-start; gap:0; padding:56px 88px 0; text-align:center; }
+  .i1::before { mask-image:radial-gradient(ellipse 70% 60% at 50% 30%, #000 20%, transparent 80%); }
+  .i1 .arcs { left:-40px; top:40px; width:1680px; height:520px; opacity:.95; }
+  .i1 .brand b { font-size:34px; } .i1 .brand svg { width:54px; height:33px; }
+  .i1 h1 { margin-top:34px; font-size:104px; }
+  .i1 .lead { margin-top:20px; max-width:900px; font-size:25px; }
+  .i1 .win { margin-top:40px; width:1180px; border-radius:20px 20px 0 0; }
+  .i1 .win .crop { height:420px; }
+  .i1 .tags { position:absolute; left:0; right:0; top:830px; }
+
+  /* 5 · tools grid */
+  .grid { display:grid; grid-template-columns:repeat(3, 264px); gap:18px; align-items:start; justify-content:center; }
+  .card { display:block; width:264px; border-radius:22px; filter:drop-shadow(0 18px 30px rgba(18,48,63,.12)); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs><linearGradient id="gb" x1="0" x2="1"><stop offset="0" stop-color="#ba8aff"/><stop offset=".5" stop-color="#fe79a2"/><stop offset=".78" stop-color="#febc77"/><stop offset="1" stop-color="#68cea7"/></linearGradient></defs>
+  <symbol id="logo" viewBox="0 0 200 120"><path d="M22 108 A78 78 0 0 1 178 108" fill="none" stroke="url(#gb)" stroke-width="26" stroke-linecap="round"/><path d="M100 108 L146 62" stroke="#2a1f3d" stroke-width="12" stroke-linecap="round"/><circle cx="100" cy="108" r="14" fill="#2a1f3d"/></symbol>
+  <symbol id="ribbons" viewBox="0 0 1440 460" preserveAspectRatio="xMidYMid slice">
+    <path d="M -160 460 C 280 420, 940 20, 1600 30" stroke="#ba8aff" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 342, 940 54, 1600 126" stroke="#d3b6ff" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 264, 940 88, 1600 222" stroke="#68cea7" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 186, 940 122, 1600 318" stroke="#febc77" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 108, 940 156, 1600 414" stroke="#fe79a2" stroke-width="48" fill="none"/>
+  </symbol>
+</svg>
+
+<!-- 1 · cover -->
+<section class="img i1" id="p1">
+  <svg class="arcs"><use href="#ribbons"/></svg>
+  <div class="brand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+  <h1>Find what's holding your site back.<br><em>And how to fix it.</em></h1>
+  <p class="lead">A free website audit for SEO, speed, AI search and security, with every fix in <b>plain English</b>, ranked by impact.</p>
+  <div class="win"><div class="bar"><i></i><i></i><i></i><span>pagelyt.dev</span></div>
+    <div class="crop"><img src="../instagram/shots/peerlist/home.png" style="margin-top:-150px" alt=""></div></div>
+</section>
+
+<!-- 2 · the audit -->
+<section class="img i2" id="p2">
+  <div class="text">
+    <div class="brand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <span class="kicker">The audit</span>
+    <h1>One scan.<br>Every issue, <em>ranked.</em></h1>
+    <p class="lead">Paste a URL. Get one clear score and know exactly where to start.</p>
+    <ul class="pts">
+      <li><i style="background:#ba8aff">8</i>areas scored in every scan</li>
+      <li><i style="background:#68cea7">✓</i>Ordered by importance, with points per fix</li>
+      <li><i style="background:#febc77">⚡</i>Results in under a minute, nothing to install</li>
+    </ul>
+  </div>
+  <div class="shot">
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>pagelyt.dev/dashboard</span></div>
+      <div class="crop"><img src="../instagram/shots/peerlist/overview.png" alt=""></div></div>
+  </div>
+  <p class="url">Free at <b>pagelyt.dev</b></p>
+</section>
+
+<!-- 3 · the fix -->
+<section class="img i3" id="p3">
+  <div class="text">
+    <div class="brand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <span class="kicker">The fix</span>
+    <h1>Not just what's wrong.<br><em>How to fix it.</em></h1>
+    <p class="lead">Every finding comes with a plain-English fix. Many come with <b>ready-made code</b>, pre-filled for your site.</p>
+    <ul class="pts">
+      <li><i style="background:#ba8aff">1</i>See what's missing and why it matters</li>
+      <li><i style="background:#68cea7">2</i>Copy the fix, or send it to your developer</li>
+      <li><i style="background:#fe79a2">3</i>Rescan and watch the score go up</li>
+    </ul>
+  </div>
+  <div class="shot">
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>Security headers generator</span></div>
+      <div class="crop fade short" style="height:672px"><img src="../instagram/shots/peerlist/sec.png" alt=""></div></div>
+    <div class="chip" style="right:-16px; top:-22px">Copy-paste ready</div>
+  </div>
+  <p class="url">Free at <b>pagelyt.dev</b></p>
+</section>
+
+<!-- 4 · AI search -->
+<section class="img i4" id="p4">
+  <div class="text">
+    <div class="brand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <span class="kicker">AI search</span>
+    <h1>Can ChatGPT<br><em>read your site?</em></h1>
+    <p class="lead">More people ask AI instead of Google. Pagelyt checks if AI tools can reach and understand your site.</p>
+    <ul class="pts">
+      <li><i style="background:#ba8aff">✓</i>14 AI bots tested: GPTBot, ClaudeBot, PerplexityBot…</li>
+      <li><i style="background:#68cea7">✓</i>llms.txt check and generator</li>
+      <li><i style="background:#febc77">✓</i>GEO readiness score in every scan</li>
+    </ul>
+  </div>
+  <div class="shot">
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>AI bot access checker</span></div>
+      <div class="crop fade" style="height:610px"><img src="../instagram/shots/post2/aibots.png" alt=""></div></div>
+    <div class="chip teal" style="right:-16px; top:-22px">14 of 14 bots let in</div>
+  </div>
+  <p class="url">Free at <b>pagelyt.dev</b></p>
+</section>
+
+<!-- 5 · free tools -->
+<section class="img i5" id="p5">
+  <div class="text">
+    <div class="brand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <span class="kicker">Free tools</span>
+    <h1>12 free tools.<br><em>No card needed.</em></h1>
+    <p class="lead">Checkers and generators for search engines, AI assistants and security. Each one runs in seconds.</p>
+    <ul class="pts">
+      <li><i style="background:#ba8aff">✓</i>AI bot checker and llms.txt generator</li>
+      <li><i style="background:#68cea7">✓</i>robots.txt, sitemap and schema tools</li>
+      <li><i style="background:#fe79a2">✓</i>Security headers, search preview and more</li>
+    </ul>
+  </div>
+  <div class="shot">
+    <div class="grid">
+      <img class="card" src="../instagram/shots/peerlist/card-aibot.png" alt="">
+      <img class="card" src="../instagram/shots/peerlist/card-llms.png" alt="">
+      <img class="card" src="../instagram/shots/peerlist/card-robots.png" alt="">
+      <img class="card" src="../instagram/shots/peerlist/card-serp.png" alt="">
+      <img class="card" src="../instagram/shots/peerlist/card-schema.png" alt="">
+      <img class="card" src="../instagram/shots/peerlist/card-sechead.png" alt="">
+    </div>
+  </div>
+  <p class="url">Try them at <b>pagelyt.dev/tools</b></p>
+</section>
+
+</body>
+</html>

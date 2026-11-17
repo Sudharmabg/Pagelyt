@@ -1,0 +1,22 @@
+{
+ "auth": {
+  "origin": "http://localhost:3100",
+  "key": "sb-localhost-auth-token",
+  "tokensUrl": "http://localhost:54321/__tokens?email=alex@example.test"
+ },
+ "jobs": [
+  {
+   "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk?view=google",
+   "out": "../shots/google-fix.png",
+   "width": 1280,
+   "height": 1300,
+   "scale": 2,
+   "wait": 8000,
+   "eval": "document.querySelector(\"nextjs-portal\")?.remove(); document.querySelectorAll(\"button\").forEach(b=>{ if(b.textContent.trim()===\"Ask\") b.style.display=\"none\"; }); let h; for(let i=0;i<40&&!h;i++){ h=[...document.querySelectorAll(\"h2\")].find(e=>/^Fix first/.test(e.textContent.trim())); if(!h) await new Promise(r=>setTimeout(r,500)); } if(!h) return \"no heading: \"+[...document.querySelectorAll(\"h2\")].map(e=>e.textContent).join(\"|\"); let c=h; while(c && c.offsetHeight<300) c=c.parentElement; c.id=\"fx\"; return c.tagName+\" \"+c.offsetHeight;",
+   "clip": {
+    "selector": "#fx",
+    "pad": 14
+   }
+  }
+ ]
+}

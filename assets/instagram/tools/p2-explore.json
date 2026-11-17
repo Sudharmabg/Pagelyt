@@ -1,0 +1,6 @@
+{ "auth": { "origin": "http://localhost:3100", "key": "sb-localhost-auth-token", "tokensUrl": "http://localhost:54321/__tokens?email=alex@example.test" },
+  "jobs": [
+    { "url": "http://localhost:3100/dashboard/tkw-LXGGBgrO?view=serp-preview", "out": "../shots/post2/x-serp.png", "width": 1280, "height": 1800, "scale": 1, "wait": 6000, "eval": "document.querySelector('nextjs-portal')?.remove()" },
+    { "url": "http://localhost:3100/dashboard/tkw-LXGGBgrO?view=images", "out": "../shots/post2/x-images.png", "width": 1280, "height": 1800, "scale": 1, "wait": 5000, "eval": "document.querySelector('nextjs-portal')?.remove()" },
+    { "url": "http://localhost:3100/dashboard/tkw-LXGGBgrO?view=ai-bot-checker", "out": "../shots/post2/x-ai.png", "width": 1280, "height": 1800, "scale": 1, "wait": 5000, "eval": "document.querySelector('nextjs-portal')?.remove()" }
+  ] }

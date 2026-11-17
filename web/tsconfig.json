@@ -39,7 +39,9 @@
     ".next-share/types/**/*.ts",
     ".next-share/dev/types/**/*.ts",
     ".next-auth/types/**/*.ts",
-    ".next-auth/dev/types/**/*.ts"
+    ".next-auth/dev/types/**/*.ts",
+    ".next-test/types/**/*.ts",
+    ".next-test/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

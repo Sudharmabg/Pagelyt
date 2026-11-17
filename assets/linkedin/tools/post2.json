@@ -1,0 +1,10 @@
+{
+  "jobs": [
+    { "url": "../post2-seo-fixes.html", "out": "../pagelyt-li-seo-fixes-1.png", "width": 1080, "height": 1350, "scale": 1, "clip": { "selector": "#s1" } },
+    { "url": "../post2-seo-fixes.html", "out": "../pagelyt-li-seo-fixes-2.png", "width": 1080, "height": 1350, "scale": 1, "clip": { "selector": "#s2" } },
+    { "url": "../post2-seo-fixes.html", "out": "../pagelyt-li-seo-fixes-3.png", "width": 1080, "height": 1350, "scale": 1, "clip": { "selector": "#s3" } },
+    { "url": "../post2-seo-fixes.html", "out": "../pagelyt-li-seo-fixes-4.png", "width": 1080, "height": 1350, "scale": 1, "clip": { "selector": "#s4" } },
+    { "url": "../post2-seo-fixes.html", "out": "../pagelyt-li-seo-fixes-5.png", "width": 1080, "height": 1350, "scale": 1, "clip": { "selector": "#s5" } },
+    { "url": "../post2-seo-fixes.html", "out": "../pagelyt-li-seo-fixes-6.png", "width": 1080, "height": 1350, "scale": 1, "clip": { "selector": "#s6" } }
+  ]
+}

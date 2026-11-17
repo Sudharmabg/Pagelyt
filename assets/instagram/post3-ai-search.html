@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pagelyt Instagram post 3: AI search</title>
+<!-- Instagram carousel, 3 slides at 1080x1350 (4:5), styled like the pagelyt.dev homepage hero.
+     Render with: node tools/shoot.mjs tools/post3.json -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..900&family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>
+  :root { --bg:#f8e5d4; --ink:#12303f; --body:#2c3f4a; --muted:#5d6b73; --purple:#6a30bd; --lav:#ba8aff; --lav2:#d3b6ff; --teal:#68cea7; --orange:#febc77; --pink:#fe79a2; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#ccc; font-family:Inter, system-ui, sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
+  .slide { position:relative; width:1080px; height:1350px; overflow:hidden; padding:56px 76px 56px; display:flex; flex-direction:column; background:var(--bg); }
+  .slide + .slide { margin-top:40px; }
+  .slide::before { content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:linear-gradient(to right, rgba(186,138,255,.16) 1px, transparent 1px), linear-gradient(to bottom, rgba(186,138,255,.16) 1px, transparent 1px);
+    background-size:56px 56px; mask-image:radial-gradient(ellipse 75% 60% at 50% 30%, #000 20%, transparent 80%); }
+  .slide > * { position:relative; z-index:1; }
+  .slide > .arcs { position:absolute; z-index:0; }
+
+  /* ribbons, same colours and curve as the homepage */
+  .arcs path { fill:none; stroke-width:48; }
+
+  .top { display:flex; align-items:center; gap:14px; padding:16px 26px; border-radius:22px; background:#fffaf5; box-shadow:0 10px 30px rgba(18,48,63,.08); }
+  .top svg { width:52px; height:32px; }
+  .top b { font:800 32px/1 Archivo; font-variation-settings:"wdth" 100; letter-spacing:-.02em; color:#2a1f3d; }
+  .tag { margin-left:auto; font:700 15px/1 Inter; letter-spacing:.12em; text-transform:uppercase; color:var(--purple);
+         padding:11px 16px; border-radius:999px; background:#efe4ff; border:1px solid #dcc8ff; }
+
+  h1 { font:800 112px/.95 Archivo; font-variation-settings:"wdth" 72; letter-spacing:-.035em; color:var(--ink); }
+  h1 em { font-style:normal; color:var(--purple); }
+  .lead { font:400 28px/1.42 Inter; color:var(--body); }
+  .lead b { color:var(--ink); font-weight:700; }
+
+  .card { background:#fff; border-radius:28px; box-shadow:0 30px 70px rgba(18,48,63,.12), 0 0 0 1px rgba(18,48,63,.05); }
+
+  .foot { flex:none; margin-top:auto; display:flex; align-items:center; }
+  .dots { display:flex; gap:8px; }
+  .dots i { width:10px; height:10px; border-radius:99px; background:rgba(18,48,63,.2); }
+  .dots i.on { width:34px; background:var(--purple); }
+  .swipe { margin-left:auto; font:700 22px/1 Inter; color:var(--purple); }
+
+  /* 1 · cover */
+  .s1 .arcs { left:-60px; top:120px; width:1200px; height:560px; }
+  .s1 h1 { margin-top:96px; text-align:center; }
+  .s1 .lead { margin:26px auto 0; text-align:center; max-width:820px; }
+  .chat { margin:44px auto 0; width:860px; padding:28px 32px 26px; }
+  .chat .q { margin-left:auto; width:max-content; padding:16px 24px; border-radius:24px 24px 6px 24px; background:#efe4ff; font:600 24px/1.2 Inter; color:#3b1d6e; }
+  .chat .a { margin-top:20px; display:flex; gap:16px; }
+  .chat .ai { flex:none; width:46px; height:46px; border-radius:50%; display:grid; place-items:center; background:var(--ink); color:#fff; font:800 18px Archivo; }
+  .chat .a p { font:400 21px/1.45 Inter; color:var(--body); }
+  .chat ol { margin-top:10px; list-style:none; display:grid; gap:10px; }
+  .chat li { display:flex; align-items:center; gap:12px; font:400 21px/1.3 Inter; color:var(--body); }
+  .chat li b { color:var(--ink); font-weight:700; }
+  .chat li .n { flex:none; width:30px; height:30px; border-radius:9px; display:grid; place-items:center; font:800 16px Archivo; color:#fff; }
+  .chat li.you { padding:10px 12px; margin:0 -12px; border-radius:12px; border:2px dashed #e5b3c4; background:#fff5f8; color:#a3325a; }
+  .chat li.you .n { background:#e5b3c4; }
+  .chat .src { margin-top:16px; padding-top:14px; border-top:1px solid #f0e6dc; font:500 16px/1 Inter; color:var(--muted); }
+  .example { position:absolute; top:-16px; left:30px; font:700 13px/1 Inter; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); background:#fff; padding:8px 12px; border-radius:99px; box-shadow:0 6px 16px rgba(18,48,63,.1); }
+
+  /* 2 · fixes */
+  .s2 .kicker { margin-top:56px; font:700 18px/1 Inter; letter-spacing:.14em; text-transform:uppercase; color:var(--purple); }
+  .s2 h1 { margin-top:16px; font-size:96px; }
+  .fixes { margin-top:34px; display:grid; gap:16px; }
+  .fix { display:flex; gap:24px; align-items:flex-start; padding:24px 28px; }
+  .fix .n { flex:none; width:64px; height:64px; border-radius:18px; display:grid; place-items:center; font:800 32px Archivo; color:#fff; }
+  .fix h3 { font:800 40px/1 Archivo; font-variation-settings:"wdth" 72; letter-spacing:-.02em; }
+  .fix p { margin-top:8px; font:400 21px/1.42 Inter; color:var(--body); }
+  .fix p b { color:var(--ink); font-weight:700; }
+  .fix code { font:600 18px/1 ui-monospace, Consolas, monospace; color:var(--purple); background:#f4edff; padding:3px 8px; border-radius:6px; }
+  .proof { margin-top:30px; position:relative; }
+  .win { border-radius:22px; overflow:hidden; background:#fff; box-shadow:0 30px 70px rgba(18,48,63,.14), 0 0 0 1px rgba(18,48,63,.06); }
+  .win .bar { height:44px; display:flex; align-items:center; gap:9px; padding:0 18px; background:#fffaf5; border-bottom:1px solid #f0e6dc; }
+  .win .bar i { width:13px; height:13px; border-radius:50%; background:#ff6b6b; } .win .bar i:nth-child(2){background:#ffc145} .win .bar i:nth-child(3){background:#3ed37d}
+  .win .bar span { margin-left:14px; flex:1; max-width:440px; height:28px; border-radius:8px; background:#f6efe8; color:var(--muted); font:500 15px/28px Inter; padding:0 14px; }
+  .win .crop { height:236px; overflow:hidden; position:relative; }
+  .win .crop img { display:block; width:100%; }
+  .win .crop::after { content:""; position:absolute; left:0; right:0; bottom:0; height:50px; background:linear-gradient(180deg, rgba(255,255,255,0), #fff); }
+  .chip { position:absolute; right:-14px; top:-22px; display:flex; align-items:center; gap:10px; padding:13px 18px; border-radius:16px; font:700 20px/1.1 Inter; color:#fff; background:var(--purple); box-shadow:0 16px 34px rgba(106,48,189,.35); z-index:2; }
+
+  /* 3 · CTA */
+  .s3 { align-items:center; text-align:center; }
+  .s3 .top { align-self:stretch; }
+  .s3 .arcs { left:-60px; top:110px; width:1200px; height:540px; }
+  .s3 h1 { margin-top:110px; font-size:124px; }
+  .s3 .lead { margin-top:24px; max-width:760px; }
+  .ask { margin-top:46px; width:820px; padding:36px 40px 34px; }
+  .ask .say { font:800 92px/1 Archivo; font-variation-settings:"wdth" 72; letter-spacing:-.03em; color:var(--ink); }
+  .ask .say span { display:inline-block; padding:4px 26px 8px; margin-left:8px; border-radius:20px; background:var(--purple); color:#fff; transform:rotate(-2deg); }
+  .ask .sub { margin-top:18px; font:500 25px/1.3 Inter; color:var(--body); }
+  .ask ul { margin-top:24px; padding-top:22px; border-top:1px solid #f0e6dc; list-style:none; display:flex; flex-wrap:wrap; justify-content:center; gap:10px; }
+  .ask li { font:600 18px/1 Inter; color:var(--ink); padding:11px 15px; border-radius:99px; background:#f8f1ea; }
+  .alt { margin-top:28px; font:500 22px/1.4 Inter; color:var(--muted); }
+  .alt b { color:var(--ink); }
+
+  .igbar { margin-top:auto; width:820px; display:flex; align-items:flex-start; gap:46px; padding:22px 40px 18px; border-radius:26px; background:#fff; box-shadow:0 20px 50px rgba(18,48,63,.1); }
+  .ig { display:flex; flex-direction:column; align-items:center; gap:9px; font:600 17px/1 Inter; color:var(--body); }
+  .ig svg { width:46px; height:46px; fill:none; stroke:var(--ink); stroke-width:1.9; stroke-linejoin:round; stroke-linecap:round; }
+  .ig.hot svg { stroke:var(--purple); } .ig.hot span { color:var(--purple); }
+  .hint { margin-left:auto; align-self:center; margin-top:-24px; font:600 20px/1 Inter; color:var(--muted); }
+  .ig.save { margin-left:-18px; }
+  .ig.save svg { stroke:#d9822b; } .ig.save span { color:#c06f1c; }
+  .s3 .foot { margin-top:28px; }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs><linearGradient id="gb" x1="0" x2="1"><stop offset="0" stop-color="#ba8aff"/><stop offset=".5" stop-color="#fe79a2"/><stop offset=".78" stop-color="#febc77"/><stop offset="1" stop-color="#68cea7"/></linearGradient></defs>
+  <symbol id="logo" viewBox="0 0 200 120"><path d="M22 108 A78 78 0 0 1 178 108" fill="none" stroke="url(#gb)" stroke-width="26" stroke-linecap="round"/><path d="M100 108 L146 62" stroke="#2a1f3d" stroke-width="12" stroke-linecap="round"/><circle cx="100" cy="108" r="14" fill="#2a1f3d"/></symbol>
+  <!-- homepage ribbon fan: pose(i,0) from web/app/arcs.tsx -->
+  <symbol id="ribbons" viewBox="0 0 1440 460" preserveAspectRatio="xMidYMid slice">
+    <path d="M -160 460 C 280 420, 940 20, 1600 30" stroke="#ba8aff" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 342, 940 54, 1600 126" stroke="#d3b6ff" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 264, 940 88, 1600 222" stroke="#68cea7" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 186, 940 122, 1600 318" stroke="#febc77" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 108, 940 156, 1600 414" stroke="#fe79a2" stroke-width="48" fill="none"/>
+  </symbol>
+</svg>
+
+<!-- 1 · cover -->
+<section class="slide s1" id="s1">
+  <svg class="arcs"><use href="#ribbons"/></svg>
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="tag">AI search</span></div>
+  <h1>Is ChatGPT recommending<br>your business?<br><em>Or your competitor?</em></h1>
+  <p class="lead">People now ask AI, not just Google. It gives <b>one answer</b> and names a few businesses.</p>
+  <div class="card chat">
+    <span class="example">Example</span>
+    <div class="q">Best bakery near me?</div>
+    <div class="a"><span class="ai">AI</span>
+      <div><p>Here are three local favourites:</p>
+        <ol>
+          <li><span class="n" style="background:#ba8aff">1</span><b>Rise &amp; Crumb</b> · famous for sourdough</li>
+          <li><span class="n" style="background:#68cea7">2</span><b>The Flour Room</b> · great cakes and coffee</li>
+          <li><span class="n" style="background:#febc77">3</span><b>Golden Crust Co.</b> · open early every day</li>
+          <li class="you"><span class="n">?</span><b style="color:#a3325a">Your bakery</b> · not mentioned</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+  <div class="foot"><div class="dots"><i class="on"></i><i></i><i></i></div><div class="swipe">Here's how to get in →</div></div>
+</section>
+
+<!-- 2 · fixes -->
+<section class="slide s2" id="s2">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="tag">AI search</span></div>
+  <div class="kicker">3 fixes for AI search</div>
+  <h1>Get your site<br><em>into the answer.</em></h1>
+  <div class="fixes">
+    <div class="card fix"><span class="n" style="background:#ba8aff">1</span><div><h3>Let the AI bots in</h3><p>Make sure robots.txt doesn't block <b>GPTBot</b>, <b>ClaudeBot</b> or <b>PerplexityBot</b>. Security plugins often do it by accident.</p></div></div>
+    <div class="card fix"><span class="n" style="background:#68cea7">2</span><div><h3>Give AI a map</h3><p>Add <code>yoursite.com/llms.txt</code>: a short summary of who you are, linking your key pages.</p></div></div>
+    <div class="card fix"><span class="n" style="background:#fe79a2">3</span><div><h3>Answer questions plainly</h3><p>Use question headings, <b>answer in the first line</b>, and add an FAQ with FAQ schema.</p></div></div>
+  </div>
+  <div class="proof">
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>Pagelyt · AI bot access checker</span></div><div class="crop"><img src="shots/post2/aibots.png" alt=""></div></div>
+    <div class="chip">Check yours free</div>
+  </div>
+  <div class="foot"><div class="dots"><i></i><i class="on"></i><i></i></div><div class="swipe">Swipe →</div></div>
+</section>
+
+<!-- 3 · CTA -->
+<section class="slide s3" id="s3">
+  <svg class="arcs"><use href="#ribbons"/></svg>
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="tag">AI search</span></div>
+  <h1>Want the<br><em>full guide?</em></h1>
+  <p class="lead">Our free GEO guide shows how AI tools pick sources, and how to become one.</p>
+  <div class="card ask">
+    <div class="say">Comment<span>AI</span></div>
+    <p class="sub">and we'll send the guide to your DMs</p>
+    <ul><li>What GEO is</li><li>How AI picks sources</li><li>7-step checklist</li><li>llms.txt explained</li></ul>
+  </div>
+  <p class="alt">Or check your site free at <b>pagelyt.dev</b></p>
+  <div class="igbar">
+    <div class="ig"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.9 1.3-1.8 2.9-2.9 4.9-2.9 3.5 0 5.7 3.5 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><span>Like</span></div>
+    <div class="ig hot"><svg viewBox="0 0 24 24"><path d="M20.7 16.9A9.5 9.5 0 1 0 17 20.6l4.5 1.2z"/></svg><span>Comment</span></div>
+    <div class="ig"><svg viewBox="0 0 24 24"><path d="M22 3 9.2 10.3M22 3l-7.4 18-5.4-10.7L2 7.5z"/></svg><span>Share</span></div>
+    <div class="hint">Save it for later →</div>
+    <div class="ig save"><svg viewBox="0 0 24 24"><path d="M19 21l-7-6.2L5 21V3h14z"/></svg><span>Save</span></div>
+  </div>
+  <div class="foot"><div class="dots"><i></i><i></i><i class="on"></i></div></div>
+</section>
+
+</body>
+</html>
