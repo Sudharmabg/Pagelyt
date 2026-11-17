@@ -19,7 +19,7 @@ import { RescanButton } from "./rescan";
 import Button from "@/components/avara/Button";
 import { LoaderBlock } from "@/components/avara/LoaderBlock";
 import { BreadcrumbBlock, type BreadcrumbItem } from "@/components/avara/BreadcrumbBlock";
-import { ActionModal, Tile } from "./action-modal";
+import { ActionModal, ArtCard, OrbitArt, Tile } from "./action-modal";
 import { AGENCY_UPSELL, AgencyModal, useAccount } from "./agency-modal";
 import { Assistant } from "./assistant";
 import { GoogleData, type GoogleTab } from "./google-data";
@@ -237,13 +237,13 @@ const STAR: Section[] = [
   { id: "share", label: "Brand & share", icon: "share", text: "Send your client a report with your logo and colours, by link or straight to their inbox." },
 ];
 /* Each star feature's banner colour, button and the icons circling it. */
-const STAR_ART: Partial<Record<string, { color: string; cta: string; ring: IconKey[] }>> = {
-  assistant: { color: "#7b3fe0", cta: "Ask a question", ring: ["chat", "list", "search", "check"] },
-  monitor: { color: "#0e8f7e", cta: "Save and set alerts", ring: ["mail", "history", "check", "performance"] },
-  google: { color: "#2a78d6", cta: "Connect Google", ring: ["search", "table", "seo", "performance"] },
-  ai: { color: "#b8358e", cta: "Check AI answers", ring: ["chat", "geo", "link", "search"] },
-  compare: { color: "#d4572a", cta: "Add competitors", ring: ["table", "performance", "seo", "security"] },
-  share: { color: "#14946a", cta: "Brand your report", ring: ["mail", "link", "pdf", "device"] },
+const STAR_ART: Partial<Record<string, { color: string; cta: string; tag: string; ring: IconKey[] }>> = {
+  assistant: { color: "#7b3fe0", cta: "Ask a question", tag: "AI chat", ring: ["chat", "list", "search", "check"] },
+  monitor: { color: "#0e8f7e", cta: "Save and set alerts", tag: "Alerts", ring: ["mail", "history", "check", "performance"] },
+  google: { color: "#2a78d6", cta: "Connect Google", tag: "Live data", ring: ["search", "table", "seo", "performance"] },
+  ai: { color: "#b8358e", cta: "Check AI answers", tag: "ChatGPT", ring: ["chat", "geo", "link", "search"] },
+  compare: { color: "#d4572a", cta: "Add competitors", tag: "Up to 3", ring: ["table", "performance", "seo", "security"] },
+  share: { color: "#14946a", cta: "Brand your report", tag: "Your logo", ring: ["mail", "link", "pdf", "device"] },
 };
 /* Banner colour for each score area and each detail page, and the icons circling a detail page's banner. */
 const AREA_COLOR: Record<ModuleKey, string> = {
@@ -822,21 +822,28 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
                 ))}
               </span>
             </div>
-            <ul>
-              {pitches.map(({ g, p }, i) => (
-                <li key={g.id} style={{ ["--i" as string]: i }}>
-                  <button type="button" onClick={() => setView(g.id)}>
-                    <span className="ss-top">
-                      <span className="ss-ico"><AreaIcon k={g.icon} size={20} /></span>
-                      <span className="ss-name">{g.label}</span>
-                      {needsPlan(g.id) && <span className="plan-badge">Paid plans</span>}
-                    </span>
-                    <b className="ss-hook">{p.hook}</b>
-                    <span className="ss-text">{p.text}</span>
-                    <span className="ss-cta">{p.cta} <span aria-hidden="true">→</span></span>
-                  </button>
-                </li>
-              ))}
+            <ul className="sx-grid">
+              {pitches.map(({ g, p }, i) => {
+                const art = STAR_ART[g.id];
+                return (
+                  <li key={g.id} style={{ ["--i" as string]: i }}>
+                    <button type="button" className="sx" style={art ? { ["--xc" as string]: art.color } : undefined} onClick={() => setView(g.id)}>
+                      <span className="sx-art" aria-hidden="true">
+                        <OrbitArt icon={g.icon} ring={art?.ring ?? ["check", "search", "list", "link"]} />
+                      </span>
+                      <span className="sx-body">
+                        <span className="sx-top">
+                          <span className="sx-name">{g.label}</span>
+                          <span className={`sx-tag${needsPlan(g.id) ? " sx-paid" : ""}`}>{needsPlan(g.id) ? "Paid plans" : art?.tag ?? "Star"}</span>
+                        </span>
+                        <b className="sx-hook">{p.hook}</b>
+                        <span className="sx-text">{p.text}</span>
+                        <span className="sx-cta">{p.cta}<span className="sx-arrow" aria-hidden="true">→</span></span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         )}
@@ -982,22 +989,103 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
       <ActionModal
         open={modal === "share"}
         onClose={() => setModal(null)}
+        variant="rich"
         icon="share"
         title="Share this report"
         sub={`Anyone with the link sees the ${scan.host} report${canEdit ? " (view only: they can't tick findings or rescan)" : ""}.`}
         top={
-          <div className="am-link">
+          <div className="am-link am-link-rich">
+            <span className="am-link-ico" aria-hidden="true"><AreaIcon k="link" size={16} /></span>
             <input readOnly value={reportUrl} aria-label="Report link" onFocus={(e) => e.currentTarget.select()} />
             <CopyButton value={reportUrl} label="Copy link" onCopy={(_, ok) => ok && toast("Report link copied")} />
           </div>
         }
       >
-        {canShare && <Tile icon="device" title="Share from this device" text="Messages, Slack, AirDrop or any app on your phone or computer." onClick={nativeShare} />}
-        <Tile icon="mail" title="Email" text="Opens your email app with the link and score filled in." onClick={() => shareOut("mail")} />
-        <Tile icon="chat" title="WhatsApp" text="Send the link and score in a WhatsApp chat." onClick={() => shareOut("wa")} />
-        {owner && <Tile icon="share" title="Branded report for a client" text="Your logo and colours, by link or straight to their inbox." onClick={go("share")} badge={needsPlan("share") ? "Paid plans" : undefined} tone="accent" />}
+        {canShare && (
+          <ArtCard
+            kind="device"
+            icon="device"
+            tag="Any app"
+            title="Share from this device"
+            text="Messages, Slack, AirDrop or any app on your phone or computer."
+            cta="Open share sheet"
+            onClick={nativeShare}
+            art={
+              <span className="xs-phone">
+                <i className="xs-notch" />
+                <i className="xs-sheet"><i /><i /><i /><i /></i>
+              </span>
+            }
+          />
+        )}
+        <ArtCard
+          kind="mail"
+          icon="mail"
+          tag="Email"
+          title="Email"
+          text="Opens your email app with the link and score filled in."
+          cta="Write email"
+          onClick={() => shareOut("mail")}
+          art={
+            <span className="xs-env">
+              <i className="xs-letter"><b>{potential}</b><i className="xp-ln" /><i className="xp-ln xp-s" /></i>
+              <i className="xs-flap" />
+              <i className="xs-front" />
+            </span>
+          }
+        />
+        <ArtCard
+          kind="wa"
+          icon="chat"
+          tag="Chat"
+          title="WhatsApp"
+          text="Send the link and score in a WhatsApp chat."
+          cta="Open WhatsApp"
+          onClick={() => shareOut("wa")}
+          art={
+            <span className="xs-chat">
+              <i className="xs-bub xs-in">Can you check our site?</i>
+              <i className="xs-bub xs-out">{scan.host} · {potential}/100 ✓✓</i>
+            </span>
+          }
+        />
+        {owner && (
+          <ArtCard
+            kind="brand"
+            icon="share"
+            tag="For clients"
+            badge={needsPlan("share") ? "Paid plans" : undefined}
+            title="Branded report for a client"
+            text="Your logo and colours, by link or straight to their inbox."
+            cta="Brand your report"
+            onClick={go("share")}
+            art={
+              <span className="xs-brand">
+                <i className="xs-logo" />
+                <i className="xp-ln" />
+                <i className="xp-ln xp-s" />
+                <i className="xs-swatch"><i /><i /><i /></i>
+              </span>
+            }
+          />
+        )}
       </ActionModal>
-      <ActionModal open={modal === "export"} onClose={() => setModal(null)} icon="download" title="Export this report" sub="Take the findings with you, or hand them to whoever does the fixing.">
+      <ActionModal
+        open={modal === "export"}
+        onClose={() => setModal(null)}
+        variant="rich"
+        icon="download"
+        title="Export this report"
+        sub="Take the findings with you, or hand them to whoever does the fixing."
+        top={
+          <div className="ex-strip">
+            <span className="ex-chip"><b>{scan.host}</b></span>
+            <span className="ex-chip"><b>{potential}</b>/100 score</span>
+            <span className="ex-chip"><b>{scan.findings.length}</b> issues</span>
+            <span className="ex-chip"><b>{remaining.length}</b> open</span>
+          </div>
+        }
+      >
         <ExportTiles
           scan={scan}
           findings={scan.findings}
@@ -1011,12 +1099,55 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           }}
         />
       </ActionModal>
-      <ActionModal open={modal === "more"} onClose={() => setModal(null)} icon="dots" title="More you can do" sub="Tools that build on this report, and shortcuts for moving around it.">
-        {pitches.map(({ g, p }) => (
-          <Tile key={g.id} icon={g.icon} title={g.label} text={p.hook} onClick={go(g.id)} badge={needsPlan(g.id) ? "Paid plans" : undefined} />
-        ))}
-        <Tile icon="search" title="Search the report" text="Jump to any area, finding or action (Ctrl K)." onClick={() => { setModal(null); setPalette(true); }} />
-        <Tile icon="keyboard" title="Keyboard shortcuts" text="Move through findings and tick them off without the mouse." onClick={() => { setModal(null); setHelp(true); }} />
+      <ActionModal open={modal === "more"} onClose={() => setModal(null)} variant="rich3" icon="dots" title="More you can do" sub="Tools that build on this report, and shortcuts for moving around it.">
+        {pitches.map(({ g, p }) => {
+          const art = STAR_ART[g.id];
+          return (
+            <ArtCard
+              key={g.id}
+              kind="orbit"
+              icon={g.icon}
+              tag={art?.tag ?? "Star"}
+              badge={needsPlan(g.id) ? "Paid plans" : undefined}
+              title={g.label}
+              text={p.hook}
+              cta={art?.cta ?? "Open"}
+              color={art?.color}
+              onClick={go(g.id)}
+              art={<OrbitArt icon={g.icon} ring={art?.ring ?? ["check", "search", "list", "link"]} />}
+            />
+          );
+        })}
+        <ArtCard
+          kind="search"
+          icon="search"
+          tag="Ctrl K"
+          title="Search the report"
+          text="Jump to any area, finding or action."
+          cta="Search"
+          onClick={() => { setModal(null); setPalette(true); }}
+          art={
+            <span className="xm-search">
+              <AreaIcon k="search" size={12} />
+              <i className="xm-q">security<span className="xp-caret" /></i>
+              <kbd>Ctrl K</kbd>
+            </span>
+          }
+        />
+        <ArtCard
+          kind="keys"
+          icon="keyboard"
+          tag="Shortcuts"
+          title="Keyboard shortcuts"
+          text="Move through findings and tick them off without the mouse."
+          cta="See shortcuts"
+          onClick={() => { setModal(null); setHelp(true); }}
+          art={
+            <span className="xm-keys">
+              <kbd>J</kbd><kbd>K</kbd><kbd>X</kbd><kbd>?</kbd>
+            </span>
+          }
+        />
       </ActionModal>
       <ActionModal open={modal === "actions"} onClose={() => setModal(null)} icon="dots" title="Report actions" sub={scan.host}>
         <Tile icon="search" title="Search the report" text="Jump to any area, finding or action." onClick={() => { setModal(null); setPalette(true); }} />

@@ -16,7 +16,7 @@ const CONFIRM_EMAIL = process.env.MOCK_CONFIRM === "on";
 
 const users = new Map(); // email -> { id, email, password, confirmed, meta }
 const sessions = new Map(); // access token -> email
-const tables = { site_owners: [], site_claims: [], scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [], ai_prompts: [], ai_runs: [], uptime_checks: [], admins: [], requests: [], google_connections: [], google_links: [], google_cache: [], booking_settings: [], booking_blocks: [], bookings: [] };
+const tables = { site_owners: [], site_claims: [], scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [], ai_prompts: [], ai_runs: [], uptime_checks: [], admins: [], requests: [], google_connections: [], google_links: [], google_cache: [], booking_settings: [], booking_blocks: [], bookings: [], chat_threads: [], chat_messages: [] };
 // MOCK_ADMIN_EMAILS=a@x.test,b@x.test seeds the admins table, so those accounts can open /admin once signed up.
 for (const email of (process.env.MOCK_ADMIN_EMAILS || "").split(",").map((e) => e.trim().toLowerCase()).filter(Boolean)) tables.admins.push({ email, created_at: new Date().toISOString() });
 // The account plan for every new profile. MOCK_PLAN=professional lets you try the paid-only agency features.
@@ -387,6 +387,8 @@ function mockAds(req, res, path, body, gaHosts) {
 /* Fake OpenAI Responses API for the Analytics and Google Ads AI insights: builds 4 insights from the pages and issue ids
    in the prompt, as structured JSON in output_text, like the real API with a json_schema format. */
 function mockOpenAI(res, body) {
+  // Ask Pagelyt streams its answer (server-sent events, text deltas), like the real Responses API.
+  if (body.stream) return mockChatStream(res, body);
   const input = String(body.input || "");
   const reply = (insights) => send(res, 200, { id: `resp_${crypto.randomUUID()}`, object: "response", status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify({ insights }) }] }] });
   // The Search Console analysis: built from its SEARCH PAGES table.
@@ -424,4 +426,37 @@ function mockOpenAI(res, body) {
     { title: "Key events are steady but low", detail: "About 2% of visits end in a key event. Small improvements on your busiest pages would move this most.", action: "Add one clear call to action above the fold on your top two pages.", priority: "low", pages: [], findings: [] },
   ].filter(Boolean);
   return reply(insights);
+}
+
+/* A canned Ask Pagelyt answer, streamed a few words at a time so the typing and Stop button can be tried. */
+function mockChatStream(res, body) {
+  const turns = Array.isArray(body.input) ? body.input : [];
+  const q = String(turns[turns.length - 1]?.content || "").replace(/^About this finding in my report: "([^"]+)"\n\n/, (_, f) => `[${f}] `);
+  const text = [
+    `Good question. Here is what I'd do for **${q.slice(0, 80)}**:`,
+    "",
+    "1. Start with the **important** items in your report: they move the score most.",
+    "2. Open the matching fix guide, e.g. [How to add a privacy policy](/fix/privacy-policy), and follow the steps.",
+    "3. Rescan to confirm it worked.",
+    "",
+    "For developers, a header looks like `Strict-Transport-Security: max-age=31536000`.",
+    "",
+    "- Quick win: compress large images",
+    "- Quick win: add a meta description",
+    "",
+    "(This is the mock assistant: set OPENAI_API_KEY for real answers.)",
+  ].join("\n");
+  res.writeHead(200, { "content-type": "text/event-stream", "access-control-allow-origin": "*" });
+  const words = text.split(/(?<= )/);
+  let i = 0;
+  const tick = setInterval(() => {
+    if (res.destroyed) return clearInterval(tick);
+    if (i >= words.length) {
+      clearInterval(tick);
+      res.write(`data: ${JSON.stringify({ type: "response.completed" })}\n\n`);
+      return res.end();
+    }
+    res.write(`data: ${JSON.stringify({ type: "response.output_text.delta", delta: words.slice(i, i + 3).join("") })}\n\n`);
+    i += 3;
+  }, 60);
 }

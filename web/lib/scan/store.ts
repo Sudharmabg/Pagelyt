@@ -235,9 +235,14 @@ export const nextRun = (cadence: Site["cadence"], from = Date.now()) =>
 export async function saveSite(userId: string, scan: { id: string; host: string; url: string }, opts: { cadence?: Site["cadence"]; uptime?: boolean; alerts?: boolean }): Promise<Site | null> {
   if (!live()) return null;
   // Only send the schedule and uptime when the caller chose them. A plain "save this report" (after a signed-in
-  // scan or a rescan) must keep an existing site's settings; a new site gets the table defaults (none, off).
+  // scan or a rescan) must keep an existing site's settings. A brand-new site starts on weekly rescans.
+  let cadence = opts.cadence;
+  if (cadence === undefined) {
+    const found = await rest<{ id: string }[]>(`sites?user_id=eq.${encodeURIComponent(userId)}&host=eq.${encodeURIComponent(scan.host)}&select=id&limit=1`);
+    if (!found.length) cadence = "weekly";
+  }
   const settings = {
-    ...(opts.cadence !== undefined ? { cadence: opts.cadence, next_run_at: nextRun(opts.cadence) } : {}),
+    ...(cadence !== undefined ? { cadence, next_run_at: nextRun(cadence) } : {}),
     ...(opts.uptime !== undefined ? { uptime: opts.uptime } : {}),
     ...(opts.alerts !== undefined ? { alerts: opts.alerts } : {}),
   };

@@ -8,7 +8,8 @@ import { findingKey, PENALTY, WEIGHTS } from "@/lib/scan/score";
 import { EFFORT_LABEL, quickWins } from "@/lib/scan/effort";
 import { evidenceText, MODULE_NAMES, type Finding, type PageWeight, type Severity, type Vitals, type VitalsRun } from "@/lib/scan/types";
 import type { StoredScan } from "@/lib/scan/store";
-import { Tile } from "./action-modal";
+import type { IconKey } from "./icons";
+import { ArtCard } from "./action-modal";
 import { crawlWhy, type CrawlFix } from "@/lib/scan/crawl-why";
 import type { Traffic } from "@/lib/google/gsc-insights";
 import type { Visits } from "@/lib/google/ga4-insights";
@@ -183,12 +184,51 @@ export function ExportTiles({ scan, findings, fixed, pdfLabel, pdfText, onPdf, p
 
   return (
     <>
-      <Tile icon="pdf" title={pdfLabel} text={pdfText} onClick={onPdf} busy={pdfBusy} tone="accent" />
-      <Tile icon="check" title="Copy fix checklist" text={`All ${findings.length} issues (${open} still open) as a to-do list with where each was found, ready for Notion, Trello or an email.`} onClick={() => void run("copy")} done={done === "copy" ? "Copied to your clipboard" : done === "copy-fail" ? "Your browser blocked copying" : undefined} />
-      <Tile icon="table" title="Download CSV" text={`All ${findings.length} issues with priority, fix and every affected page, for Excel or Google Sheets.`} onClick={() => void run("csv")} done={done === "csv" ? "Downloaded" : undefined} />
-      <Tile icon="code" title="Download JSON" text={`The full raw report with all ${findings.length} issues and a summary, for developers and your own tools.`} onClick={() => void run("json")} done={done === "json" ? "Downloaded" : undefined} />
+      <ExportCard kind="pdf" icon="pdf" tag="Branded" title={pdfLabel} text={pdfText} cta={pdfBusy ? "Preparing…" : "Get PDF"} onClick={onPdf} busy={pdfBusy} score={scan.overall} />
+      <ExportCard kind="list" icon="check" tag="To-do list" title="Copy fix checklist" text={`All ${findings.length} issues (${open} still open) with where each was found, ready for Notion, Trello or an email.`} cta="Copy" onClick={() => void run("copy")} done={done === "copy" ? "Copied to your clipboard" : done === "copy-fail" ? "Your browser blocked copying" : undefined} />
+      <ExportCard kind="csv" icon="table" tag="Spreadsheet" title="Download CSV" text={`All ${findings.length} issues with priority, fix and every affected page, for Excel or Google Sheets.`} cta="Download .csv" onClick={() => void run("csv")} done={done === "csv" ? "Downloaded" : undefined} />
+      <ExportCard kind="json" icon="code" tag="Developers" title="Download JSON" text={`The full raw report with all ${findings.length} issues and a summary, for your own tools.`} cta="Download .json" onClick={() => void run("json")} done={done === "json" ? "Downloaded" : undefined} />
     </>
   );
+}
+
+/* One Export option: the shared Avara-style card with a preview of what you get. */
+function ExportCard({ kind, icon, tag, title, text, cta, onClick, busy, done, score }: { kind: "pdf" | "list" | "csv" | "json"; icon: IconKey; tag: string; title: string; text: string; cta: string; onClick: () => void; busy?: boolean; done?: string; score?: number }) {
+  const art =
+    kind === "pdf" ? (
+      <span className="xp-pdf">
+        <i className="xp-page xp-p3" />
+        <i className="xp-page xp-p2" />
+        <i className="xp-page xp-p1">
+          <i className="xp-ring"><i>{score ?? ""}</i></i>
+          <i className="xp-ln" />
+          <i className="xp-ln xp-s" />
+          <i className="xp-ln" />
+        </i>
+      </span>
+    ) : kind === "list" ? (
+      <span className="xp-list">
+        {[0, 1, 2].map((i) => (
+          <i key={i} className="xp-row">
+            <i className={`xp-box${i < 2 ? " on" : ""}`} />
+            <i className="xp-ln" />
+            <i className={`xp-sev xp-sev${i}`} />
+          </i>
+        ))}
+      </span>
+    ) : kind === "csv" ? (
+      <span className="xp-csv">
+        {Array.from({ length: 16 }, (_, i) => (
+          <i key={i} className={i < 4 ? "xp-th" : i >= 8 && i < 12 ? "xp-hl" : ""} />
+        ))}
+      </span>
+    ) : (
+      <span className="xp-json">
+        <i className="xp-dots"><i /><i /><i /></i>
+        <i className="xp-code"><i className="c1">{"{"}</i><i className="c2">&quot;score&quot;: <em>{score ?? 80}</em>,</i><i className="c2">&quot;findings&quot;: [ … ]</i><i className="c1">{"}"}<span className="xp-caret" /></i></i>
+      </span>
+    );
+  return <ArtCard kind={kind} icon={icon} tag={tag} title={title} text={text} cta={cta} onClick={onClick} busy={busy} done={done} art={art} />;
 }
 
 /* ------------------------------------------------------------------ */

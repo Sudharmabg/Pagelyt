@@ -51,7 +51,7 @@ export const FEATURES: Feature[] = [
       ],
       [
         "How often should I check website health?",
-        "Run a check after any hosting, DNS or certificate change. Paid plans add scheduled scans and uptime monitoring so checks run automatically.",
+        "Run a check after any hosting, DNS or certificate change. Every saved website is rescanned weekly by default, with uptime checks, so checks run automatically.",
       ],
     ],
     related: ["performance", "monitoring-reports"],
@@ -285,7 +285,7 @@ export const FEATURES: Feature[] = [
     faq: [
       [
         "How often does Pagelyt scan my website?",
-        "It depends on your plan: monthly on Essential, weekly on Professional and daily on Business.",
+        "Every website you save is rescanned weekly by default, on every plan. You can switch a site to daily or monthly, or pause it, from its Save and monitor page.",
       ],
       [
         "Can I download reports?",

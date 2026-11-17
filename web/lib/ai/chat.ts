@@ -7,7 +7,8 @@ import { rankDocs, reportBrief, sseText, type Doc, type Turn, CHAT_LIMITS } from
    fix guides and blog posts as sources. Anything else gets a short, polite refusal. Server only. */
 
 export const chatModel = () => process.env.OPENAI_CHAT_MODEL || "gpt-5";
-export const chatOn = () => !!process.env.OPENAI_API_KEY;
+// Under npm run dev:mock (no real key) the chat streams a canned answer from the mock's fake OpenAI.
+export const chatOn = () => !!(process.env.OPENAI_API_KEY || process.env.OPENAI_MOCK_URL);
 
 const blockText = (b: Block) => ("h2" in b ? `## ${b.h2}` : "h3" in b ? `### ${b.h3}` : "p" in b ? b.p : "tip" in b ? `Tip: ${b.tip}` : "code" in b ? b.code : ("ul" in b ? b.ul : b.ol).map((x) => `- ${x}`).join("\n"));
 
@@ -79,7 +80,8 @@ export function buildInstructions(res: ScanResult, turns: Turn[], fixed: string[
 export async function streamAnswer(instructions: string, turns: Turn[], signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
   const model = chatModel();
   const reasoning = /^(gpt-5|o\d)/.test(model) ? { reasoning: { effort: "low" } } : {};
-  const r = await fetch("https://api.openai.com/v1/responses", {
+  const base = (process.env.OPENAI_API_KEY ? "" : process.env.OPENAI_MOCK_URL) || "https://api.openai.com";
+  const r = await fetch(`${base}/v1/responses`, {
     method: "POST",
     headers: { "content-type": "application/json", authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
     body: JSON.stringify({ model, instructions, input: turns, stream: true, store: false, max_output_tokens: 2500, ...reasoning }),

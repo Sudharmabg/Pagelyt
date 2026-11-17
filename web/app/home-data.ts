@@ -30,7 +30,7 @@ export const COMPARE: { row: string; cells: [Mark, string][] }[] = [
   { row: "Speed, SEO, security and accessibility in one place", cells: [["yes", "One scan"], ["no", "Separate tools"], ["part", "Sometimes"]] },
   { row: "Search Console, Analytics and Ads data on every fix", cells: [["yes", "Professional & Business"], ["part", "Separate dashboards"], ["part", "Manual exports"]] },
   { row: "Fixes in plain English, ranked by impact", cells: [["yes", "Yes"], ["no", "Raw data to interpret"], ["yes", "Yes"]] },
-  { row: "Ongoing monitoring", cells: [["yes", "On paid plans"], ["yes", "Yes"], ["no", "One-off"]] },
+  { row: "Ongoing monitoring", cells: [["yes", "Weekly rescans, free"], ["yes", "Yes"], ["no", "One-off"]] },
 ];
 
 /* Example outcomes for "What a clear report changes": typical problems Pagelyt finds and the kind of change fixing

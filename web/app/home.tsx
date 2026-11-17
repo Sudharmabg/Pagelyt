@@ -10,8 +10,8 @@ import { Arcs, Funnel } from "./art";
 import { TrustRow } from "./home-extras";
 import { Compare, HeroTitle, ProcessDraw, StatsBar, StickyCta, Stories, ToolGrid } from "./home-convert";
 import { SiteFooter, SiteNav } from "./site-chrome";
-import { Sources } from "./sources";
 import { GoogleSection } from "./home-google";
+import { MonitorSection } from "./home-monitor";
 import { WelcomeBack } from "./welcome-back";
 import { ReportBento } from "./home-motion";
 import { GuidesCarousel, WorksWith, type GuideCard } from "./home-media";
@@ -39,7 +39,7 @@ const AUDIENCE = {
       "8 areas, 1 clear score",
       "Fixes ranked by impact",
       "Plain English, no jargon",
-      "Rescan to track progress",
+      "Rescanned every week, free",
     ],
   },
   agency: {
@@ -48,7 +48,7 @@ const AUDIENCE = {
     adv: [
       "Audit any client site from a URL",
       "White-label PDF reports on Business",
-      "Monitor every site you manage",
+      "Weekly rescans for every client site",
       "Fixes ranked by impact",
       "Competitor benchmarks from Professional",
     ],
@@ -178,15 +178,36 @@ export default function Home({ guides = [] }: { guides?: GuideCard[] }) {
               )}
             </p>
             <Link href="/features/google-integrations" className="hero-gchip">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 20V10h3v10H5zm5.5 0V4h3v16h-3zM16 20v-7h3v7h-3z" /></svg>
-              Works with Search Console, GA4 &amp; Google Ads
+              <span className="hero-gchip-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V10h3v10H5zm5.5 0V4h3v16h-3zM16 20v-7h3v7h-3z" /></svg></span>
+              <span><b>Works with Google</b> · Search Console, GA4 &amp; Google Ads</span>
+              <span className="hero-mon-go" aria-hidden="true">→</span>
             </Link>
+            <a href="#monitoring" className="hero-mon">
+              <span className="hmon-live" aria-hidden="true" />
+              <span><b>Rescanned every week, free</b> · email alerts if anything drops</span>
+              <span className="hero-mon-go" aria-hidden="true">→</span>
+            </a>
           </div>
 
           <div data-r style={{ ["--d" as string]: 3 }}>
             <StatsBar />
           </div>
 
+          <div className="hero-badge" data-r style={{ ["--d" as string]: 3 }}>
+            <a
+              href="https://saasearch.io/product/pagelyt?utm_source=badge&utm_medium=referral&utm_campaign=verified_badge&ref=saasearch"
+              target="_blank"
+              rel="noopener"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="https://saasearch.io/api/badge/pagelyt?theme=dark&variant=verified"
+                alt="Verified on SaaSearch"
+                height={48}
+                loading="lazy"
+              />
+            </a>
+          </div>
 
           <div className="hero-prev2" data-r style={{ ["--d" as string]: 4 }}>
             <ScanPreview mods={BASE} overall={overall} phase="sample" host="" progress={0} stepText="" />
@@ -213,12 +234,15 @@ export default function Home({ guides = [] }: { guides?: GuideCard[] }) {
             </h2>
             <p className="lead">
               Pagelyt is a website analysis and monitoring platform: scores for health, speed, SEO, AI search
-              readiness, security and accessibility, with fixes ranked by impact.
+              readiness, security and accessibility, with fixes ranked by impact, and it rescans your site every week.
             </p>
           </div>
           <ProcessDraw />
         </div>
       </section>
+
+      {/* 2a. CONTINUOUS MONITORING: weekly rescans, free */}
+      <MonitorSection />
 
       {/* 2b. INSIDE EVERY REPORT: small live demos */}
       <section className="sec tight" id="inside" aria-labelledby="inside-h">
@@ -259,12 +283,6 @@ export default function Home({ guides = [] }: { guides?: GuideCard[] }) {
 
       {/* 3b. GOOGLE DATA */}
       <GoogleSection />
-
-      {/* 4. SKY SECTION: how it analyses */}
-      <section className="sec ice sky-sec" id="how" aria-labelledby="src-h">
-        <Sources />
-
-      </section>
 
       {/* 5. FREE TOOLS */}
       <section className="sec" id="tools" aria-labelledby="tools-h">

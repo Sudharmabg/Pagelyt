@@ -14,7 +14,7 @@ const REPLACES: [string, string][] = [
   ["SEO crawler", "Technical SEO and GEO readiness"],
   ["Security scanner", "Security headers and TLS review"],
   ["Accessibility checker", "WCAG-oriented accessibility findings"],
-  ["Uptime monitor", "Scheduled scans and monitoring"],
+  ["Uptime monitor", "Weekly rescans and uptime checks, on by default"],
   ["Spreadsheet of fixes", "AI recommendations ranked by impact"],
 ];
 

@@ -62,17 +62,3 @@ export function Funnel() {
     </div>
   );
 }
-
-/* Soft drifting clouds for the sky section. */
-export function Clouds() {
-  return (
-    <>
-      <svg className="cloud c1" viewBox="0 0 220 90" aria-hidden="true">
-        <path d="M30 84h160a30 30 0 0 0 4-60 44 44 0 0 0-84-8 36 36 0 0 0-80 28 22 22 0 0 0 0 40z" fill="#fff" />
-      </svg>
-      <svg className="cloud c2" viewBox="0 0 220 90" aria-hidden="true">
-        <path d="M30 84h160a30 30 0 0 0 4-60 44 44 0 0 0-84-8 36 36 0 0 0-80 28 22 22 0 0 0 0 40z" fill="#fff" />
-      </svg>
-    </>
-  );
-}

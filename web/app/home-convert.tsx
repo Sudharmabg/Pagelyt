@@ -6,6 +6,7 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { Bot, Clock, Gift, Layers, MessageSquareText, Plug, RefreshCw, Timer, Wallet, type LucideIcon } from "lucide-react";
 import { Arrow } from "./arrow";
 import { RailNav } from "./rail-nav";
 import { RollNum } from "./roll-num";
@@ -126,6 +127,15 @@ export function ProcessDraw() {
    purple card with a ribbon on top and a call to action at the bottom; rows reveal one by one (the parent's
    data-r adds .in). ---------- */
 const MARK_LABEL: Record<Mark, string> = { yes: "Strong", part: "Partial", no: "Weak" };
+/* One icon per comparison row, in COMPARE order. */
+const ROW_ICONS: LucideIcon[] = [Wallet, Clock, Bot, Layers, Plug, MessageSquareText, RefreshCw];
+/* How many rows each column wins outright ("yes"), shown under the column name. */
+const WINS = COMPARE_COLS.map((_, i) => COMPARE.filter((r) => r.cells[i][0] === "yes").length);
+const PROOF: [LucideIcon, string, string][] = [
+  [Timer, "Minutes", "to your first report"],
+  [Layers, "8 areas", "checked in one scan"],
+  [Gift, "Free", "to start, with weekly rescans"],
+];
 
 export function Compare({ onGo }: { onGo: () => void }) {
   const rail = useRef<HTMLUListElement>(null);
@@ -140,14 +150,24 @@ export function Compare({ onGo }: { onGo: () => void }) {
               <th key={c} scope="col" className={i === 0 ? "us" : undefined}>
                 {i === 0 && <span className="vs-rib">Best for owners</span>}
                 {c}
+                <span className="vs-tally">
+                  <b>{WINS[i]}</b>/{COMPARE.length} strong
+                </span>
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {COMPARE.map((r, k) => (
+          {COMPARE.map((r, k) => {
+            const RI = ROW_ICONS[k];
+            return (
             <tr key={r.row} style={{ ["--r" as string]: k }}>
-              <th scope="row">{r.row}</th>
+              <th scope="row">
+                <span className="vs-rh">
+                  <span className="vs-ri" aria-hidden="true">{RI && <RI />}</span>
+                  {r.row}
+                </span>
+              </th>
               {r.cells.map(([m, t], i) => (
                 <td key={i} data-l={COMPARE_COLS[i]} className={i === 0 ? "us" : undefined}>
                   <span className={`vs-mark ${m}`} role="img" aria-label={MARK_LABEL[m]} />
@@ -155,11 +175,15 @@ export function Compare({ onGo }: { onGo: () => void }) {
                 </td>
               ))}
             </tr>
-          ))}
+            );
+          })}
         </tbody>
         <tfoot>
           <tr>
-            <td className="vs-foot-tx">See your own report in minutes.</td>
+            <td className="vs-foot-tx">
+              See your own report in minutes.
+              <small>Free to start. Nothing to install.</small>
+            </td>
             <td className="us">
               <button type="button" className="btn vs-go" onClick={onGo}>
                 Try it free <Arrow />
@@ -177,6 +201,9 @@ export function Compare({ onGo }: { onGo: () => void }) {
           <li key={c} className={i === 0 ? "us" : undefined}>
             {i === 0 && <span className="vs-rib">Best for owners</span>}
             <b className="vs-cname">{c}</b>
+            <span className="vs-tally">
+              <b>{WINS[i]}</b>/{COMPARE.length} strong
+            </span>
             <ul>
               {COMPARE.map((r) => {
                 const [m, t] = r.cells[i];
@@ -200,6 +227,17 @@ export function Compare({ onGo }: { onGo: () => void }) {
         ))}
       </ul>
       <RailNav rail={rail} count={COMPARE_COLS.length} label="Choose a comparison card" />
+
+      <ul className="vs-proof" aria-label="Pagelyt at a glance">
+        {PROOF.map(([PI, b, t], i) => (
+          <li key={b} style={{ ["--i" as string]: i }}>
+            <span className="vs-proof-ic" aria-hidden="true"><PI /></span>
+            <span className="vs-proof-tx">
+              <b>{b}</b> <span>{t}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }

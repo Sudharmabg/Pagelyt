@@ -37,19 +37,22 @@ export function CommandPalette({ open, onClose, cmds }: { open: boolean; onClose
   return (
     <dialog ref={ref} className="cmdk" aria-label="Command palette" onClose={() => { setQ(""); setIdx(0); onClose(); }} onClick={(e) => onBackdrop(e, onClose)}>
       <ModalX onClick={onClose} />
-      <input
-        autoFocus
-        className="cmdk-in"
-        placeholder="Jump to an area, a finding or an action…"
-        aria-label="Search commands"
-        value={q}
-        onChange={(e) => { setQ(e.target.value); setIdx(0); }}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowDown") { e.preventDefault(); setIdx((i) => Math.min(i + 1, shown.length - 1)); }
-          else if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(i - 1, 0)); }
-          else if (e.key === "Enter") { e.preventDefault(); go(shown[idx]); }
-        }}
-      />
+      <div className="cmdk-bar">
+        <span className="cmdk-bar-ico" aria-hidden="true"><AreaIcon k="search" size={16} /></span>
+        <input
+          autoFocus
+          className="cmdk-in"
+          placeholder="Jump to an area, a finding or an action…"
+          aria-label="Search commands"
+          value={q}
+          onChange={(e) => { setQ(e.target.value); setIdx(0); }}
+          onKeyDown={(e) => {
+            if (e.key === "ArrowDown") { e.preventDefault(); setIdx((i) => Math.min(i + 1, shown.length - 1)); }
+            else if (e.key === "ArrowUp") { e.preventDefault(); setIdx((i) => Math.max(i - 1, 0)); }
+            else if (e.key === "Enter") { e.preventDefault(); go(shown[idx]); }
+          }}
+        />
+      </div>
       <ul className="cmdk-list" role="listbox" aria-label="Results">
         {shown.length === 0 && <li className="cmdk-empty">Nothing found</li>}
         {shown.map((c, i) => (
