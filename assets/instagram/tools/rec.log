@@ -1,0 +1,9 @@
+frame 0/759  0s
+frame 150/759  40s
+frame 300/759  76s
+frame 450/759  112s
+frame 600/759  148s
+frame 750/759  182s
+encoding 759 frames as video/mp4;codecs=avc1.640028
+encoder ran -0.02 s over
+saved D:\PageLyt\assets\instagram\pagelyt-reel-4-silent.mp4 11.3 MB

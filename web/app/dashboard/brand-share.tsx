@@ -5,6 +5,7 @@ import { CopyButton } from "@/components/avara/CopyButtonBlock";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { Link2, ListChecks, Palette, Send } from "lucide-react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { BrandEditor } from "../account/brand/brand-editor";
 import { ShareReport } from "./share-report";
@@ -121,6 +122,12 @@ function Sample({ onBrand, onShare }: { onBrand: () => void; onShare: () => void
   );
 }
 
+const HOW: [typeof Send, string, string][] = [
+  [Palette, "Pick a brand", "Your logo, colour and contact details. Nothing of Pagelyt."],
+  [ListChecks, "Choose what to include", "How-to-fix steps, AI visibility, and when the link expires."],
+  [Link2, "Send it", "Copy the link, or email it to your client with a note."],
+];
+
 type Link_ = { token: string; created_at: string; revoked: boolean; expires_at: string | null };
 type BrandRow = { name: string; color: string; logo_url: string | null };
 const HEX = /^#[0-9a-fA-F]{6}$/;
@@ -156,13 +163,22 @@ function ShareTab({ scanId, host, score, canEmail, owner, onBrand, onSample }: {
   return (
     <div className="bs-share">
       <div className="panel bs-share-main">
-        <h3>Send {host} to your client</h3>
-        <ol className="bs-how">
-          <li><b>Pick a brand</b><small>Your logo, colour and contact details. Nothing of Pagelyt.</small></li>
-          <li><b>Choose what to include</b><small>How-to-fix steps, AI visibility, and when the link expires.</small></li>
-          <li><b>Send it</b><small>Copy the link, or email it to your client with a note.</small></li>
+        <header className="sc-head">
+          <span className="sc-ic" aria-hidden="true"><Send /></span>
+          <div>
+            <h3>Send {host} to your client</h3>
+            <p className="panel-note">Three steps, about a minute.</p>
+          </div>
+        </header>
+        <ol className="bs-how sc-items">
+          {HOW.map(([Ic, t, d], i) => (
+            <li key={t} style={{ ["--i" as string]: i }}>
+              <span className="sc-ic" aria-hidden="true"><Ic /></span>
+              <span><b>{t}</b><small>{d}</small></span>
+            </li>
+          ))}
         </ol>
-        <div className="sec-row">
+        <div className="sec-row sc-foot">
           {owner && <ShareReport scanId={scanId} host={host} score={score} canEmail={canEmail} onMade={() => setTick((n) => n + 1)} />}
           <button type="button" className="dash-btn" onClick={onSample}>See a sample</button>
         </div>

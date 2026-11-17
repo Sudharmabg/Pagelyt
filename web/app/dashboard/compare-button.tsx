@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { ChartColumn, Swords } from "lucide-react";
 import { runScan } from "@/lib/run-scan";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { AGENCY_UPSELL } from "./agency-modal";
@@ -60,6 +61,13 @@ export function CompareButton({ scanId, host, paid, overall, modules }: { scanId
   return (
     <div className="rv">
       <form className="panel rv-form" onSubmit={go} noValidate>
+        <header className="sc-head">
+          <span className="sc-ic" aria-hidden="true"><Swords /></span>
+          <div>
+            <h2>Your competitors</h2>
+            <p className="panel-note">Add up to three websites to line up against {host}.</p>
+          </div>
+        </header>
         <div className="rv-you">
           <span className="rv-badge">You</span>
           <b>{host}</b>
@@ -67,7 +75,7 @@ export function CompareButton({ scanId, host, paid, overall, modules }: { scanId
         </div>
         <p className="rv-vs" aria-hidden="true"><span>vs</span></p>
         {rows.map((r, i) => (
-          <div key={i} className={`rv-row ${r.state}`}>
+          <div key={i} className={`rv-row ${r.state}`} style={{ ["--i" as string]: i }}>
             <label>
               <span className="rv-n">{i + 1}</span>
               <span className="sr-only">Competitor {i + 1}{i > 0 ? " (optional)" : ""}</span>
@@ -86,7 +94,7 @@ export function CompareButton({ scanId, host, paid, overall, modules }: { scanId
         {status && <p className="rv-status" role="status" aria-live="polite"><span className="live-spin" aria-hidden="true" />{status}</p>}
         {err && <p className="lm-err" role="alert">{err}</p>}
         {paid ? (
-          <div className="rv-act">
+          <div className="rv-act sc-foot">
             <button type="submit" className="dash-btn primary" disabled={busy || !filled}>{busy ? "Working…" : filled > 1 ? `Compare with ${filled} competitors` : "Compare"}</button>
             <small>About a minute per competitor. Each one counts towards your scan limit.</small>
           </div>
@@ -99,8 +107,13 @@ export function CompareButton({ scanId, host, paid, overall, modules }: { scanId
       </form>
 
       <aside className="panel rv-prev" aria-label="What the comparison shows">
-        <p className="rv-prev-h">What you&rsquo;ll get</p>
-        <p className="rv-prev-s">Every area side by side, with who leads each one and the gaps worth closing first.</p>
+        <header className="sc-head">
+          <span className="sc-ic" aria-hidden="true"><ChartColumn /></span>
+          <div>
+            <p className="rv-prev-h">What you&rsquo;ll get</p>
+            <p className="rv-prev-s">Every area side by side, with who leads each one and the gaps worth closing first.</p>
+          </div>
+        </header>
         <ul className="rv-mini">
           {modules.map((m, i) => (
             <li key={m.key}>

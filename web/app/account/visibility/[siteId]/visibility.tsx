@@ -2,6 +2,7 @@
 
 import { PageLoader } from "@/app/page-loader";
 import Link from "next/link";
+import { Hash, Link2, MessageSquareText, Plus, Sparkles, TrendingUp, Users, SlidersHorizontal } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { visibilityScore } from "@/lib/ai/analyse";
@@ -206,23 +207,50 @@ export function Visibility({ siteId, embedded }: { siteId: string; embedded?: bo
         <div className="panel"><h2>ChatGPT isn’t connected</h2><p className="panel-note">Set OPENAI_API_KEY as a server secret to run checks. See DEPLOY.md.</p></div>
       )}
 
-      <section className="vis-tiles" aria-label="Summary">
-        <div className="vt big"><b>{score ?? "–"}{score !== null && "%"}</b><span>Mentioned in answers</span></div>
-        <div className="vt"><b>{citedPct ?? "–"}{citedPct !== null && "%"}</b><span>Cited with a link</span></div>
-        <div className="vt"><b>{avgPos ?? "–"}</b><span>Average position when named</span></div>
-        <div className="vt trend"><Trend points={trend} /><span>{trend.length > 1 ? "Over time" : "Run more checks to see a trend"}</span></div>
+      <section className="vis-tiles sg" aria-label="Summary">
+        <div className="vt sg-tile" style={{ ["--i" as string]: 0 }}>
+          <span className="sg-top"><span>Mentioned in answers</span><MessageSquareText aria-hidden="true" /></span>
+          <b>{score ?? "–"}{score !== null && "%"}</b>
+          <small>{okRuns.length ? `${okRuns.filter((r) => r.mentioned).length} of ${okRuns.length} answers` : "Run a check to see it"}</small>
+        </div>
+        <div className="vt sg-tile" style={{ ["--i" as string]: 1 }}>
+          <span className="sg-top"><span>Cited with a link</span><Link2 aria-hidden="true" /></span>
+          <b>{citedPct ?? "–"}{citedPct !== null && "%"}</b>
+          <small>{okRuns.length ? "Answers linking to you" : "Links back to your site"}</small>
+        </div>
+        <div className="vt sg-tile" style={{ ["--i" as string]: 2 }}>
+          <span className="sg-top"><span>Average position</span><Hash aria-hidden="true" /></span>
+          <b>{avgPos ?? "–"}</b>
+          <small>Where you&rsquo;re named in the list</small>
+        </div>
+        <div className="vt sg-tile trend" style={{ ["--i" as string]: 3 }}>
+          <span className="sg-top"><span>Over time</span><TrendingUp aria-hidden="true" /></span>
+          {trend.length > 1 ? <Trend points={trend} /> : <b>–</b>}
+          <small>{trend.length > 1 ? `${trend.length} checks` : "Run more checks to see a trend"}</small>
+        </div>
       </section>
 
       <div className="vis-layout">
         <section className="panel vis-main" aria-label="Questions to ask">
-          <div className="vis-ph">
-            <h2>Questions people ask</h2>
+          <div className="vis-ph sc-head">
+            <span className="sc-ic" aria-hidden="true"><MessageSquareText /></span>
+            <div>
+              <h2>Questions people ask</h2>
+              <p className="panel-note">What your customers might type into ChatGPT.</p>
+            </div>
             <span className="vis-count">{prompts.length} question{prompts.length === 1 ? "" : "s"}</span>
           </div>
           {prompts.length === 0 ? (
-            <div className="vis-empty">
-              <p><b>No questions yet.</b> Add the questions your customers might ask ChatGPT, or tell us what you offer and we’ll suggest some.</p>
-            </div>
+            <ul className="vis-empty sc-items">
+              <li style={{ ["--i" as string]: 0 }}>
+                <span className="sc-ic" aria-hidden="true"><Plus /></span>
+                <span><b>Add your own</b><small>Type a question a customer might ask, like &ldquo;Who are the best plumbers in Pune?&rdquo;</small></span>
+              </li>
+              <li style={{ ["--i" as string]: 1 }}>
+                <span className="sc-ic" aria-hidden="true"><Sparkles /></span>
+                <span><b>Or let us suggest some</b><small>Tell us what you offer and where, and we&rsquo;ll add a starter set.</small></span>
+              </li>
+            </ul>
           ) : (
             <ul className="vis-prompts">
               {prompts.map((p) => (
@@ -272,7 +300,7 @@ export function Visibility({ siteId, embedded }: { siteId: string; embedded?: bo
 
         <aside className="vis-side">
           <section className="panel" aria-label="Share of voice">
-            <h2>Who ChatGPT names</h2>
+            <div className="sc-head"><span className="sc-ic" aria-hidden="true"><Users /></span><h2>Who ChatGPT names</h2></div>
             {voice.total > 0 ? (
               <>
                 <p className="panel-note">Of {voice.total} answers, how many named each business.</p>
@@ -292,7 +320,7 @@ export function Visibility({ siteId, embedded }: { siteId: string; embedded?: bo
           </section>
 
           <section className="panel" aria-label="Settings">
-            <h2>Names and tracking</h2>
+            <div className="sc-head"><span className="sc-ic" aria-hidden="true"><SlidersHorizontal /></span><h2>Names and tracking</h2></div>
             <div className="tf"><label htmlFor="v-terms">Other names for your business</label><input id="v-terms" value={terms} onChange={(e) => setTerms(e.target.value)} placeholder="Acme Plumbing, Acme" /><small>Comma separated. We always look for your domain too.</small></div>
             <div className="tf"><label htmlFor="v-comps">Competitors to compare against</label><input id="v-comps" value={comps} onChange={(e) => setComps(e.target.value)} placeholder="PipePro, FixIt Fast" /></div>
             <div className="brand-act"><button type="button" className="dash-btn primary" onClick={saveSettings}>Save names</button></div>

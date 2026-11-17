@@ -977,7 +977,9 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     body = (
       <>
         {s.id === "tools" ? <ToolsBanner host={scan.host} missing={toolMissing} top={topTool} onOpen={setView} heading="h1" /> : STAR_ART[s.id] ? starBanner(s) : hero(s)}
-        {s.id === "tools" ? content : <div id="star-body" className="star-body">{content}</div>}
+        {s.id === "tools" ? content : (
+          <div id="star-body" className="star-body" data-star={s.id} style={STAR_ART[s.id] ? ({ "--tc": STAR_ART[s.id]!.color } as React.CSSProperties) : undefined}>{content}</div>
+        )}
       </>
     );
   }

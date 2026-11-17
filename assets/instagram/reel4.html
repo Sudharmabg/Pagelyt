@@ -69,8 +69,42 @@
   .hl { position:absolute; border:5px solid #ba8aff; border-radius:99px; opacity:0; }
   .toast { position:absolute; left:50%; top:972px; transform:translateX(-50%); padding:22px 34px; border-radius:22px; background:#1f9d6b; color:#fff; font:700 36px/1 Inter; white-space:nowrap; box-shadow:0 20px 40px rgba(18,48,63,.3); opacity:0; }
 
+  /* scene 6: Google data */
+  .gsrc { position:absolute; left:60px; right:60px; top:600px; display:flex; justify-content:center; gap:14px; }
+  .gsrc span { display:flex; align-items:center; gap:10px; padding:16px 22px; border-radius:99px; background:#fff; font:700 28px/1 Inter; box-shadow:0 0 0 1px rgba(18,48,63,.08); white-space:nowrap; }
+  .gsrc span i { width:30px; height:30px; border-radius:50%; background:#1f9d6b; color:#fff; display:grid; place-items:center; font:800 17px/1 Inter; font-style:normal; }
+  .gstats { position:absolute; left:60px; right:60px; top:710px; display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+  .gstats div { padding:30px 32px; border-radius:30px; background:#efe4fb; box-shadow:0 0 0 1px rgba(106,48,189,.12); }
+  .gstats b { display:block; font:800 76px/1 Archivo; font-variation-settings:"wdth" 90; letter-spacing:-.02em; }
+  .gstats span { display:block; margin-top:10px; font:500 28px/1.2 Inter; color:var(--body); }
+  .gstats em { display:block; margin-top:10px; font:700 26px/1 Inter; font-style:normal; color:#1f9d6b; } .gstats em.dn { color:#d23b3b; }
+  .gtable { position:absolute; left:60px; right:60px; top:1000px; background:#fff; border-radius:34px; padding:34px 34px 14px; box-shadow:0 30px 70px rgba(18,48,63,.14), 0 0 0 1px rgba(18,48,63,.05); }
+  .gtable h4 { font:800 44px/1 Archivo; font-variation-settings:"wdth" 78; letter-spacing:-.02em; }
+  .gtable h4 + p { margin-top:10px; font:500 26px/1.3 Inter; color:var(--muted); }
+  .gtable ul { list-style:none; margin-top:20px; }
+  .gtable li { position:relative; display:flex; align-items:center; gap:18px; padding:22px 16px; border-top:1px solid #efe7df; }
+  .gtable li .is { flex:1; font:600 29px/1.15 Inter; color:var(--purple); } .gtable li .is small { display:block; margin-top:6px; font:500 22px/1 Inter; color:var(--muted); }
+  .gtable li .cl { font:800 40px/1 Archivo; font-variation-settings:"wdth" 90; } .gtable li .cl small { font:600 20px/1 Inter; color:var(--muted); margin-left:6px; }
+  .gtable li.top { background:#f6effe; border-radius:18px; border-color:transparent; }
+
+  /* scene 7: Ask Pagelyt */
+  .chat { position:absolute; left:60px; right:60px; top:600px; height:780px; background:#fff; border-radius:40px; overflow:hidden; box-shadow:0 40px 90px rgba(18,48,63,.16), 0 0 0 1px rgba(18,48,63,.05); }
+  .chat .hd { display:flex; align-items:center; gap:20px; padding:30px 34px; background:linear-gradient(180deg,#f7f1ff,#fdfbff); border-bottom:1px solid #eee6f7; }
+  .chat .hd i { width:74px; height:74px; border-radius:22px; background:#b583ff; display:grid; place-items:center; }
+  .chat .hd i svg { width:40px; height:40px; }
+  .chat .hd b { display:block; font:700 36px/1 Inter; } .chat .hd small { display:block; margin-top:8px; font:500 26px/1 Inter; color:var(--muted); }
+  .chat .msgs { position:absolute; left:34px; right:34px; top:170px; bottom:140px; display:flex; flex-direction:column; gap:22px; }
+  .chat .me { align-self:flex-end; max-width:80%; padding:22px 28px; border-radius:30px 30px 8px 30px; background:var(--purple); color:#fff; font:600 32px/1.3 Inter; }
+  .chat .ai { align-self:flex-start; max-width:92%; padding:26px 30px; border-radius:30px 30px 30px 8px; background:#faf3ea; font:500 31px/1.42 Inter; color:var(--ink); }
+  .chat .ai b { color:var(--purple); } .chat .ai b.g { color:#1f9d6b; }
+  .chat .dots { display:flex; gap:10px; padding:28px 30px; } .chat .dots span { width:16px; height:16px; border-radius:50%; background:#c9b6e6; }
+  .chat .in { position:absolute; left:34px; right:34px; bottom:30px; height:90px; display:flex; align-items:center; gap:14px; padding:0 14px 0 30px; border-radius:26px; border:3px solid #e2d4f6; font:500 30px/1 Inter; color:var(--ink); }
+  .chat .in .ph { color:#9aa3a8; } .chat .in .caret { width:3px; height:36px; background:var(--purple); }
+  .chat .in .send { margin-left:auto; width:62px; height:62px; border-radius:18px; background:#b583ff; display:grid; place-items:center; color:#fff; font:800 32px/1 Inter; }
+
   /* end card */
-  .end h1 { margin-top:36px; font-size:128px; }
+  .end h1 { margin-top:46px; font-size:140px; }
+  .end .brand svg { width:120px; height:73px; } .end .brand b { font-size:76px; }
   .end .pill { margin:56px auto 0; width:max-content; padding:34px 52px; border-radius:30px; background:var(--purple); color:#fff; text-align:center; box-shadow:0 30px 60px rgba(106,48,189,.38); }
   .end .pill small { display:block; font:600 34px/1 Inter; opacity:.9; }
   .end .pill b { display:block; margin-top:14px; font:800 104px/1 Archivo; font-variation-settings:"wdth" 80; letter-spacing:-.01em; }
@@ -157,12 +191,42 @@
     <svg class="cursor" id="cur5"><use href="#cur"/></svg>
   </section>
 
-  <!-- 6 · end -->
-  <section class="scene end" id="sc6" style="padding-top:400px">
-    <div class="brand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
-    <h1>Free website<br>audit. <em>Fixes in<br>plain English.</em></h1>
-    <div class="pill"><small>Comment</small><b>PAGELYT</b></div>
-    <p>and I'll send you the link · pagelyt.dev</p>
+  <!-- 6 · Google data -->
+  <section class="scene" id="sc6">
+    <div class="cap"><span class="n">5</span><h2>Your <em>Google data</em>,<br>built in</h2></div>
+    <div class="gsrc" id="gsrc"><span><i>✓</i>Search Console</span><span><i>✓</i>Analytics</span><span><i>✓</i>Google Ads</span></div>
+    <div class="gstats" id="gstats">
+      <div><b id="g1">995</b><span>Google search clicks</span><em>+4% vs last 28 days</em></div>
+      <div><b id="g2">105,430</b><span>times seen in Google</span><em class="dn">−3% vs last 28 days</em></div>
+    </div>
+    <div class="gtable" id="gtable"><h4>Fix first</h4><p>Ranked by the Google traffic on each page</p>
+      <ul id="grows">
+        <li><span class="is">DMARC is monitoring only<small>Domain &amp; email · whole site</small></span><span class="cl">995<small>clicks</small></span></li>
+        <li><span class="is">No security.txt file<small>Security · whole site</small></span><span class="cl">995<small>clicks</small></span></li>
+        <li><span class="is">1 render-blocking script<small>Performance · homepage</small></span><span class="cl">72<small>clicks</small></span></li>
+        <li><span class="is">No llms.txt file<small>AI search · homepage</small></span><span class="cl">72<small>clicks</small></span></li>
+      </ul></div>
+  </section>
+
+  <!-- 7 · Ask Pagelyt -->
+  <section class="scene" id="sc7">
+    <div class="cap"><span class="n">6</span><h2>Ask Pagelyt<br><em>anything</em></h2></div>
+    <div class="chat">
+      <div class="hd"><i><svg viewBox="0 0 24 24" fill="none" stroke="#2a1f3d" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.4 8.4 0 0 1-12.3 7.4L3 21l2.1-5.6A8.4 8.4 0 1 1 21 11.5z"/></svg></i>
+        <div><b>Ask Pagelyt</b><small>yourbakery.com · score 80</small></div></div>
+      <div class="msgs">
+        <div class="me" id="qMe">What should I fix first?</div>
+        <div class="ai dots" id="dots"><span></span><span></span><span></span></div>
+        <div class="ai" id="ans"></div>
+      </div>
+      <div class="in"><span id="qIn"></span><span class="caret" id="qCaret"></span><span class="ph" id="qPh">Ask about your site…</span><span class="send" id="qSend">↑</span></div>
+    </div>
+  </section>
+
+  <!-- 8 · close -->
+  <section class="scene end" id="sc8" style="padding-top:470px">
+    <div class="brand" id="endBrand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <h1 id="endH"><span>Your site.</span><br><span>Your Google data.</span><br><em>An AI expert.</em></h1>
   </section>
 </div>
 
@@ -175,8 +239,23 @@ const out = (x) => 1 - Math.pow(1 - x, 3);
 const back = (x) => { const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
 const lerp = (a, b, x) => a + (b - a) * x;
 
-const S = { sc1:[0,2.7], sc2:[2.5,6.1], sc3:[5.9,8.7], sc4:[8.5,12.1], sc5:[11.9,15.4], sc6:[15.2,18.5] };
-const DURATION = 18;
+// Original 18 s timeline (O) is stretched scene by scene to fit the voiceover clips (shots/reel4/voice).
+const O = { sc1:[0,2.7], sc2:[2.5,6.1], sc3:[5.9,8.7], sc4:[8.5,12.1], sc5:[11.9,15.4], sc6:[15.2,19.5], sc7:[19.3,24.5], sc8:[24.3,27.5] };
+const VLEN = [4.63, 2.81, 3.48, 4.1, 5.09, 4.56, 5.9, 6.26], LEAD = .2, GAP = .25;
+// ?silent: no voiceover, scenes keep the tighter original timing (sped up a little) for posting with music
+const SILENT = location.search.includes("silent"), FAST = .78;
+const S = {}, VOICE = []; let at = 0;
+// silent: animations run at 1/FAST speed, then each scene holds HOLD seconds so its last state can be read
+const HOLD = { sc1:.2, sc2:0, sc3:.1, sc4:.4, sc5:.6, sc6:.8, sc7:1.8, sc8:.5 };
+if (SILENT) Object.keys(O).forEach((id, i) => { const a = i === 0 ? 0 : at - .2, len = (O[id][1] - O[id][0]) * FAST + HOLD[id]; S[id] = [a, a + len]; at = a + len; });
+else Object.keys(O).forEach((id, i) => {
+  const a = i === 0 ? 0 : at - .2, len = VLEN[i] + LEAD + GAP;
+  VOICE.push({ src: `shots/reel4/voice/v${i + 1}.mp3`, at: a + LEAD });
+  S[id] = [a, a + len + (i === 7 ? .8 : .2)]; at = a + len + .2;
+});
+const DURATION = Math.ceil(S.sc8[1] * 10) / 10 - .3;
+// map stage time to the original timeline for one scene
+const U = (id, t) => { const [a, b] = S[id], [oa, ob] = O[id]; return oa + (t - a) * (SILENT ? 1 / FAST : (ob - oa) / (b - a)); };
 
 function scene(id, t) {
   const [a, b] = S[id], el = $(id);
@@ -195,17 +274,17 @@ function placeHome() {
   box(335, 1423, 835, 1553, $("press"));
 }
 
-function setT(t) {
-  const mid = t > 2.7 && t < 15.2;
+function setT(T) { const t = T;
+  const mid = t > S.sc1[1] && t < S.sc8[0];
   $("arcs").style.transform = `translate(${Math.sin(t / 5) * 30}px, ${mid ? 330 : 0}px)`;
   $("arcs").style.opacity = mid ? .3 : 1;
 
-  if (scene("sc1", t)) {
+  if (scene("sc1", t)) { const t = U("sc1", T);
     const h = $("sc1").querySelector("h1");
     h.style.transform = `scale(${lerp(1, 1.04, ramp(t, 0, 2.7))})`;
   }
 
-  if (scene("sc2", t)) {
+  if (scene("sc2", t)) { const t = U("sc2", T);
     const url = "yourbakery.com", n = Math.round(ramp(t, 3.1, 4.3) * url.length);
     $("typedText").textContent = url.slice(0, n);
     $("caret").style.opacity = t < 4.6 ? 1 : 0;
@@ -217,7 +296,7 @@ function setT(t) {
     $("homeImg").style.transform = `scale(${1 + ease(ramp(t, 5.3, 6.1)) * .05})`;
   }
 
-  if (scene("sc3", t)) {
+  if (scene("sc3", t)) { const t = U("sc3", T);
     $("prog").style.width = (ramp(t, 6.2, 8.1) * 100) + "%";
     [...$("areas").children].forEach((li, i) => {
       const at = 6.3 + i * .22, d = t >= at;
@@ -226,7 +305,7 @@ function setT(t) {
     });
   }
 
-  if (scene("sc4", t)) {
+  if (scene("sc4", t)) { const t = U("sc4", T);
     const p = out(ramp(t, 8.8, 10.2)), v = Math.round(80 * p);
     $("num").textContent = v;
     $("ring").setAttribute("stroke-dashoffset", 578 * (1 - .8 * p));
@@ -237,7 +316,7 @@ function setT(t) {
 
   }
 
-  if (scene("sc5", t)) {
+  if (scene("sc5", t)) { const t = U("sc5", T);
     const q = out(ramp(t, 12.5, 12.9));
     $("codeCard").style.opacity = q; $("codeCard").style.transform = `translateY(${(1 - q) * 40}px)`;
     // code.png is 1054 wide shown at 960; Copy button centre is at (755, 51) in the crop
@@ -249,17 +328,41 @@ function setT(t) {
     ts.style.opacity = a; ts.style.transform = `translateX(-50%) translateY(${(1 - a) * 20}px) scale(${lerp(.9, 1, a)})`;
   }
 
-  if (scene("sc6", t)) {
-    const q = back(ramp(t, 15.7, 16.2));
-    $("sc6").querySelector(".pill").style.transform = `scale(${lerp(.8, 1, q)})`;
-    $("sc6").querySelector(".pill").style.opacity = ramp(t, 15.7, 15.9);
+  if (scene("sc6", t)) { const t = U("sc6", T);
+    [...$("gsrc").children].forEach((el, i) => { const q = ramp(t, 15.5 + i * .15, 15.85 + i * .15); el.style.opacity = q; el.style.transform = `scale(${lerp(.8, 1, back(q))})`; });
+    const c = out(ramp(t, 15.9, 16.9));
+    $("g1").textContent = Math.round(995 * c).toLocaleString("en-US");
+    $("g2").textContent = Math.round(105430 * c).toLocaleString("en-US");
+    const tq = out(ramp(t, 16.6, 17.0)); $("gtable").style.opacity = tq; $("gtable").style.transform = `translateY(${(1 - tq) * 40}px)`;
+    [...$("grows").children].forEach((li, i) => { const q = out(ramp(t, 16.9 + i * .18, 17.25 + i * .18)); li.style.opacity = q; li.style.transform = `translateX(${(1 - q) * 40}px)`; });
+    $("grows").children[0].classList.toggle("top", t > 18.2);
+  }
+
+  if (scene("sc7", t)) { const t = U("sc7", T);
+    const q = "What should I fix first?", n = Math.round(ramp(t, 19.7, 20.6) * q.length), sent = t > 20.8;
+    $("qIn").textContent = sent ? "" : q.slice(0, n);
+    $("qPh").style.display = (n === 0 || sent) ? "" : "none";
+    $("qCaret").style.opacity = sent ? 0 : 1;
+    $("qSend").style.transform = `scale(${t > 20.7 && t < 20.9 ? .85 : 1})`;
+    const m = out(ramp(t, 20.8, 21.1)); $("qMe").style.opacity = m; $("qMe").style.transform = `translateY(${(1 - m) * 30}px)`;
+    const thinking = t > 21.0 && t < 21.7; $("dots").style.display = thinking ? "" : "none";
+    [...$("dots").children].forEach((d, i) => d.style.transform = `translateY(${Math.sin(t * 12 - i) * 6}px)`);
+    const A = 'Start with <b>Security (58)</b>, your weakest area. You\'re missing 5 security headers. Copy the pre-filled code from your report into your <b>_headers</b> file. That\'s about <b class="g">+2 points</b> in five minutes.';
+    const words = A.split(" "), k = Math.round(ramp(t, 21.7, 23.8) * words.length);
+    $("ans").style.display = t > 21.7 ? "" : "none";
+    $("ans").innerHTML = words.slice(0, Math.max(1, k)).join(" ").replace(/<b[^>]*>(?![^<]*<\/b>)([^<]*)$/, (x) => x + "</b>");
+  }
+
+  if (scene("sc8", t)) { const t = U("sc8", T);
+    const b = back(ramp(t, 24.4, 24.9)); $("endBrand").style.transform = `scale(${lerp(.7, 1, b)})`;
+    [...$("endH").querySelectorAll("span, em")].forEach((el, i) => { const q = out(ramp(t, 24.7 + i * .35, 25.1 + i * .35)); el.style.opacity = q; el.style.display = "inline-block"; el.style.transform = `translateY(${(1 - q) * 30}px)`; });
   }
 }
 
 placeHome();
-window.setT = setT; window.DURATION = DURATION;
+window.setT = setT; window.DURATION = DURATION; window.VOICE = VOICE;
 setT(0);
-if (location.search.includes("play")) { const t0 = performance.now(); (function f() { const t = (performance.now() - t0) / 1000; setT(t % DURATION); requestAnimationFrame(f); })(); }
+if (location.search.includes("play")) { VOICE.forEach((v) => { const a = new Audio(v.src); setTimeout(() => a.play().catch(() => {}), v.at * 1000); }); const t0 = performance.now(); (function f() { const t = (performance.now() - t0) / 1000; setT(t % DURATION); requestAnimationFrame(f); })(); }
 </script>
 </body>
 </html>

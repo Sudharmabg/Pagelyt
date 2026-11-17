@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ChartColumn, Megaphone, Plug, Search, type LucideIcon } from "lucide-react";
 import { findingKey } from "@/lib/scan/score";
 import { MODULE_NAMES, type Finding } from "@/lib/scan/types";
 import { trafficMap } from "@/lib/google/gsc-insights";
@@ -30,6 +31,8 @@ export function GoogleOverview({ g, scan, findings, onTab }: { g: GoogleState; s
     <>
       <ul className="gd-status" aria-label="Your Google products">
         <StatusCard
+          i={0}
+          icon={Search}
           name="Search Console"
           on={s.gsc && !!s.property}
           step={!s.connected || !s.gsc ? "Not connected" : !s.property ? "Pick a property" : null}
@@ -38,6 +41,8 @@ export function GoogleOverview({ g, scan, findings, onTab }: { g: GoogleState; s
           onOpen={() => onTab("gsc")}
         />
         <StatusCard
+          i={1}
+          icon={ChartColumn}
           name="Analytics"
           on={s.ga4 && !!s.ga4Property}
           step={!s.connected || !s.ga4 ? "Not connected" : !s.ga4Property ? "Pick a property" : null}
@@ -47,6 +52,8 @@ export function GoogleOverview({ g, scan, findings, onTab }: { g: GoogleState; s
         />
         {s.adsOn !== false && (
           <StatusCard
+            i={2}
+            icon={Megaphone}
             name="Google Ads"
             on={!!s.ads && !!s.adsCustomer}
             step={!s.connected || !s.ads ? "Not connected" : !s.adsCustomer ? "Pick an account" : null}
@@ -59,10 +66,25 @@ export function GoogleOverview({ g, scan, findings, onTab }: { g: GoogleState; s
 
       {!gsc && !ga4 && !ads ? (
         busy ? <Skeleton /> : (
-          <section className="panel gd-connect">
-            <h2>Connect a Google product to fill this page</h2>
-            <p className="panel-note">Each product adds its own numbers to every finding in this report. Start with Search Console: it shows the searches that bring people to {scan.host}. Pagelyt only reads your data.</p>
-            <button type="button" className="dash-btn primary" onClick={() => onTab("gsc")}>Start with Search Console</button>
+          <section className="panel gd-connect sc-card">
+            <header className="sc-head">
+              <span className="sc-ic" aria-hidden="true"><Plug /></span>
+              <div>
+                <h2>Connect a Google product to fill this page</h2>
+                <p className="panel-note">Each product adds its own numbers to every finding in this report. Pagelyt only reads your data.</p>
+              </div>
+            </header>
+            <ul className="sc-items">
+              {CONNECT_ROWS.map(([Ic, t, d], i) => (
+                <li key={t} style={{ ["--i" as string]: i }}>
+                  <span className="sc-ic" aria-hidden="true"><Ic /></span>
+                  <span><b>{t}</b><small>{d.replace("{host}", scan.host)}</small></span>
+                </li>
+              ))}
+            </ul>
+            <footer className="sc-foot">
+              <button type="button" className="dash-btn primary" onClick={() => onTab("gsc")}>Start with Search Console <span aria-hidden="true">→</span></button>
+            </footer>
           </section>
         )
       ) : (
@@ -77,10 +99,17 @@ export function GoogleOverview({ g, scan, findings, onTab }: { g: GoogleState; s
   );
 }
 
-function StatusCard({ name, on, step, detail, value, onOpen }: { name: string; on: boolean; step: string | null; detail: string; value: React.ReactNode; onOpen: () => void }) {
+const CONNECT_ROWS: [LucideIcon, string, string][] = [
+  [Search, "Start with Search Console", "The searches that bring people to {host}, and the clicks each issue costs"],
+  [ChartColumn, "Then Analytics", "Visits and key events on the pages with problems"],
+  [Megaphone, "Then Google Ads", "Ad spend landing on pages that need fixing"],
+];
+
+function StatusCard({ i, icon: Icon, name, on, step, detail, value, onOpen }: { i: number; icon: LucideIcon; name: string; on: boolean; step: string | null; detail: string; value: React.ReactNode; onOpen: () => void }) {
   return (
-    <li className={on ? "on" : ""}>
+    <li className={on ? "on" : ""} style={{ ["--i" as string]: i }}>
       <div className="gd-status-top">
+        <span className="sc-ic" aria-hidden="true"><Icon /></span>
         <h3>{name}</h3>
         <span className={`gd-pill${on ? " ok" : ""}`}>{on ? "Connected" : step}</span>
       </div>
