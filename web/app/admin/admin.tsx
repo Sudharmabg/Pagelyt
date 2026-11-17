@@ -194,7 +194,7 @@ export function AdminPanel() {
 
       <div className="adm-tabs" role="tablist" aria-label="Admin sections">
         {TABS.map(([t, label]) => (
-          <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? "on" : undefined} onClick={() => setTab(t)}>
+          <button key={t} type="button" role="tab" aria-selected={tab === t} className={tab === t ? "on" : undefined} onClick={(e) => { setTab(t); e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest", behavior: "smooth" }); }}>
             {label}
           </button>
         ))}
@@ -233,7 +233,7 @@ export function AdminPanel() {
           <p className="panel-note">{view === "due" ? "Nothing is due. Switch to “All sites” to run one anyway." : "No saved sites yet."}</p>
         ) : (
           <div className="crawl-wrap">
-            <table className="crawl ag-table">
+            <table className="crawl ag-table adm-cards">
               <thead>
                 <tr><th>Site</th><th>Owner</th><th>Score</th><th>Last scan</th><th>Next run</th><th><span className="sr-only">Actions</span></th></tr>
               </thead>
@@ -241,11 +241,11 @@ export function AdminPanel() {
                 {scanRows.map((s) => (
                   <tr key={s.id}>
                     <td><strong>{s.host}</strong><span className="ag-sub">{s.cadence === "none" ? "No schedule" : `Rescans ${s.cadence}`}</span></td>
-                    <td className="adm-owner">{s.owner}</td>
-                    <td>{s.score == null ? "–" : <b className={`t-${tone(s.score)}`}>{s.score}</b>}</td>
-                    <td><JobCell job={scanJobs[s.id]} fallback={when(s.lastScannedAt)} /></td>
-                    <td>{s.cadence === "none" ? "–" : s.due ? <b className="t-bad">Due</b> : when(s.nextRunAt)}</td>
-                    <td className="ag-act">
+                    <td data-label="Owner" className="adm-owner">{s.owner}</td>
+                    <td data-label="Score">{s.score == null ? "–" : <b className={`t-${tone(s.score)}`}>{s.score}</b>}</td>
+                    <td data-label="Last scan"><JobCell job={scanJobs[s.id]} fallback={when(s.lastScannedAt)} /></td>
+                    <td data-label="Next run">{s.cadence === "none" ? "–" : s.due ? <b className="t-bad">Due</b> : when(s.nextRunAt)}</td>
+                    <td className="ag-act adm-c-act">
                       {s.lastScanId && <Link className="fnd-link" href={`/dashboard/${s.lastScanId}`}>Report</Link>}
                       <button type="button" className="fnd-link" disabled={running} onClick={() => rescan([s.id])}>Run now</button>
                     </td>
@@ -268,7 +268,7 @@ export function AdminPanel() {
           <p className="panel-note">{view === "due" ? "No AI checks are due." : "No sites have AI tracking on."}</p>
         ) : (
           <div className="crawl-wrap">
-            <table className="crawl ag-table">
+            <table className="crawl ag-table adm-cards">
               <thead>
                 <tr><th>Site</th><th>Owner</th><th>Prompts</th><th>Last run</th><th>Next run</th><th><span className="sr-only">Actions</span></th></tr>
               </thead>
@@ -276,11 +276,11 @@ export function AdminPanel() {
                 {aiRows.map((s) => (
                   <tr key={s.id}>
                     <td><strong>{s.host}</strong></td>
-                    <td className="adm-owner">{s.owner}</td>
-                    <td>{s.ai.prompts}</td>
-                    <td><JobCell job={aiJobs[s.id]} fallback={when(s.ai.lastRunAt)} /></td>
-                    <td>{s.ai.due ? <b className="t-bad">Due</b> : when(s.ai.nextRunAt)}</td>
-                    <td className="ag-act">
+                    <td data-label="Owner" className="adm-owner">{s.owner}</td>
+                    <td data-label="Prompts">{s.ai.prompts}</td>
+                    <td data-label="Last run"><JobCell job={aiJobs[s.id]} fallback={when(s.ai.lastRunAt)} /></td>
+                    <td data-label="Next run">{s.ai.due ? <b className="t-bad">Due</b> : when(s.ai.nextRunAt)}</td>
+                    <td className="ag-act adm-c-act">
                       <button type="button" className="fnd-link" disabled={running || !s.ai.prompts} onClick={() => runAi([s.id])}>Run now</button>
                     </td>
                   </tr>

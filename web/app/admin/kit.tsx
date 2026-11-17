@@ -77,7 +77,7 @@ export function DataTable<T>({ rows, cols, rowKey, name, search, empty = "Nothin
         <p className="panel-note">{rows.length ? "Nothing matches that search." : empty}</p>
       ) : (
         <div className="crawl-wrap">
-          <table className="crawl ag-table adm-dt">
+          <table className="crawl ag-table adm-dt adm-cards">
             <thead>
               <tr>
                 {cols.map((c, i) => (
@@ -94,7 +94,7 @@ export function DataTable<T>({ rows, cols, rowKey, name, search, empty = "Nothin
             <tbody>
               {list.slice(0, shown).map((r) => (
                 <tr key={rowKey(r)}>
-                  {cols.map((c) => <td key={c.label}>{c.cell ? c.cell(r) : (c.text(r) ?? "–")}</td>)}
+                  {cols.map((c) => <td key={c.label} data-label={c.label} className={c.noCsv ? "adm-c-act" : undefined}>{c.cell ? c.cell(r) : (c.text(r) ?? "–")}</td>)}
                 </tr>
               ))}
             </tbody>
@@ -175,16 +175,16 @@ export function ScoresDialog({ call, host, onClose }: { call: Caller; host: stri
             )}
             <h3>All scans ({data.scans.length})</h3>
             <div className="crawl-wrap adm-sc-list">
-              <table className="crawl ag-table">
+              <table className="crawl ag-table adm-cards">
                 <thead><tr><th>Scanned</th><th>Score</th><th>Status</th><th>Email</th><th><span className="sr-only">Report</span></th></tr></thead>
                 <tbody>
                   {data.scans.map((s) => (
                     <tr key={s.id}>
                       <td>{fmtDate(s.at)}</td>
-                      <td><Score v={s.score} /></td>
-                      <td>{s.status === "failed" ? <span className="ag-job bad" title={s.error ?? undefined}>Failed</span> : s.status === "running" ? "Running" : s.waiting ? "Shared, not opened by anyone signed in" : "Done"}</td>
-                      <td className="adm-owner">{s.email ?? "–"}</td>
-                      <td>{s.status === "done" && <Link className="fnd-link" href={`/dashboard/${s.id}`} target="_blank">Report</Link>}</td>
+                      <td data-label="Score"><Score v={s.score} /></td>
+                      <td data-label="Status">{s.status === "failed" ? <span className="ag-job bad" title={s.error ?? undefined}>Failed</span> : s.status === "running" ? "Running" : s.waiting ? "Shared, not opened by anyone signed in" : "Done"}</td>
+                      <td data-label="Email" className="adm-owner">{s.email ?? "–"}</td>
+                      <td className="adm-c-act">{s.status === "done" && <Link className="fnd-link" href={`/dashboard/${s.id}`} target="_blank">Report</Link>}</td>
                     </tr>
                   ))}
                 </tbody>

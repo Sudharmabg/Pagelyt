@@ -69,25 +69,25 @@ export function AdminRequests({ call }: { call: Caller }) {
           <p className="panel-note">{show === "open" ? "No open requests." : "No requests yet."}</p>
         ) : (
           <div className="crawl-wrap">
-            <table className="crawl ag-table adm-req">
+            <table className="crawl ag-table adm-req adm-cards">
               <thead>
                 <tr><th>Received</th><th>From</th><th>Request</th><th>Message</th><th>Status</th></tr>
               </thead>
               <tbody>
                 {list.map((r) => (
                   <tr key={r.id} className={r.status === "new" ? "is-new" : undefined}>
-                    <td>{fmt(r.created_at)}<span className="ag-sub">{r.kind === "consultation" ? "Consultation" : "Contact"}</span></td>
-                    <td>
+                    <td data-label="Received">{fmt(r.created_at)}<span className="ag-sub">{r.kind === "consultation" ? "Consultation" : "Contact"}</span></td>
+                    <td data-label="From">
                       <strong>{r.name}</strong>
                       <span className="ag-sub"><a className="fnd-link" href={`mailto:${r.email}`}>{r.email}</a></span>
                       {r.website && <span className="ag-sub">{r.website}</span>}
                     </td>
-                    <td>
+                    <td data-label="Request">
                       {r.session ?? "–"}
                       {r.preferred_time && <span className="ag-sub">Prefers: {r.preferred_time}</span>}
                     </td>
-                    <td className="adm-msg">{r.message || "–"}</td>
-                    <td>
+                    <td data-label="Message" className="adm-msg">{r.message || "–"}</td>
+                    <td data-label="Status">
                       <label className="sr-only" htmlFor={`st-${r.id}`}>Status for {r.name}</label>
                       <select id={`st-${r.id}`} value={r.status} onChange={(e) => void update(r.id, e.target.value as RequestStatus)}>
                         {STATUSES.map((s) => (
