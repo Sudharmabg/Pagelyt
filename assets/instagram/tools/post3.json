@@ -1,0 +1,7 @@
+{
+  "jobs": [
+    { "url": "../post3-ai-search.html", "out": "../pagelyt-ai-search-1.png", "width": 1080, "height": 1350, "scale": 1, "clip": { "selector": "#s1" } },
+    { "url": "../post3-ai-search.html", "out": "../pagelyt-ai-search-2.png", "width": 1080, "height": 1350, "scale": 1, "clip": { "selector": "#s2" } },
+    { "url": "../post3-ai-search.html", "out": "../pagelyt-ai-search-3.png", "width": 1080, "height": 1350, "scale": 1, "clip": { "selector": "#s3" } }
+  ]
+}

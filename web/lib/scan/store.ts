@@ -25,7 +25,15 @@ export type ScanRow = {
   created_at: string;
   /** Finding keys the owner has marked as fixed (needs migration 0004; undefined before it has run). */
   fixed?: string[];
+  /** An admin's scan made to share (migration 0014; undefined before it has run). */
+  invite?: boolean;
+  invited_by?: string | null;
+  opened_at?: string | null;
+  claimed_at?: string | null;
 };
+
+/** An admin's shared scan that nobody has signed in to yet: only its scores may be shown. */
+export const inviteLocked = (row: Pick<ScanRow, "invite" | "user_id">) => !!row.invite && !row.user_id;
 
 const URL_ = () => process.env.SUPABASE_URL;
 const KEY = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -62,8 +70,10 @@ export function newId(): string {
 const validId = (id: string) => /^[A-Za-z0-9_-]{6,32}$/.test(id);
 
 /* ---------- scans ---------- */
-export async function createScan(init: { url: string; host: string; userId?: string | null; siteId?: string | null }): Promise<string> {
-  const row: ScanRow = { id: newId(), url: init.url, host: init.host, status: "running", stage: 0, state: {}, result: null, error: null, user_id: init.userId ?? null, site_id: init.siteId ?? null, created_at: new Date().toISOString() };
+export async function createScan(init: { url: string; host: string; userId?: string | null; siteId?: string | null; invitedBy?: string }): Promise<string> {
+  // The invite columns are only sent for an admin's shared scan, so ordinary scans work before migration 0014 has run.
+  const invite = init.invitedBy ? { invite: true, invited_by: init.invitedBy } : {};
+  const row: ScanRow = { id: newId(), url: init.url, host: init.host, status: "running", stage: 0, state: {}, result: null, error: null, user_id: init.userId ?? null, site_id: init.siteId ?? null, created_at: new Date().toISOString(), ...invite };
   if (live()) await rest("scans", { method: "POST", body: JSON.stringify(row), prefer: "return=minimal" });
   else mem().scans.set(row.id, row);
   return row.id;

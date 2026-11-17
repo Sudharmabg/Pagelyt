@@ -5,7 +5,7 @@ import { ReportView, type ReportBrand } from "../../r/report-view";
 import { firstBrand } from "@/lib/scan/agency";
 import { overallScore } from "@/lib/scan/score";
 import { emailConfirmed } from "@/lib/owners";
-import { getScanRow } from "@/lib/scan/store";
+import { getScanRow, inviteLocked } from "@/lib/scan/store";
 import { AutoPrint } from "./auto-print";
 import { readPrint } from "@/lib/google/crypto";
 import { canUseGoogle, getCache, getLink, siteForHost } from "@/lib/google/store";
@@ -24,6 +24,7 @@ export default async function PrintReport({ params, searchParams }: { params: Pr
   await connection();
   const row = await getScanRow((await params).id);
   if (!row || row.status !== "done" || !row.result) notFound();
+  if (inviteLocked(row)) notFound(); // an admin's shared scan stays closed until somebody signs in to it
   // Locked like the dashboard until the owning account has entered its email code.
   if (row.user_id && !(await emailConfirmed(row.user_id).catch(() => true))) notFound();
   const brand: ReportBrand | null = row.user_id ? await firstBrand(row.user_id).catch(() => null) : null;

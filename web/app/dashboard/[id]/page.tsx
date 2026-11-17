@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { connection } from "next/server";
-import { emailsOn } from "@/lib/email";
 import { emailConfirmed } from "@/lib/owners";
-import { siteHistory } from "@/lib/scan/history";
-import { finishedAreas, overallScore } from "@/lib/scan/score";
+import { reportProps, teaserOf } from "@/lib/scan/report-props";
+import { finishedAreas } from "@/lib/scan/score";
 import type { Finding } from "@/lib/scan/types";
-import { getScanRow, getShots } from "@/lib/scan/store";
+import { getScanRow, inviteLocked } from "@/lib/scan/store";
 import { Dashboard } from "../dashboard";
+import { InviteGate } from "../invite-gate";
 import { PendingDashboard } from "../pending";
 
 export const metadata: Metadata = {
@@ -21,6 +21,9 @@ export default async function Page({ params, searchParams }: { params: Promise<{
   const claim = (await searchParams).new === "1"; // a signed-in visitor's fresh scan: save it to their account when it finishes
   const row = await getScanRow(id);
   if (!row) notFound(); // a real 404 status, rendered by ./not-found.tsx
+  // An admin shared this scan and nobody has signed in to it yet: only the scores are sent. The gate signs the
+  // visitor in and gives them the report (or shows it to an admin without changing anything).
+  if (inviteLocked(row) && row.status === "done" && row.result) return <InviteGate id={id} host={row.host} teaser={teaserOf(row.result)} />;
   // A new account's report stays locked until it enters its email code. Checked here, on the server, so the
   // report never reaches the browser early. (Before migration 0009 the check is unavailable: nothing is locked.)
   const locked = row.user_id ? !(await emailConfirmed(row.user_id).catch(() => true)) : false;
@@ -40,10 +43,5 @@ export default async function Page({ params, searchParams }: { params: Promise<{
       />
     );
   }
-  const history = await siteHistory(row).catch(() => []); // saved sites only; others use this browser's history
-  // Reports saved before weighted scoring carry the old plain average; recompute so every view agrees.
-  const result = { ...row.result, overall: overallScore(row.result.modules) };
-  const prevId = result.change?.prevId;
-  const shots = result.snapshot?.shot || prevId ? await getShots([id, ...(prevId ? [prevId] : [])]) : {};
-  return <Dashboard scan={{ ...result, id }} history={history} savedFixed={Array.isArray(row.fixed) ? row.fixed : null} shots={{ now: shots[id] ?? null, prev: prevId ? (shots[prevId] ?? null) : null }} canEmail={emailsOn()} />;
+  return <Dashboard {...(await reportProps({ ...row, result: row.result }))} />;
 }

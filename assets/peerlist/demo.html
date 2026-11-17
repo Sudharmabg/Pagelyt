@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pagelyt demo video</title>
+<!-- 37 s demo for the Peerlist launch, 1600x900 stage. Driven by window.setT(seconds) so every frame is exact.
+     Open with ?play to watch it in a browser; tools/record.mjs captures it frame by frame. -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..900&family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>
+  :root { --bg:#f8e5d4; --ink:#12303f; --body:#2c3f4a; --muted:#5d6b73; --purple:#6a30bd; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { width:1600px; height:900px; overflow:hidden; background:var(--bg); font-family:Inter, system-ui, sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
+  #stage { position:relative; width:1600px; height:900px; overflow:hidden; background:var(--bg); }
+  #stage::before { content:""; position:absolute; inset:0;
+    background-image:linear-gradient(to right, rgba(186,138,255,.16) 1px, transparent 1px), linear-gradient(to bottom, rgba(186,138,255,.16) 1px, transparent 1px);
+    background-size:56px 56px; mask-image:radial-gradient(ellipse 75% 70% at 50% 40%, #000 20%, transparent 80%); }
+  .arcs { position:absolute; left:-40px; top:120px; width:1680px; height:540px; }
+  .scene { position:absolute; inset:0; opacity:0; will-change:opacity, transform; }
+
+  .brand { display:flex; align-items:center; justify-content:center; gap:14px; }
+  .brand svg { width:64px; height:39px; } .brand b { font:800 40px/1 Archivo; font-variation-settings:"wdth" 100; letter-spacing:-.02em; color:#2a1f3d; }
+  h1 { font:800 112px/.95 Archivo; font-variation-settings:"wdth" 72; letter-spacing:-.035em; text-align:center; }
+  h1 em, h2 em { font-style:normal; color:var(--purple); }
+  .cap { position:absolute; left:0; right:0; top:46px; display:flex; align-items:center; justify-content:center; gap:18px; }
+  .cap .n { width:56px; height:56px; border-radius:16px; display:grid; place-items:center; font:800 28px/1 Archivo; color:#fff; background:var(--purple); }
+  .cap h2 { font:800 64px/1 Archivo; font-variation-settings:"wdth" 72; letter-spacing:-.03em; }
+
+  .win { position:absolute; left:50%; width:1240px; margin-left:-620px; top:150px; border-radius:20px; overflow:hidden; background:#fff;
+         box-shadow:0 40px 90px rgba(18,48,63,.18), 0 0 0 1px rgba(18,48,63,.06); }
+  .win .bar { height:42px; display:flex; align-items:center; gap:8px; padding:0 18px; background:#fffaf5; border-bottom:1px solid #f0e6dc; }
+  .win .bar i { width:12px; height:12px; border-radius:50%; background:#ff6b6b; } .win .bar i:nth-child(2){background:#ffc145} .win .bar i:nth-child(3){background:#3ed37d}
+  .win .bar span { margin-left:14px; width:420px; height:26px; border-radius:8px; background:#f6efe8; color:var(--muted); font:500 14px/26px Inter; padding:0 12px; }
+  .win .view { position:relative; height:680px; overflow:hidden; }
+  .win .view img { position:absolute; left:0; top:0; width:100%; display:block; transform-origin:0 0; }
+
+  /* scene 2: typing over the real homepage */
+  #typed { position:absolute; background:#fff; display:flex; align-items:center; font:400 21px/1 Inter; color:var(--ink); padding-left:16px; }
+  #typed .caret { width:2px; height:26px; background:var(--purple); margin-left:2px; }
+  #press { position:absolute; border-radius:12px; box-shadow:0 0 0 0 rgba(106,48,189,.5); }
+  .cursor { position:absolute; width:30px; height:30px; z-index:5; }
+
+  /* scene 3: scanning */
+  .scan { position:absolute; left:50%; top:170px; width:820px; margin-left:-410px; background:#fff; border-radius:26px; padding:34px 40px 30px;
+          box-shadow:0 40px 90px rgba(18,48,63,.16), 0 0 0 1px rgba(18,48,63,.05); }
+  .scan .t { font:700 22px/1 Inter; color:var(--muted); } .scan .t b { color:var(--ink); }
+  .scan .prog { margin-top:20px; height:12px; border-radius:99px; background:#f1e9f9; overflow:hidden; }
+  .scan .prog i { display:block; height:100%; width:0; border-radius:99px; background:linear-gradient(90deg,#ba8aff,#fe79a2,#febc77,#68cea7); }
+  .scan ul { margin-top:24px; list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:12px 22px; }
+  .scan li { display:flex; align-items:center; gap:14px; padding:14px 16px; border-radius:14px; background:#faf6f1; font:600 22px/1 Inter; }
+  .scan li .s { flex:none; width:30px; height:30px; border-radius:50%; border:3px solid #e6dcd2; display:grid; place-items:center; font:800 16px/1 Inter; color:#fff; }
+  .scan li.done .s { border-color:transparent; background:#1f9d6b; }
+  .scan li .sc { margin-left:auto; font:800 24px/1 Archivo; color:var(--muted); opacity:0; }
+
+  .hl { position:absolute; border:4px solid var(--purple); border-radius:18px; box-shadow:0 0 0 9999px rgba(18,48,63,0); pointer-events:none; opacity:0; }
+  .toast { position:absolute; padding:16px 22px; border-radius:16px; background:#1f9d6b; color:#fff; font:700 22px/1 Inter; box-shadow:0 20px 40px rgba(18,48,63,.3); opacity:0; }
+
+  /* end card */
+  .end h1 { margin-top:24px; }
+  .end .url { margin:40px auto 0; width:max-content; padding:22px 40px; border-radius:22px; background:var(--purple); color:#fff; font:800 56px/1 Archivo; font-variation-settings:"wdth" 80; letter-spacing:-.02em; box-shadow:0 24px 50px rgba(106,48,189,.35); }
+  .end p { margin-top:26px; text-align:center; font:500 26px/1.4 Inter; color:var(--body); }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs><linearGradient id="gb" x1="0" x2="1"><stop offset="0" stop-color="#ba8aff"/><stop offset=".5" stop-color="#fe79a2"/><stop offset=".78" stop-color="#febc77"/><stop offset="1" stop-color="#68cea7"/></linearGradient></defs>
+  <symbol id="logo" viewBox="0 0 200 120"><path d="M22 108 A78 78 0 0 1 178 108" fill="none" stroke="url(#gb)" stroke-width="26" stroke-linecap="round"/><path d="M100 108 L146 62" stroke="#2a1f3d" stroke-width="12" stroke-linecap="round"/><circle cx="100" cy="108" r="14" fill="#2a1f3d"/></symbol>
+  <symbol id="ribbons" viewBox="0 0 1440 460" preserveAspectRatio="xMidYMid slice">
+    <path d="M -160 460 C 280 420, 940 20, 1600 30" stroke="#ba8aff" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 342, 940 54, 1600 126" stroke="#d3b6ff" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 264, 940 88, 1600 222" stroke="#68cea7" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 186, 940 122, 1600 318" stroke="#febc77" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 108, 940 156, 1600 414" stroke="#fe79a2" stroke-width="48" fill="none"/>
+  </symbol>
+  <symbol id="cur" viewBox="0 0 24 24"><path d="M4 2 L4 20 L9 15 L12.5 22 L15.5 20.6 L12 13.8 L19 13.8 Z" fill="#12303f" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></symbol>
+</svg>
+
+<div id="stage">
+  <svg class="arcs" id="arcs"><use href="#ribbons"/></svg>
+
+  <!-- 1 · hook -->
+  <section class="scene" id="sc1" style="padding-top:250px">
+    <div class="brand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <h1 style="margin-top:34px">Is your website<br><em>holding you back?</em></h1>
+  </section>
+
+  <!-- 2 · paste URL -->
+  <section class="scene" id="sc2">
+    <div class="cap"><span class="n">1</span><h2>Paste your URL</h2></div>
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>pagelyt.dev</span></div>
+      <div class="view"><img id="homeImg" src="../instagram/shots/peerlist/home.png" alt="">
+        <div id="typed"><span id="typedText"></span><span class="caret" id="caret"></span></div>
+        <div id="press"></div>
+      </div></div>
+    <svg class="cursor" id="cur2"><use href="#cur"/></svg>
+  </section>
+
+  <!-- 3 · scanning -->
+  <section class="scene" id="sc3">
+    <div class="cap"><span class="n">2</span><h2>We check <em>8 areas</em> in seconds</h2></div>
+    <div class="scan">
+      <p class="t">Scanning <b>yourbakery.com</b></p>
+      <div class="prog"><i id="prog"></i></div>
+      <ul id="areas">
+        <li><span class="s">✓</span>Website health<span class="sc">86</span></li>
+        <li><span class="s">✓</span>Performance<span class="sc">96</span></li>
+        <li><span class="s">✓</span>SEO<span class="sc">64</span></li>
+        <li><span class="s">✓</span>GEO readiness<span class="sc">76</span></li>
+        <li><span class="s">✓</span>Security<span class="sc">58</span></li>
+        <li><span class="s">✓</span>Accessibility<span class="sc">96</span></li>
+        <li><span class="s">✓</span>Domain &amp; email<span class="sc">92</span></li>
+        <li><span class="s">✓</span>Privacy<span class="sc">74</span></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- 4 · score -->
+  <section class="scene" id="sc4">
+    <div class="cap"><span class="n">3</span><h2>Get one clear score, <em>every issue ranked</em></h2></div>
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>pagelyt.dev/dashboard</span></div>
+      <div class="view"><img id="ovImg" src="../instagram/shots/peerlist/overview.png" alt=""><div class="hl" id="hl4"></div></div></div>
+  </section>
+
+  <!-- 5 · fix -->
+  <section class="scene" id="sc5">
+    <div class="cap"><span class="n">4</span><h2>Copy the fix. <em>It's pre-filled for you.</em></h2></div>
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>Security headers generator</span></div>
+      <div class="view"><img id="secImg" src="../instagram/shots/peerlist/sec.png" alt=""><div class="hl" id="hl5"></div><div class="toast" id="toast">✓ Copied</div></div></div>
+    <svg class="cursor" id="cur5"><use href="#cur"/></svg>
+  </section>
+
+  <!-- 6 · AI -->
+  <section class="scene" id="sc6">
+    <div class="cap"><span class="n">5</span><h2>See if <em>ChatGPT can read</em> your site</h2></div>
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>AI bot access checker</span></div>
+      <div class="view"><img id="aiImg" src="../instagram/shots/post2/aibots.png" alt=""><div class="hl" id="hl6"></div></div></div>
+  </section>
+
+  <!-- 7 · end -->
+  <section class="scene end" id="sc7" style="padding-top:190px">
+    <div class="brand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <h1>Free website audit.<br><em>Fixes in plain English.</em></h1>
+    <div class="url">pagelyt.dev</div>
+    <p>SEO · Speed · AI search · Security · Accessibility</p>
+  </section>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const clamp = (x) => Math.max(0, Math.min(1, x));
+const ramp = (t, a, b) => clamp((t - a) / (b - a));
+const ease = (x) => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2;
+const out = (x) => 1 - Math.pow(1 - x, 3);
+const lerp = (a, b, x) => a + (b - a) * x;
+const W = 1240; // window width; screenshots fill it
+
+// scene windows [start, end]
+const S = { sc1:[0,3.6], sc2:[3.4,10.2], sc3:[10,16.2], sc4:[16,23.2], sc5:[23,29.6], sc6:[29.4,33.6], sc7:[33.4,37.5] };
+const DURATION = 37;
+
+function scene(id, t) {
+  const [a, b] = S[id], el = $(id);
+  const vin = out(ramp(t, a, a + .5)), vout = 1 - ramp(t, b - .4, b);
+  const v = Math.min(vin, vout);
+  el.style.opacity = v;
+  el.style.transform = `translateY(${(1 - vin) * 30}px)`;
+  return v > 0;
+}
+
+// home.png is 2880x1800 (2x of 1440x900). Shown at 1240 wide => 0.4306 per image px; skip the nav.
+const HK = W / 2880, HOFF = -96;
+function placeHome() {
+  $("homeImg").style.top = HOFF + "px";
+  const box = (x1, y1, x2, y2, el) => Object.assign(el.style, { left: x1*HK + "px", top: y1*HK + HOFF + "px", width: (x2-x1)*HK + "px", height: (y2-y1)*HK + "px" });
+  box(812, 1078, 1690, 1182, $("typed"));
+  box(1700, 1075, 2066, 1184, $("press"));
+}
+
+function setT(t) {
+  // ribbons drift slowly the whole time
+  $("arcs").style.transform = `translateX(${Math.sin(t / 6) * 30}px)`;
+  $("arcs").style.opacity = (t > 3.6 && t < 33.4) ? .35 : 1;
+
+  if (scene("sc1", t)) { $("sc1").querySelector("h1").style.transform = `scale(${lerp(.96, 1, out(ramp(t, 0, 1.2)))})`; }
+
+  if (scene("sc2", t)) {
+    const url = "yourbakery.com", n = Math.round(ramp(t, 4.6, 6.8) * url.length);
+    $("typedText").textContent = url.slice(0, n);
+    $("caret").style.opacity = (t < 7.2 && Math.floor(t * 2.5) % 2 === 0) ? 1 : (n < url.length && n > 0 ? 1 : 0);
+    // cursor glides to the button, presses at 8.2
+    const cx = lerp(980, 180 + 1883*HK, ease(ramp(t, 6.9, 7.9))), cy = lerp(760, 192 + 1130*HK + HOFF, ease(ramp(t, 6.9, 7.9)));
+    const c = $("cur2"); c.style.left = cx + "px"; c.style.top = cy + "px";
+    const p = ramp(t, 8.1, 8.9);
+    c.style.transform = `scale(${t > 8.1 && t < 8.35 ? .85 : 1})`;
+    $("press").style.boxShadow = `0 0 0 ${p * 26}px rgba(106,48,189,${.45 * (1 - p)})`;
+    const z = ease(ramp(t, 8.6, 10.2));
+    $("homeImg").style.transform = `scale(${1 + z * .04})`;
+  }
+
+  if (scene("sc3", t)) {
+    const p = ramp(t, 10.6, 15.2);
+    $("prog").style.width = (p * 100) + "%";
+    [...$("areas").children].forEach((li, i) => {
+      const d = ramp(t, 10.8 + i * .55, 11.1 + i * .55);
+      li.classList.toggle("done", d >= 1);
+      li.querySelector(".s").style.transform = `scale(${d >= 1 ? lerp(1.3, 1, ramp(t, 11.1 + i*.55, 11.35 + i*.55)) : 1})`;
+      li.querySelector(".sc").style.opacity = d;
+    });
+  }
+
+  if (scene("sc4", t)) {
+    // overview.png is 2256x1776 (2x). Slow push in on the score, then glide down to the area cards.
+    const k = W / 2256, z = lerp(1, 1.06, ease(ramp(t, 16, 23)));
+    const y = lerp(0, -(1776 * k * z - 680), ease(ramp(t, 19.4, 22.4)));
+    const img = $("ovImg"); img.style.transform = `translateY(${y}px) scale(${z})`;
+    const hl = $("hl4"), h = ramp(t, 17.2, 17.6) * (1 - ramp(t, 19.2, 19.6));
+    Object.assign(hl.style, { left: (40 * k * z) + "px", top: (40 * k * z + y) + "px", width: (2176 * k * z) + "px", height: (744 * k * z) + "px", opacity: h });
+  }
+
+  if (scene("sc5", t)) {
+    // sec.png is 2176x2440 (2x). Scroll from the missing items down to the code.
+    const k = W / 2176;
+    const y = lerp(0, -(1040 * k), ease(ramp(t, 24.6, 26)));
+    $("secImg").style.transform = `translateY(${y}px)`;
+    const hl = $("hl5"), h = ramp(t, 26.1, 26.5);
+    Object.assign(hl.style, { left: (1062 * k) + "px", top: (1250 * k + y) + "px", width: (1070 * k) + "px", height: (470 * k) + "px", opacity: h });
+    // cursor to Copy, click at 27.6, toast
+    const bx = 180 + 1824 * k, by = 192 + 1310 * k + y;
+    const cx = lerp(1300, bx, ease(ramp(t, 26.4, 27.4))), cy = lerp(820, by, ease(ramp(t, 26.4, 27.4)));
+    const c = $("cur5"); c.style.left = cx + "px"; c.style.top = cy + "px"; c.style.opacity = ramp(t, 26.2, 26.4);
+    c.style.transform = `scale(${t > 27.5 && t < 27.75 ? .85 : 1})`;
+    const ts = $("toast"); ts.style.opacity = ramp(t, 27.6, 27.8);
+    Object.assign(ts.style, { left: (1380 * k) + "px", top: (1800 * k + y) + "px", transform: `translateY(${(1 - out(ramp(t, 27.6, 28))) * 14}px)` });
+  }
+
+  if (scene("sc6", t)) {
+    const k = W / 1788;
+    const hl = $("hl6"), h = ramp(t, 30.4, 30.8);
+    Object.assign(hl.style, { left: (66 * k) + "px", top: (62 * k) + "px", width: (1656 * k) + "px", height: (170 * k) + "px", opacity: h });
+    $("aiImg").style.transform = `scale(${lerp(1, 1.03, ease(ramp(t, 29.4, 33.6)))})`;
+  }
+
+  scene("sc7", t);
+}
+
+placeHome();
+window.setT = setT; window.DURATION = DURATION;
+setT(0);
+if (location.search.includes("play")) { const t0 = performance.now(); (function f() { const t = (performance.now() - t0) / 1000; setT(t % DURATION); requestAnimationFrame(f); })(); }
+</script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+{ "auth": { "origin": "http://localhost:3100", "key": "sb-localhost-auth-token", "tokensUrl": "http://localhost:54321/__tokens?email=alex@example.test" },
+  "jobs": [
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk", "out": "../shots/overview-tall.png", "width": 1280, "height": 2300, "scale": 1, "wait": 6000, "eval": "document.querySelector('nextjs-portal')?.remove()" },
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk", "out": "../shots/phone-overview.png", "width": 390, "height": 844, "scale": 3, "mobile": true, "wait": 6000, "eval": "document.querySelector('nextjs-portal')?.remove()" },
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk", "out": "../shots/score.png", "width": 1280, "height": 1000, "scale": 2, "wait": 5000, "eval": "document.querySelector('nextjs-portal')?.remove()", "clip": {"x": 318, "y": 92, "width": 896, "height": 800} },
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk?view=google", "out": "../shots/google-top.png", "width": 1280, "height": 1000, "scale": 2, "wait": 7000, "eval": "document.querySelector('nextjs-portal')?.remove()", "clip": {"x": 322, "y": 445, "width": 888, "height": 450} },
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk?view=google", "out": "../shots/google-fix.png", "width": 1280, "height": 1900, "scale": 2, "wait": 7000, "eval": "document.querySelector('nextjs-portal')?.remove()", "clip": {"x": 322, "y": 1218, "width": 888, "height": 535} },
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk?view=assistant", "out": "../shots/ask.png", "width": 1280, "height": 1300, "scale": 2, "wait": 5000, "eval": "document.querySelector('nextjs-portal')?.remove()", "clip": {"x": 322, "y": 456, "width": 888, "height": 480} },
+    { "url": "http://localhost:3100/tools", "out": "../shots/tools.png", "width": 1280, "height": 1400, "scale": 2, "wait": 5000, "eval": "document.querySelector('nextjs-portal')?.remove()", "clip": {"x": 30, "y": 815, "width": 1220, "height": 490} }
+  ] }

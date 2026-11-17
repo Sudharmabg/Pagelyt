@@ -1,0 +1,5 @@
+{ "auth": { "origin": "http://localhost:3100", "key": "sb-localhost-auth-token", "tokensUrl": "http://localhost:54321/__tokens?email=alex@example.test" },
+  "jobs": [
+    { "url": "http://localhost:3100/dashboard/tkw-LXGGBgrO", "out": "../shots/post2/_progress.png", "width": 1280, "height": 900, "scale": 1, "wait": 3000,
+      "eval": "for (let i=0;i<60;i++){ if (/In great shape|Looking good|open findings/.test(document.body.innerText) && !/areas done/.test(document.body.innerText)) return 'done after '+i*5+'s'; await new Promise(r=>setTimeout(r,5000)); } return 'timeout';" }
+  ] }

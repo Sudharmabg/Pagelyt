@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pagelyt Instagram post 2: 3 SEO fixes</title>
+<!-- Instagram carousel, 5 slides at 1080x1350 (4:5). Render with: node tools/shoot.mjs tools/post2.json
+     Screenshots in shots/post2/ are real captures of the site (pagelyt.dev scanned locally). -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;800&family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
+<style>
+  :root { --ink:#1a1430; --cream:#fcebdd; --purple:#9b6bff; --pink:#ff7eb3; --orange:#ffad66; --teal:#34d1a9; --muted:#b9b0cf; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:#000; font-family:Inter, system-ui, sans-serif; color:#fff; -webkit-font-smoothing:antialiased; }
+  .slide { position:relative; width:1080px; height:1350px; overflow:hidden; padding:64px 76px 56px; display:flex; flex-direction:column;
+    background:
+      radial-gradient(640px 520px at 0% 0%, rgba(155,107,255,.50), transparent 70%),
+      radial-gradient(600px 520px at 100% 100%, rgba(52,209,169,.26), transparent 70%),
+      radial-gradient(520px 420px at 100% 30%, rgba(255,126,179,.20), transparent 70%),
+      linear-gradient(155deg, #211840 0%, #1a1430 55%, #151124 100%); }
+  .slide::before { content:""; position:absolute; inset:0; pointer-events:none;
+    background-image:radial-gradient(rgba(255,255,255,.06) 1.4px, transparent 1.6px); background-size:22px 22px;
+    mask-image:linear-gradient(180deg, #000, transparent 60%); }
+  .slide > * { position:relative; }
+  .slide + .slide { margin-top:40px; }
+
+  .top { display:flex; align-items:center; gap:12px; flex:none; }
+  .top svg { width:44px; height:27px; }
+  .top b { font:800 28px/1 Archivo; letter-spacing:-.02em; }
+  .tag { margin-left:auto; font:600 15px/1 Inter; letter-spacing:.14em; text-transform:uppercase; color:var(--teal);
+         padding:10px 15px; border-radius:999px; border:1px solid rgba(52,209,169,.5); background:rgba(52,209,169,.12); }
+
+  .kicker { margin-top:44px; display:flex; align-items:center; gap:16px; font:700 17px/1 Inter; letter-spacing:.16em; text-transform:uppercase; color:var(--teal); }
+  .num { font:800 64px/1 Archivo; letter-spacing:-.03em; background:linear-gradient(135deg,var(--purple),var(--pink)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  h1 { margin-top:16px; font:800 68px/1.02 Archivo; letter-spacing:-.03em; }
+  h1 em { font-style:normal; background:linear-gradient(90deg,var(--purple),var(--pink) 55%,var(--orange)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .lead { margin-top:18px; font:400 26px/1.42 Inter; color:#d9d2ea; max-width:900px; }
+  .lead b { color:#fff; font-weight:600; }
+
+  /* check / fix rows on tip slides */
+  .rows { margin-top:28px; display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .row { padding:20px 22px; border-radius:18px; background:linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.04)); border:1px solid rgba(255,255,255,.14); }
+  .row h4 { font:700 15px/1 Inter; letter-spacing:.14em; text-transform:uppercase; }
+  .row p { margin-top:10px; font:400 20px/1.42 Inter; color:#e3dcf0; }
+  .row p b { color:#fff; font-weight:600; }
+  .row.check h4 { color:var(--orange); } .row.fix h4 { color:var(--teal); }
+
+  .media { flex:1; min-height:0; margin-top:30px; position:relative; }
+  .win { border-radius:22px; overflow:hidden; background:#f7e3d3; border:1px solid rgba(255,255,255,.18);
+         box-shadow:0 40px 90px rgba(0,0,0,.5), 0 0 0 8px rgba(255,255,255,.04); }
+  .win .bar { height:46px; display:flex; align-items:center; gap:9px; padding:0 18px; background:#fff8f2; border-bottom:1px solid #ecd9c8; }
+  .win .bar i { width:13px; height:13px; border-radius:50%; background:#ff6b6b; } .win .bar i:nth-child(2){background:#ffc145} .win .bar i:nth-child(3){background:#3ed37d}
+  .win .bar span { margin-left:14px; flex:1; max-width:460px; height:28px; border-radius:8px; background:#f1e4d8; color:#6d5f7c; font:500 15px/28px Inter; padding:0 14px; }
+  .win img { display:block; width:100%; }
+  .media .win { max-height:100%; position:relative; }
+  .media .win.cut::after { content:""; position:absolute; left:0; right:0; bottom:0; height:70px; background:linear-gradient(180deg, rgba(247,227,211,0), #f7e3d3); }
+
+  /* rule-of-thumb strip (speed slide) */
+  .rules { margin-top:34px; display:grid; grid-template-columns:repeat(3,1fr); gap:16px; }
+  .rules div { padding:22px 22px; border-radius:18px; background:rgba(255,255,255,.05); border:1px dashed rgba(255,255,255,.2); }
+  .rules b { display:block; font:800 38px/1 Archivo; letter-spacing:-.02em; background:linear-gradient(90deg,var(--purple),var(--pink) 60%,var(--orange)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .rules span { display:block; margin-top:10px; font:400 18px/1.35 Inter; color:#d9d2ea; }
+
+  .chip { position:absolute; display:flex; align-items:center; gap:10px; padding:14px 20px; border-radius:16px; font:600 21px/1.1 Inter; color:#1a1430;
+          background:#fff; box-shadow:0 18px 40px rgba(0,0,0,.35); white-space:nowrap; z-index:2; }
+  .chip .d { width:12px; height:12px; border-radius:50%; flex:none; }
+
+  .foot { flex:none; margin-top:30px; display:flex; align-items:center; gap:10px; }
+  .dots { display:flex; gap:8px; }
+  .dots i { width:10px; height:10px; border-radius:99px; background:rgba(255,255,255,.22); }
+  .dots i.on { width:34px; background:linear-gradient(90deg,var(--purple),var(--pink)); }
+  .swipe { margin-left:auto; font:600 21px/1 Inter; color:var(--cream); }
+  .note { font:500 16px/1.3 Inter; color:var(--muted); margin-left:22px; }
+
+  /* cover */
+  .s1 h1 { font-size:104px; margin-top:70px; line-height:.98; }
+  .s1 .lead { margin-top:26px; }
+  .teasers { margin-top:auto; display:grid; gap:18px; }
+  .teaser { display:flex; align-items:center; gap:26px; padding:26px 30px; border-radius:24px;
+            background:linear-gradient(180deg, rgba(255,255,255,.11), rgba(255,255,255,.04)); border:1px solid rgba(255,255,255,.15); }
+  .teaser .n { flex:none; width:72px; height:72px; border-radius:20px; display:grid; place-items:center; font:800 34px Archivo; color:#1a1430; }
+  .teaser h3 { font:700 30px/1.15 Inter; }
+  .teaser p { margin-top:6px; font:400 21px/1.3 Inter; color:#cfc6e2; }
+  .teaser .lock { margin-left:auto; font:600 18px/1 Inter; color:var(--muted); }
+
+  /* CTA */
+  .s5 { text-align:center; align-items:center; }
+  .s5 .top { align-self:stretch; }
+  .s5 h1 { font-size:96px; margin-top:120px; }
+  .s5 .lead { margin-left:auto; margin-right:auto; max-width:780px; margin-top:26px; }
+  .card { margin-top:56px; width:780px; padding:36px 40px; border-radius:28px; text-align:left; display:flex; gap:28px; align-items:center;
+          background:linear-gradient(135deg, rgba(155,107,255,.30), rgba(255,126,179,.18)); border:1px solid rgba(255,255,255,.2); box-shadow:0 30px 70px rgba(0,0,0,.35); }
+  .card .doc { flex:none; width:110px; height:136px; border-radius:16px; background:#fff; color:#1a1430; padding:16px 14px; display:grid; gap:9px; align-content:start; box-shadow:0 14px 30px rgba(0,0,0,.3); }
+  .card .doc b { font:800 15px/1.1 Archivo; }
+  .card .doc i { height:8px; border-radius:4px; background:#e8def7; } .card .doc i:nth-child(odd){ width:80%; background:#d8f3ea; }
+  .card h3 { font:800 38px/1.1 Archivo; letter-spacing:-.02em; }
+  .card p { margin-top:10px; font:400 22px/1.4 Inter; color:#e3dcf0; }
+  .point { margin-top:46px; display:inline-flex; align-items:center; gap:16px; font:800 44px/1 Archivo; color:#1a1430; letter-spacing:-.02em;
+           padding:26px 40px; border-radius:24px; background:linear-gradient(90deg, var(--cream), #fff); box-shadow:0 24px 60px rgba(0,0,0,.4); }
+  .alt { margin-top:30px; font:500 22px/1.4 Inter; color:var(--muted); }
+  .alt b { color:#fff; }
+  .point { flex-direction:column; gap:12px; padding:28px 48px; }
+  .point .say { font:800 50px/1 Archivo; letter-spacing:-.02em; }
+  .point .kw { background:linear-gradient(90deg,var(--purple),var(--pink) 60%,var(--orange)); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .point .sub { font:500 22px/1.2 Inter; color:#5b4e72; letter-spacing:0; }
+
+  /* Instagram-style action bar: like, comment, share ... save */
+  .igbar { margin-top:auto; width:780px; display:flex; align-items:flex-start; gap:46px; padding:24px 40px 20px; border-radius:26px;
+           background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.16); }
+  .ig { display:flex; flex-direction:column; align-items:center; gap:10px; font:600 17px/1 Inter; color:#d9d2ea; }
+  .ig svg { width:48px; height:48px; fill:none; stroke:#fff; stroke-width:1.9; stroke-linejoin:round; stroke-linecap:round; }
+  .hint { margin-left:auto; align-self:center; margin-top:-26px; font:600 20px/1 Inter; color:var(--muted); }
+  .ig.save { margin-left:-18px; }
+  .ig.hot svg { stroke:var(--pink); filter:drop-shadow(0 0 12px rgba(255,126,179,.55)); }
+  .ig.hot span { color:var(--pink); }
+  .ig.save svg { stroke:var(--orange); } .ig.save span { color:var(--orange); }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute">
+  <defs><linearGradient id="gb" x1="0" x2="1"><stop offset="0" stop-color="#9b6bff"/><stop offset=".5" stop-color="#ff7eb3"/><stop offset=".78" stop-color="#ffad66"/><stop offset="1" stop-color="#34d1a9"/></linearGradient></defs>
+  <symbol id="logo" viewBox="0 0 200 120"><path d="M22 108 A78 78 0 0 1 178 108" fill="none" stroke="url(#gb)" stroke-width="26" stroke-linecap="round"/><path d="M100 108 L146 62" stroke="#fff" stroke-width="12" stroke-linecap="round"/><circle cx="100" cy="108" r="14" fill="#fff"/></symbol>
+</svg>
+
+<!-- 1 · cover -->
+<section class="slide s1" id="s1">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="tag">SEO quick wins</span></div>
+  <h1>3 SEO fixes<br>you can do<br><em>this week.</em></h1>
+  <p class="lead">No agency, no big budget. Each one takes <b>an afternoon or less</b>. Save this post 🔖</p>
+  <div class="teasers">
+    <div class="teaser"><span class="n" style="background:var(--purple)">1</span><div><h3>Titles people click</h3><p>Win the click on Google</p></div></div>
+    <div class="teaser"><span class="n" style="background:var(--pink)">2</span><div><h3>Lighter images</h3><p>Faster pages, happier visitors</p></div></div>
+    <div class="teaser"><span class="n" style="background:var(--orange)">3</span><div><h3>Open the door to AI</h3><p>Get found in ChatGPT &amp; co.</p></div></div>
+  </div>
+  <div class="foot"><div class="dots"><i class="on"></i><i></i><i></i><i></i><i></i></div><div class="swipe">Swipe →</div></div>
+</section>
+
+<!-- 2 · titles -->
+<section class="slide" id="s2">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="tag">SEO quick wins</span></div>
+  <div class="kicker"><span class="num">01</span>Titles &amp; descriptions</div>
+  <h1>Write titles people<br><em>actually want to click.</em></h1>
+  <p class="lead">Your title and meta description are your ad on Google. Weak ones get skipped, even if you rank.</p>
+  <div class="rows">
+    <div class="row check"><h4>Check</h4><p>Title around <b>50–60 characters</b>, description <b>under ~160</b>. One unique pair per page.</p></div>
+    <div class="row fix"><h4>Fix</h4><p>Lead with what people search for, then <b>why they should click</b>.</p></div>
+  </div>
+  <div class="media">
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>Pagelyt · Search preview tool</span></div><img src="shots/post2/serp.png" alt=""></div>
+    <div class="chip" style="right:-18px; top:-24px"><i class="d" style="background:var(--teal)"></i>Free tool</div>
+  </div>
+  <div class="foot"><div class="dots"><i></i><i class="on"></i><i></i><i></i><i></i></div><div class="swipe">Swipe →</div></div>
+</section>
+
+<!-- 3 · images -->
+<section class="slide" id="s3">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="tag">SEO quick wins</span></div>
+  <div class="kicker"><span class="num">02</span>Page speed</div>
+  <h1>Shrink your images.<br><em>Watch pages fly.</em></h1>
+  <p class="lead">Images are usually the heaviest thing on a page. Slow pages lose visitors and rankings.</p>
+  <div class="rows">
+    <div class="row check"><h4>Check</h4><p>Flag any image <b>over 300 KB</b>, especially on your homepage.</p></div>
+    <div class="row fix"><h4>Fix</h4><p>Convert to <b>WebP</b>, resize to the size shown, and <b>lazy-load</b> images lower down.</p></div>
+  </div>
+  <div class="media">
+    <div class="win"><div class="bar"><i></i><i></i><i></i><span>Pagelyt · Images check</span></div><img src="shots/post2/images.png" alt=""></div>
+    <div class="chip" style="right:-18px; top:-24px"><i class="d" style="background:var(--pink)"></i>Checked in every audit</div>
+    <div class="rules">
+      <div><b>~30%</b><span>smaller files when you switch JPEG to WebP</span></div>
+      <div><b>300 KB</b><span>a sensible ceiling for any one image</span></div>
+      <div><b>0 KB</b><span>loaded up front for lazy images below the fold</span></div>
+    </div>
+  </div>
+  <div class="foot"><div class="dots"><i></i><i></i><i class="on"></i><i></i><i></i></div><div class="swipe">Swipe →</div></div>
+</section>
+
+<!-- 4 · AI -->
+<section class="slide" id="s4">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="tag">SEO quick wins</span></div>
+  <div class="kicker"><span class="num">03</span>AI search</div>
+  <h1>Let ChatGPT &amp; co.<br><em>read your site.</em></h1>
+  <p class="lead">AI tools send their own bots. One old line in robots.txt can block them, so they never recommend you.</p>
+  <div class="rows">
+    <div class="row check"><h4>Check</h4><p>Your robots.txt lets in <b>GPTBot</b>, <b>ClaudeBot</b> and <b>PerplexityBot</b>.</p></div>
+    <div class="row fix"><h4>Fix</h4><p>Remove the blocking rule, then add an <b>llms.txt</b>: a short guide to your site for AI.</p></div>
+  </div>
+  <div class="media">
+    <div class="win cut"><div class="bar"><i></i><i></i><i></i><span>Pagelyt · AI bot access checker</span></div><img src="shots/post2/aibots.png" alt=""></div>
+    <div class="chip" style="right:-18px; top:-24px"><i class="d" style="background:var(--purple)"></i>Free tool</div>
+  </div>
+  <div class="foot"><div class="dots"><i></i><i></i><i></i><i class="on"></i><i></i></div><div class="swipe">Swipe →</div></div>
+</section>
+
+<!-- 5 · CTA -->
+<section class="slide s5" id="s5">
+  <div class="top"><svg><use href="#logo"/></svg><b>Pagelyt</b><span class="tag">SEO quick wins</span></div>
+  <h1>That's 3.<br><em>Want all 15?</em></h1>
+  <p class="lead">Get our free <b>Technical SEO Checklist</b>: 15 checks every website should pass.</p>
+  <div class="card">
+    <div class="doc"><b>Technical SEO Checklist</b><i></i><i></i><i></i><i></i></div>
+    <div><h3>Free checklist, plain English</h3><p>Indexing, sitemaps, canonicals, HTTPS, broken links, schema and more. No sign-up needed.</p></div>
+  </div>
+  <div class="point"><span class="say">Comment <span class="kw">PAGELYT</span></span><span class="sub">to get the complete guide in your DMs</span></div>
+  <p class="alt">Or let Pagelyt run every check for you: <b>free audit at pagelyt.dev</b></p>
+  <div class="igbar">
+    <div class="ig"><svg viewBox="0 0 24 24"><path d="M12 20.5s-7.5-4.6-9.3-9.2C1.4 8 3.6 4.5 7.1 4.5c2 0 3.6 1.1 4.9 2.9 1.3-1.8 2.9-2.9 4.9-2.9 3.5 0 5.7 3.5 4.4 6.8-1.8 4.6-9.3 9.2-9.3 9.2z"/></svg><span>Like</span></div>
+    <div class="ig hot"><svg viewBox="0 0 24 24"><path d="M20.7 16.9A9.5 9.5 0 1 0 17 20.6l4.5 1.2z"/></svg><span>Comment</span></div>
+    <div class="ig"><svg viewBox="0 0 24 24"><path d="M22 3 9.2 10.3M22 3l-7.4 18-5.4-10.7L2 7.5z"/></svg><span>Share</span></div>
+    <div class="hint">Save it for later →</div>
+    <div class="ig save"><svg viewBox="0 0 24 24"><path d="M19 21l-7-6.2L5 21V3h14z"/></svg><span>Save</span></div>
+  </div>
+  <div class="foot" style="margin-top:34px"><div class="dots"><i></i><i></i><i></i><i></i><i class="on"></i></div></div>
+</section>
+
+</body>
+</html>

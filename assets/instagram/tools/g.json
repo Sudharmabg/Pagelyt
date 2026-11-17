@@ -1,0 +1,4 @@
+{ "auth": { "origin": "http://localhost:3100", "key": "sb-localhost-auth-token", "tokensUrl": "http://localhost:54321/__tokens?email=alex@example.test" },
+  "jobs": [
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk?view=google", "out": "../shots/x-google2.png", "width": 1280, "height": 2200, "scale": 1, "wait": 8000, "eval": "document.querySelector('nextjs-portal')?.remove()" }
+  ] }

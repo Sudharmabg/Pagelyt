@@ -1,0 +1,11 @@
+{ "auth": { "origin": "http://localhost:3100", "key": "sb-localhost-auth-token", "tokensUrl": "http://localhost:54321/__tokens?email=alex@example.test" },
+  "jobs": [
+    { "url": "http://localhost:3100/", "out": "../shots/x-home.png", "width": 1280, "height": 900, "scale": 1, "wait": 4000, "eval": "document.querySelector('nextjs-portal')?.remove()" },
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk", "out": "../shots/x-overview.png", "width": 1280, "height": 1400, "scale": 1, "wait": 6000, "eval": "document.querySelector('nextjs-portal')?.remove()" },
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk?view=all", "out": "../shots/x-all.png", "width": 1280, "height": 1400, "scale": 1, "wait": 4000, "eval": "document.querySelector('nextjs-portal')?.remove()" },
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk?view=google", "out": "../shots/x-google.png", "width": 1280, "height": 1400, "scale": 1, "wait": 4000, "eval": "document.querySelector('nextjs-portal')?.remove()" },
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk?view=ai", "out": "../shots/x-ai.png", "width": 1280, "height": 1400, "scale": 1, "wait": 4000, "eval": "document.querySelector('nextjs-portal')?.remove()" },
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk?view=assistant", "out": "../shots/x-assistant.png", "width": 1280, "height": 1400, "scale": 1, "wait": 4000, "eval": "document.querySelector('nextjs-portal')?.remove()" },
+    { "url": "http://localhost:3100/dashboard/2g9nlOPLiOjk?view=seo", "out": "../shots/x-seo.png", "width": 1280, "height": 1400, "scale": 1, "wait": 4000, "eval": "document.querySelector('nextjs-portal')?.remove()" },
+    { "url": "http://localhost:3100/tools", "out": "../shots/x-tools.png", "width": 1280, "height": 1400, "scale": 1, "wait": 5000, "eval": "document.querySelector('nextjs-portal')?.remove()" }
+  ] }

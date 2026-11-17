@@ -1,0 +1,22 @@
+{
+ "auth": {
+  "origin": "http://localhost:3100",
+  "key": "sb-localhost-auth-token",
+  "tokensUrl": "http://localhost:54321/__tokens?email=alex@example.test"
+ },
+ "jobs": [
+  {
+   "url": "http://localhost:3100/dashboard/tkw-LXGGBgrO?view=ai-bot-checker",
+   "out": "../shots/post2/aibots.png",
+   "width": 1280,
+   "height": 1600,
+   "scale": 2,
+   "wait": 5000,
+   "eval": "try { document.querySelector(\"nextjs-portal\")?.remove(); for(let i=0;i<8;i++){ const no=[...document.querySelectorAll(\"button\")].find(b=>/my own site/.test(b.textContent)); if(no){ no.click(); break; } await new Promise(r=>setTimeout(r,700)); } await new Promise(r=>setTimeout(r,800)); document.querySelectorAll(\"button\").forEach(b=>{ if(b.textContent.trim()===\"Ask\") b.style.display=\"none\"; }); [...document.querySelectorAll(\"button\")].find(b=>/Check AI access/.test(b.textContent)).click(); let h; for(let i=0;i<40&&!h;i++){ h=[...document.querySelectorAll(\"*\")].find(e=>/Every AI bot can read/.test(e.textContent)&&e.textContent.length<120); if(!h) await new Promise(r=>setTimeout(r,1000)); } await new Promise(r=>setTimeout(r,1000)); document.querySelector(\"nextjs-portal\")?.remove(); for(let i=0;i<8;i++){ const no=[...document.querySelectorAll(\"button\")].find(b=>/my own site/.test(b.textContent)); if(no){ no.click(); break; } await new Promise(r=>setTimeout(r,700)); } await new Promise(r=>setTimeout(r,800)); document.querySelectorAll(\"button\").forEach(b=>{ if(b.textContent.trim()===\"Ask\") b.style.display=\"none\"; }); let c=h; while(c && c.offsetHeight<400) c=c.parentElement; c.id=\"cap\"; c.style.maxHeight=\"600px\"; c.style.overflow=\"hidden\"; return c.offsetWidth+\"x\"+c.offsetHeight; } catch(e) { return \"ERR \"+e.message+\" | \"+document.querySelector(\"main\").innerText.slice(700,1500); }",
+   "clip": {
+    "selector": "#cap",
+    "pad": 12
+   }
+  }
+ ]
+}

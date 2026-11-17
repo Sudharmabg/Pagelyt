@@ -91,6 +91,7 @@ export function LeadModal({
   host,
   running = false,
   tool,
+  unlock = false,
   onClose,
   onSubmit,
 }: {
@@ -102,6 +103,8 @@ export function LeadModal({
   /** Set on a free tool's page: the modal only signs the visitor in (log in or sign up, with the email code if new),
       then `onSubmit` runs the tool. No website lookup, no website taken by the new account, no dashboard. */
   tool?: string;
+  /** With `tool`: the sign-in opens a report an admin shared (`tool` is the website), so the wording says so. */
+  unlock?: boolean;
   onClose: () => void;
   onSubmit: (start: ScanStart) => Promise<ScanProblem | null>;
 }) {
@@ -377,7 +380,7 @@ export function LeadModal({
     content = tool ? (
       <div className="lm-body">
         <h2 id="lead-h">Signing you in…</h2>
-        <p className="lm-sub" role="status">The {tool} runs as soon as you&rsquo;re in.</p>
+        <p className="lm-sub" role="status">{unlock ? <>Your full report opens as soon as you&rsquo;re in.</> : <>The {tool} runs as soon as you&rsquo;re in.</>}</p>
       </div>
     ) : (
       <div className="lm-body">
@@ -438,7 +441,13 @@ export function LeadModal({
   } else {
     const isLogin = mode === "login";
     const title = isLogin ? "Welcome back" : mode === "claim" ? `Create an account to claim ${domain}` : "Create your free account";
-    const sub = tool ? (
+    const sub = tool && unlock ? (
+      isLogin ? (
+        <>Log in to see the full report for <strong>{tool}</strong>.</>
+      ) : (
+        <>It&rsquo;s free. The full report for <strong>{tool}</strong> opens as soon as you&rsquo;re in, and it is saved to your account.</>
+      )
+    ) : tool ? (
       isLogin ? (
         <>Log in to run the <strong>{tool}</strong>.</>
       ) : (
@@ -483,7 +492,7 @@ export function LeadModal({
         )}
         {actions(
           <button type="submit" className="btn">
-            {tool ? (isLogin ? "Log In & Run" : "Create Account & Run") : isLogin ? "Log In & See Report" : mode === "claim" ? "Create Account" : "Create Account & See Report"}
+            {tool && !unlock ? (isLogin ? "Log In & Run" : "Create Account & Run") : isLogin ? "Log In & See Report" : mode === "claim" ? "Create Account" : "Create Account & See Report"}
           </button>,
         )}
         {isLogin && known && (

@@ -1,0 +1,92 @@
+{
+ "jobs": [
+  {
+   "url": "../carousel.html",
+   "out": "../pagelyt-carousel-1.png",
+   "width": 1080,
+   "height": 1350,
+   "scale": 1,
+   "wait": 1500,
+   "clip": {
+    "selector": "#s1"
+   }
+  },
+  {
+   "url": "../carousel.html",
+   "out": "../pagelyt-carousel-2.png",
+   "width": 1080,
+   "height": 1350,
+   "scale": 1,
+   "wait": 1500,
+   "clip": {
+    "selector": "#s2"
+   }
+  },
+  {
+   "url": "../carousel.html",
+   "out": "../pagelyt-carousel-3.png",
+   "width": 1080,
+   "height": 1350,
+   "scale": 1,
+   "wait": 1500,
+   "clip": {
+    "selector": "#s3"
+   }
+  },
+  {
+   "url": "../carousel.html",
+   "out": "../pagelyt-carousel-4.png",
+   "width": 1080,
+   "height": 1350,
+   "scale": 1,
+   "wait": 1500,
+   "clip": {
+    "selector": "#s4"
+   }
+  },
+  {
+   "url": "../carousel.html",
+   "out": "../pagelyt-carousel-5.png",
+   "width": 1080,
+   "height": 1350,
+   "scale": 1,
+   "wait": 1500,
+   "clip": {
+    "selector": "#s5"
+   }
+  },
+  {
+   "url": "../carousel.html",
+   "out": "../pagelyt-carousel-6.png",
+   "width": 1080,
+   "height": 1350,
+   "scale": 1,
+   "wait": 1500,
+   "clip": {
+    "selector": "#s6"
+   }
+  },
+  {
+   "url": "../carousel.html",
+   "out": "../pagelyt-carousel-7.png",
+   "width": 1080,
+   "height": 1350,
+   "scale": 1,
+   "wait": 1500,
+   "clip": {
+    "selector": "#s7"
+   }
+  },
+  {
+   "url": "../carousel.html",
+   "out": "../pagelyt-carousel-8.png",
+   "width": 1080,
+   "height": 1350,
+   "scale": 1,
+   "wait": 1500,
+   "clip": {
+    "selector": "#s8"
+   }
+  }
+ ]
+}

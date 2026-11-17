@@ -1,0 +1,4 @@
+{ "jobs": [
+    { "url": "http://localhost:3100/", "out": "../shots/home.png", "width": 1280, "height": 800, "scale": 2, "wait": 5000, "eval": "document.querySelector('nextjs-portal')?.remove()" },
+    { "url": "http://localhost:3100/", "out": "../shots/phone-home.png", "width": 390, "height": 844, "scale": 3, "mobile": true, "wait": 5000, "eval": "document.querySelector('nextjs-portal')?.remove()" }
+  ] }
