@@ -4,6 +4,7 @@ import { createContext, useContext, useMemo, useState, type ReactNode } from "re
 import type { Finding } from "@/lib/scan/types";
 import type { Ga4Insight } from "@/lib/google/ga4-insights";
 import Link from "next/link";
+import { Sparkles, type LucideIcon } from "lucide-react";
 
 /* Shared pieces of the ★ Google data view: sortable tables with CSV download, links that open a page's drill-down
    panel or jump to the exact finding, device/country bars and the AI insights panel used by every tab. */
@@ -164,6 +165,24 @@ export function DataTable<T>({ rows, cols, file, sort: initial, limit = 25, rowK
   );
 }
 
+/* ---------- Card header: icon tile, title and a short note (the shared .sc-head kit) ---------- */
+
+export function PanelHead({ icon: Icon, title, note, id, children }: { icon: LucideIcon; title: ReactNode; note?: ReactNode; id?: string; children?: ReactNode }) {
+  return (
+    <header className="sc-head">
+      <span className="sc-ic" aria-hidden="true"><Icon /></span>
+      <div>
+        <h2 id={id}>{title}</h2>
+        {note && <p className="panel-note">{note}</p>}
+      </div>
+      {children}
+    </header>
+  );
+}
+
+/** The AI insights card header: a sparkle tile in place of the old ✦ glyph. */
+export const AiMark = () => <span className="sc-ic gd-ai-ic" aria-hidden="true"><Sparkles /></span>;
+
 /* ---------- Device and country bars ---------- */
 
 export function SplitBars({ title, rows, unit }: { title: string; rows: { key: string; value: number }[]; unit: string }) {
@@ -209,7 +228,7 @@ export function InsightsPanel({ title, source, ai, busy, error, findings, onRun 
   return (
     <section className="panel gd-ai" aria-label={title} aria-busy={busy}>
       <div className="gd-ai-top">
-        <h2><span aria-hidden="true">✦</span> {title}</h2>
+        <AiMark /><h2>{title}</h2>
         {ai && <button type="button" className="dash-btn" onClick={() => onRun(true)} disabled={busy}>{busy ? "Analysing…" : "Analyse again"}</button>}
       </div>
       {!ai ? (

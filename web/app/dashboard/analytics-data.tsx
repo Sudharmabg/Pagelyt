@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { CalendarRange, ChartColumn, FileText, Hourglass, Link2, ListOrdered, Sparkles, TrendingDown, Users } from "lucide-react";
 import { findingKey } from "@/lib/scan/score";
 import { MODULE_NAMES, type Finding } from "@/lib/scan/types";
 import { byVisits, channelRows, findingsOnPath, ga4Drops, lowEngagement, rate, visitsMap, type Ga4Data, type Visits } from "@/lib/google/ga4-insights";
 import { change } from "@/lib/google/gsc-insights";
 import { Delta, GoogleMark, Skeleton, Steps } from "./google-data";
-import { DataTable, FindingLink, FindingList, InsightsPanel, PageLink, SplitBars, deviceName, n0, type Col, GuideLink } from "./google-kit";
+import { DataTable, FindingLink, FindingList, InsightsPanel, PageLink, SplitBars, deviceName, n0, type Col, GuideLink, PanelHead, AiMark } from "./google-kit";
 import type { AiInsights, GoogleState } from "./use-google";
 
 /* The Analytics tab of ★ Google data: Connect Google Analytics, pick the GA4 property, then the AI's insights (on a
@@ -43,18 +44,19 @@ export function AnalyticsTab({ g, scan, findings, notice }: Props) {
       <>
         {head}
         <section className="panel gd-connect">
-          <h2>Connect Google Analytics</h2>
+          <PanelHead icon={ChartColumn} title={<>Connect Google Analytics</>} note={<>See how many real visitors each problem in this report reaches, which pages are losing visitors and why, and let AI read your numbers and tell you what to do next.</>} />
           <Steps at={0} />
-          <p className="panel-note">See how many real visitors each problem in this report reaches, which pages are losing visitors and why, and let AI read your numbers and tell you what to do next.</p>
-          <ul className="gd-gets">
-            <li><b>Visitors per issue</b> Visits and engagement on the pages each finding affects</li>
-            <li><b>Drop detective</b> Pages that lost visitors, the channel that fell and what&rsquo;s wrong on them</li>
-            <li><b>28-day report</b> Visits, engagement and channels against the month before, in your PDF too</li>
-            <li><b>AI insights</b> Plain-English findings from your Analytics, each with a next step</li>
+          <ul className="sc-items gd-gets2">
+            <li style={{ ["--i" as string]: 0 }}><span className="sc-ic" aria-hidden="true"><Users /></span><span><b>Visitors per issue</b><small>Visits and engagement on the pages each finding affects</small></span></li>
+            <li style={{ ["--i" as string]: 1 }}><span className="sc-ic" aria-hidden="true"><TrendingDown /></span><span><b>Drop detective</b><small>Pages that lost visitors, the channel that fell and what&rsquo;s wrong on them</small></span></li>
+            <li style={{ ["--i" as string]: 2 }}><span className="sc-ic" aria-hidden="true"><CalendarRange /></span><span><b>28-day report</b><small>Visits, engagement and channels against the month before, in your PDF too</small></span></li>
+            <li style={{ ["--i" as string]: 3 }}><span className="sc-ic" aria-hidden="true"><Sparkles /></span><span><b>AI insights</b><small>Plain-English findings from your Analytics, each with a next step</small></span></li>
           </ul>
-          <button type="button" className="dash-btn primary gd-btn" onClick={() => void g.connect(scan.id, "ga4")} disabled={g.busy === "connect"}>
-            <GoogleMark />{g.busy === "connect" ? "Opening Google…" : s.connected ? "Add Google Analytics access" : "Connect Google Analytics"}
-          </button>
+          <div className="sc-foot">
+            <button type="button" className="dash-btn primary gd-btn" onClick={() => void g.connect(scan.id, "ga4")} disabled={g.busy === "connect"}>
+              <GoogleMark />{g.busy === "connect" ? "Opening Google…" : s.connected ? "Add Google Analytics access" : "Connect Google Analytics"}
+            </button>
+          </div>
           <p className="gd-fine">Read-only: Pagelyt can&rsquo;t change anything in your Google account. Disconnect any time from your account page.</p>
           <p className="gd-fine">New to Google Analytics? <GuideLink product="ga4">Read our setup guide</GuideLink></p>
         </section>
@@ -94,7 +96,7 @@ function Ga4Picker({ g, host }: { g: GoogleState; host: string }) {
   }, [props, loadProps]);
   return (
     <section className="panel">
-      <h2>Which Google Analytics property is {host}?</h2>
+      <PanelHead icon={Link2} title={<>Which Google Analytics property is {host}?</>} />
       <Steps at={1} />
       {!props ? (
         <p className="panel-note">Loading your Analytics properties…</p>
@@ -138,7 +140,7 @@ export function AiOverviewCard({ ai, onOpen }: { ai: AiInsights; onOpen: () => v
   return (
     <section className="panel gd-ai gd-ai-card" aria-labelledby="gd-ai-card-h">
       <div className="gd-ai-top">
-        <h2 id="gd-ai-card-h"><span aria-hidden="true">✦</span> What your Analytics says</h2>
+        <AiMark /><h2 id="gd-ai-card-h">What your Analytics says</h2>
         <button type="button" className="fnd-link" onClick={onOpen}>All insights <span aria-hidden="true">→</span></button>
       </div>
       <ul className="gd-ins gd-ins-mini">
@@ -187,8 +189,7 @@ function Ga4View({ d, findings }: { d: Ga4Data; findings: Finding[] }) {
   return (
     <>
       <section className="panel gd-totals" aria-label={`Visitors, last ${days} days`}>
-        <h2>Visitors, last {days} days</h2>
-        <p className="panel-note">{d.range.start} to {d.range.end}, against the {days} days before.{d.name ? ` Property: ${d.name}.` : ""}</p>
+        <PanelHead icon={Users} title={<>Visitors, last {days} days</>} note={<>{d.range.start} to {d.range.end}, against the {days} days before.{d.name ? ` Property: ${d.name}.` : ""}</>} />
         <ul className="sec-stats">
           <li><b>{n0(T.sessions)}</b><span>visits</span><Delta now={T.sessions} before={P.sessions} days={days} /></li>
           <li><b>{n0(T.users)}</b><span>visitors ({n0(T.newUsers)} new)</span><Delta now={T.users} before={P.users} days={days} /></li>
@@ -221,20 +222,17 @@ function Ga4View({ d, findings }: { d: Ga4Data; findings: Finding[] }) {
       </section>
 
       <section className="panel" aria-label="Issues by visitors">
-        <h2>Issues ranked by the visitors they reach</h2>
-        <p className="panel-note">Visits over {days} days on the pages each issue affects, and how many were engaged (10+ seconds, 2+ pages or a key event). Site-wide issues count the whole site. Click an issue to open it.</p>
+        <PanelHead icon={ListOrdered} title={<>Issues ranked by the visitors they reach</>} note={<>Visits over {days} days on the pages each issue affects, and how many were engaged (10+ seconds, 2+ pages or a key event). Site-wide issues count the whole site. Click an issue to open it.</>} />
         <DataTable rows={ranked} cols={issueCols} file={`issues-by-visitors-${days}d`} sort={{ col: 2 }} limit={10} rowKey={findingKey} empty={<p className="panel-note">None of this report&rsquo;s open issues are on pages with Analytics visits.</p>} />
       </section>
 
       <section className="panel" aria-label="Top pages">
-        <h2>Top pages</h2>
-        <p className="panel-note">Your busiest pages. Click a page for its searches, visits, ad spend and issues.</p>
+        <PanelHead icon={FileText} title={<>Top pages</>} note={<>Your busiest pages. Click a page for its searches, visits, ad spend and issues.</>} />
         <DataTable rows={d.pages} cols={pageCols} file={`top-pages-visits-${days}d`} sort={{ col: 1 }} limit={10} rowKey={(p) => p.path} empty={<p className="panel-note">No page visits in this window.</p>} />
       </section>
 
       <section className="panel" aria-label="Drop detective">
-        <h2>Drop detective: pages that lost visitors</h2>
-        <p className="panel-note">Down at least 30% on the {days} days before, with the channel that lost the most visits and the issues this scan found on the same page.</p>
+        <PanelHead icon={TrendingDown} title={<>Drop detective: pages that lost visitors</>} note={<>Down at least 30% on the {days} days before, with the channel that lost the most visits and the issues this scan found on the same page.</>} />
         <DataTable
           rows={dr}
           rowKey={(p) => p.path}
@@ -253,8 +251,7 @@ function Ga4View({ d, findings }: { d: Ga4Data; findings: Finding[] }) {
 
       {low.length > 0 && (
         <section className="panel" aria-label="Low engagement">
-          <h2>Busy pages that don&rsquo;t hold visitors</h2>
-          <p className="panel-note">Pages with 50+ visits where far fewer visits are engaged than on the rest of the site ({p0(rate(T.engaged, T.sessions))}).</p>
+          <PanelHead icon={Hourglass} title={<>Busy pages that don&rsquo;t hold visitors</>} note={<>Pages with 50+ visits where far fewer visits are engaged than on the rest of the site ({p0(rate(T.engaged, T.sessions))}).</>} />
           <DataTable
             rows={low}
             rowKey={(p) => p.path}

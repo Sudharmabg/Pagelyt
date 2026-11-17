@@ -10,7 +10,7 @@ import { money, spendMap } from "@/lib/google/ads-insights";
 import type { Ga4Insight } from "@/lib/google/ga4-insights";
 import type { GoogleState } from "./use-google";
 import { Delta, Skeleton, type GoogleTab } from "./google-data";
-import { DataTable, FindingLink, PageLink, n0, type Col } from "./google-kit";
+import { DataTable, FindingLink, PageLink, n0, type Col, AiMark } from "./google-kit";
 
 /* The Overview tab of ★ Google data: where each product stands, the combined numbers for the window on screen, one
    daily trend (clicks, visits, ad spend as small multiples on a shared date axis: never two scales on one axis), the
@@ -300,7 +300,7 @@ function TopInsights({ g, onTab }: { g: GoogleState; onTab: (t: GoogleTab) => vo
   if (!all.length && !can.length) return null;
   return (
     <section className="panel gd-ai" aria-label="Top AI insights">
-      <div className="gd-ai-top"><h2><span aria-hidden="true">✦</span> What AI sees in your numbers</h2></div>
+      <div className="gd-ai-top"><AiMark /><h2>What AI sees in your numbers</h2></div>
       {all.length > 0 && (
         <ul className="gd-ins gd-ins-mini">
           {all.slice(0, 5).map((i) => (

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChartColumn, LayoutGrid, Megaphone, Search } from "lucide-react";
+import { ChartColumn, FileText, LayoutGrid, Link2, ListOrdered, Megaphone, MousePointerClick, ScanSearch, Search, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import { VerticalTabs } from "@/components/avara/VerticalTabs";
 import { LoaderBlock } from "@/components/avara/LoaderBlock";
 import { ToggleGroup, ToggleGroupItem } from "@/components/avara/ToggleGroupBlock";
@@ -14,7 +14,7 @@ import { AnalyticsTab } from "./analytics-data";
 import { AdsTab } from "./ads-data";
 import { GoogleOverview } from "./google-overview";
 import { PageDrill } from "./page-drill";
-import { DataTable, FindingLink, FindingList, GoogleNav, InsightsPanel, PageLink, SplitBars, countryName, deviceName, n0, pathOf, pct, type Col, GuideLink } from "./google-kit";
+import { DataTable, FindingLink, FindingList, GoogleNav, InsightsPanel, PageLink, SplitBars, countryName, deviceName, n0, pathOf, pct, type Col, GuideLink, PanelHead } from "./google-kit";
 
 /* The ★ Google data view: Overview | Search Console | Analytics | Google Ads, with a 7/28/90-day window, sortable
    tables with CSV download, and a drill-down panel for any page. Search Console lives here; Analytics in
@@ -163,19 +163,20 @@ function GscTab({ g, scan, findings, notice }: { g: GoogleState; scan: Scan; fin
       <>
         {head}
         <section className="panel gd-connect">
-          <h2>Connect Google Search Console</h2>
+          <PanelHead icon={Search} title={<>Connect Google Search Console</>} note={<>See how many real searchers each problem in this report affects, which searches are close to page one and which pages Google hasn&rsquo;t indexed.</>} />
           <Steps at={0} />
-          <p className="panel-note">See how many real searchers each problem in this report affects, which searches are close to page one and which pages Google hasn&rsquo;t indexed.</p>
-          <ul className="gd-gets">
-            <li><b>Clicks at stake</b> On every finding, so you fix what costs traffic first</li>
-            <li><b>Near page one</b> Searches where you rank 8 to 20</li>
-            <li><b>Lost clicks</b> Pages that dropped, next to what&rsquo;s wrong on them</li>
-            <li><b>Indexing check</b> Whether Google has indexed your key pages</li>
-            <li><b>AI insights</b> Plain-English findings from your searches, each with a next step</li>
+          <ul className="sc-items gd-gets2">
+            <li style={{ ["--i" as string]: 0 }}><span className="sc-ic" aria-hidden="true"><MousePointerClick /></span><span><b>Clicks at stake</b><small>On every finding, so you fix what costs traffic first</small></span></li>
+            <li style={{ ["--i" as string]: 1 }}><span className="sc-ic" aria-hidden="true"><TrendingUp /></span><span><b>Near page one</b><small>Searches where you rank 8 to 20</small></span></li>
+            <li style={{ ["--i" as string]: 2 }}><span className="sc-ic" aria-hidden="true"><TrendingDown /></span><span><b>Lost clicks</b><small>Pages that dropped, next to what&rsquo;s wrong on them</small></span></li>
+            <li style={{ ["--i" as string]: 3 }}><span className="sc-ic" aria-hidden="true"><ScanSearch /></span><span><b>Indexing check</b><small>Whether Google has indexed your key pages</small></span></li>
+            <li style={{ ["--i" as string]: 4 }}><span className="sc-ic" aria-hidden="true"><Sparkles /></span><span><b>AI insights</b><small>Plain-English findings from your searches, each with a next step</small></span></li>
           </ul>
-          <button type="button" className="dash-btn primary gd-btn" onClick={() => void g.connect(scan.id)} disabled={busy === "connect"}>
-            <GoogleMark />{busy === "connect" ? "Opening Google…" : s.connected ? "Add Search Console access" : "Connect Google"}
-          </button>
+          <div className="sc-foot">
+            <button type="button" className="dash-btn primary gd-btn" onClick={() => void g.connect(scan.id)} disabled={busy === "connect"}>
+              <GoogleMark />{busy === "connect" ? "Opening Google…" : s.connected ? "Add Search Console access" : "Connect Google"}
+            </button>
+          </div>
           <p className="gd-fine">Read-only: Pagelyt can&rsquo;t change anything in your Google account. Disconnect any time from your account page.</p>
           <p className="gd-fine">New to Search Console? <GuideLink product="gsc">Read our setup guide</GuideLink></p>
         </section>
@@ -215,7 +216,7 @@ function PropertyPicker({ g, host }: { g: GoogleState; host: string }) {
   }, [props, loadProps]);
   return (
     <section className="panel">
-      <h2>Which Search Console property is {host}?</h2>
+      <PanelHead icon={Link2} title={<>Which Search Console property is {host}?</>} />
       <Steps at={1} />
       {!props ? (
         <p className="panel-note">Loading your properties…</p>
@@ -317,8 +318,7 @@ function GscView({ d, scanUrl, findings }: { d: GscData; scanUrl: string; findin
   return (
     <>
       <section className="panel gd-totals" aria-label="Search totals">
-        <h2>Google Search, last {days} days</h2>
-        <p className="panel-note">{d.range.start} to {d.range.end}, against the {days} days before. Search Console data is final about three days later.</p>
+        <PanelHead icon={ChartColumn} title={<>Google Search, last {days} days</>} note={<>{d.range.start} to {d.range.end}, against the {days} days before. Search Console data is final about three days later.</>} />
         <ul className="sec-stats">
           <li><b>{n0(T.clicks)}</b><span>clicks</span><Delta now={T.clicks} before={T.prevClicks} days={days} /></li>
           <li><b>{n0(T.impressions)}</b><span>impressions</span><Delta now={T.impressions} before={T.prevImpressions} days={days} /></li>
@@ -334,28 +334,24 @@ function GscView({ d, scanUrl, findings }: { d: GscData; scanUrl: string; findin
       </section>
 
       <section className="panel" aria-label="Issues by Google traffic">
-        <h2>Issues ranked by the traffic they touch</h2>
-        <p className="panel-note">Clicks and impressions over {days} days on the pages each issue affects. Site-wide issues (security, domain, uptime, privacy) count the whole site. Click an issue to open it.</p>
+        <PanelHead icon={ListOrdered} title={<>Issues ranked by the traffic they touch</>} note={<>Clicks and impressions over {days} days on the pages each issue affects. Site-wide issues (security, domain, uptime, privacy) count the whole site. Click an issue to open it.</>} />
         <DataTable rows={ranked} cols={issueCols} file={`issues-by-search-traffic-${days}d`} sort={{ col: 2 }} limit={10} rowKey={findingKey} empty={<p className="panel-note">None of this report&rsquo;s open issues are on pages that get Google impressions.</p>} />
       </section>
 
       <div className="panel-grid">
         <section className="panel" aria-label="Top searches">
-          <h2>Top searches</h2>
-          <p className="panel-note">What people typed before they found you.</p>
+          <PanelHead icon={Search} title={<>Top searches</>} note={<>What people typed before they found you.</>} />
           <DataTable rows={searches} cols={searchCols} file={`top-searches-${days}d`} sort={{ col: 1 }} limit={10} rowKey={(q) => q.query} empty={<p className="panel-note">No searches in this window.</p>} />
         </section>
         <section className="panel" aria-label="Top pages">
-          <h2>Top pages</h2>
-          <p className="panel-note">Your pages by Google clicks. Click a page for its searches, visits and issues.</p>
+          <PanelHead icon={FileText} title={<>Top pages</>} note={<>Your pages by Google clicks. Click a page for its searches, visits and issues.</>} />
           <DataTable rows={d.pages} cols={pageCols} file={`top-pages-${days}d`} sort={{ col: 1 }} limit={10} rowKey={(p) => p.url} empty={<p className="panel-note">No pages with Google impressions in this window.</p>} />
         </section>
       </div>
 
       <div className="panel-grid">
         <section className="panel" aria-label="Near page one">
-          <h2>Near page one</h2>
-          <p className="panel-note">Searches where you rank 8 to 20. A better title, more depth or a few internal links can move these onto page one.</p>
+          <PanelHead icon={TrendingUp} title={<>Near page one</>} note={<>Searches where you rank 8 to 20. A better title, more depth or a few internal links can move these onto page one.</>} />
           <DataTable
             rows={sd}
             rowKey={(q) => q.query + q.page}
@@ -373,8 +369,7 @@ function GscView({ d, scanUrl, findings }: { d: GscData; scanUrl: string; findin
         </section>
 
         <section className="panel" aria-label="Low click rate">
-          <h2>Seen but not clicked</h2>
-          <p className="panel-note">Page-one results with under half the usual click rate for their position (a rough benchmark). Usually the title or description isn&rsquo;t convincing.</p>
+          <PanelHead icon={MousePointerClick} title={<>Seen but not clicked</>} note={<>Page-one results with under half the usual click rate for their position (a rough benchmark). Usually the title or description isn&rsquo;t convincing.</>} />
           <DataTable
             rows={low}
             rowKey={(p) => p.url}
@@ -392,8 +387,7 @@ function GscView({ d, scanUrl, findings }: { d: GscData; scanUrl: string; findin
       </div>
 
       <section className="panel" aria-label="Lost clicks">
-        <h2>Pages that lost clicks</h2>
-        <p className="panel-note">Down at least 30% on the {days} days before, with the issues this scan found on the same page.</p>
+        <PanelHead icon={TrendingDown} title={<>Pages that lost clicks</>} note={<>Down at least 30% on the {days} days before, with the issues this scan found on the same page.</>} />
         <DataTable
           rows={dr}
           rowKey={(p) => p.url}
@@ -411,7 +405,7 @@ function GscView({ d, scanUrl, findings }: { d: GscData; scanUrl: string; findin
       </section>
 
       <section className="panel" aria-label="Indexing check">
-        <h2>Indexing check</h2>
+        <PanelHead icon={ScanSearch} title={<>Indexing check</>} />
         {days !== 28 ? (
           <p className="panel-note">Google&rsquo;s indexing check runs with the 28-day view. Switch to 28 days to see it.</p>
         ) : (

@@ -1,12 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { Ban, CalendarRange, Coins, Link2, Megaphone, Scale, Target, TriangleAlert, Wallet } from "lucide-react";
 import { findingKey } from "@/lib/scan/score";
 import { MODULE_NAMES, type Finding } from "@/lib/scan/types";
 import { campaignRows, cpa, cpc, findingsOnUrl, landingHealth, money, organicValue, paidOrganicOverlap, spendMap, wastedTerms, weakLanding, type AdsData, type Spend } from "@/lib/google/ads-insights";
 import type { GscData } from "@/lib/google/gsc-insights";
 import { Delta, GoogleMark, Skeleton, Steps } from "./google-data";
-import { DataTable, FindingLink, FindingList, InsightsPanel, PageLink, n0, type Col, GuideLink } from "./google-kit";
+import { DataTable, FindingLink, FindingList, InsightsPanel, PageLink, n0, type Col, GuideLink, PanelHead } from "./google-kit";
 import type { GoogleState } from "./use-google";
 
 /* The Ads tab of ★ Google data: Connect Google Ads, pick the account (agency manager accounts included), then the AI's
@@ -47,18 +48,19 @@ export function AdsTab({ g, scan, findings, notice }: Props) {
       <>
         {head}
         <section className="panel gd-connect">
-          <h2>Connect Google Ads</h2>
+          <PanelHead icon={Megaphone} title={<>Connect Google Ads</>} note={<>See how much of your ad spend lands on pages with problems, which searches you pay for while already ranking for free, and let AI read your ads next to this report.</>} />
           <Steps at={0} />
-          <p className="panel-note">See how much of your ad spend lands on pages with problems, which searches you pay for while already ranking for free, and let AI read your ads next to this report.</p>
-          <ul className="gd-gets">
-            <li><b>Landing-page health</b> Spend on pages with issues, and keywords Google rates below average for landing page</li>
-            <li><b>Paid vs organic</b> Searches you pay for where you already rank in the top 3 on Google</li>
-            <li><b>28-day summary</b> Spend, clicks, conversions and cost per conversion against the month before</li>
-            <li><b>Organic traffic value</b> What your free Google clicks would cost as ads, at your own prices</li>
+          <ul className="sc-items gd-gets2">
+            <li style={{ ["--i" as string]: 0 }}><span className="sc-ic" aria-hidden="true"><TriangleAlert /></span><span><b>Landing-page health</b><small>Spend on pages with issues, and keywords Google rates below average for landing page</small></span></li>
+            <li style={{ ["--i" as string]: 1 }}><span className="sc-ic" aria-hidden="true"><Scale /></span><span><b>Paid vs organic</b><small>Searches you pay for where you already rank in the top 3 on Google</small></span></li>
+            <li style={{ ["--i" as string]: 2 }}><span className="sc-ic" aria-hidden="true"><CalendarRange /></span><span><b>28-day summary</b><small>Spend, clicks, conversions and cost per conversion against the month before</small></span></li>
+            <li style={{ ["--i" as string]: 3 }}><span className="sc-ic" aria-hidden="true"><Coins /></span><span><b>Organic traffic value</b><small>What your free Google clicks would cost as ads, at your own prices</small></span></li>
           </ul>
-          <button type="button" className="dash-btn primary gd-btn" onClick={() => void g.connect(scan.id, "ads")} disabled={g.busy === "connect"}>
-            <GoogleMark />{g.busy === "connect" ? "Opening Google…" : s.connected ? "Add Google Ads access" : "Connect Google Ads"}
-          </button>
+          <div className="sc-foot">
+            <button type="button" className="dash-btn primary gd-btn" onClick={() => void g.connect(scan.id, "ads")} disabled={g.busy === "connect"}>
+              <GoogleMark />{g.busy === "connect" ? "Opening Google…" : s.connected ? "Add Google Ads access" : "Connect Google Ads"}
+            </button>
+          </div>
           <p className="gd-fine">Pagelyt only reads your Google Ads data: it never changes campaigns, budgets or bids. Disconnect any time from your account page.</p>
           <p className="gd-fine">New to Google Ads? <GuideLink product="ads">Read our setup guide</GuideLink></p>
         </section>
@@ -98,7 +100,7 @@ function AdsPicker({ g, host }: { g: GoogleState; host: string }) {
   }, [accounts, loadProps]);
   return (
     <section className="panel">
-      <h2>Which Google Ads account advertises {host}?</h2>
+      <PanelHead icon={Link2} title={<>Which Google Ads account advertises {host}?</>} />
       <Steps at={1} />
       {!accounts ? (
         <p className="panel-note">Loading your Google Ads accounts…</p>
@@ -171,8 +173,7 @@ function AdsView({ d, gsc, homeUrl, findings }: { d: AdsData; gsc: GscData | nul
   return (
     <>
       <section className="panel gd-totals" aria-label={`Google Ads, last ${days} days`}>
-        <h2>Google Ads, last {days} days</h2>
-        <p className="panel-note">{d.range.start} to {d.range.end}, against the {days} days before.{d.name ? ` Account: ${d.name}.` : ""} Amounts in {d.currency}.</p>
+        <PanelHead icon={Wallet} title={<>Google Ads, last {days} days</>} note={<>{d.range.start} to {d.range.end}, against the {days} days before.{d.name ? ` Account: ${d.name}.` : ""} Amounts in {d.currency}.</>} />
         <ul className="sec-stats">
           <li><b>{$(T.cost)}</b><span>spend</span><Delta now={T.cost} before={P.cost} days={days} /></li>
           <li><b>{n0(T.clicks)}</b><span>clicks</span><Delta now={T.clicks} before={P.clicks} days={days} /></li>
@@ -200,7 +201,7 @@ function AdsView({ d, gsc, homeUrl, findings }: { d: AdsData; gsc: GscData | nul
       </section>
 
       <section className="panel" aria-label="Ad landing-page health">
-        <h2>Ad spend landing on pages with issues</h2>
+        <PanelHead icon={TriangleAlert} title={<>Ad spend landing on pages with issues</>} />
         <p className="panel-note">
           {lh.rows.length ? <><b>{$(lh.cost)}</b> ({p0(lh.share)} of your spend) sent people to pages where this scan found problems. Slow, broken or hard-to-use landing pages lower Quality Score, raise your cost per click and lose conversions.</> : "None of the pages your ads land on have issues in this report."}
         </p>
@@ -214,8 +215,7 @@ function AdsView({ d, gsc, homeUrl, findings }: { d: AdsData; gsc: GscData | nul
       </section>
 
       <section className="panel" aria-label="Keywords with weak landing pages">
-        <h2>Keywords Google rates below average for landing page</h2>
-        <p className="panel-note">Google&rsquo;s own &ldquo;landing page experience&rdquo; rating, part of Quality Score. A below-average page makes every click on these keywords cost more.</p>
+        <PanelHead icon={Target} title={<>Keywords Google rates below average for landing page</>} note={<>Google&rsquo;s own &ldquo;landing page experience&rdquo; rating, part of Quality Score. A below-average page makes every click on these keywords cost more.</>} />
         <DataTable
           rows={weak}
           rowKey={(k) => `${k.campaign}|${k.text}|${k.match}`}
@@ -233,7 +233,7 @@ function AdsView({ d, gsc, homeUrl, findings }: { d: AdsData; gsc: GscData | nul
       </section>
 
       <section className="panel" aria-label="Paid vs organic">
-        <h2>Paid searches where you already rank in the top 3</h2>
+        <PanelHead icon={Scale} title={<>Paid searches where you already rank in the top 3</>} />
         {!gsc ? (
           <p className="panel-note">Connect Search Console to compare what you pay for with where you already rank for free.</p>
         ) : ov && ov.rows.length ? (
@@ -257,7 +257,7 @@ function AdsView({ d, gsc, homeUrl, findings }: { d: AdsData; gsc: GscData | nul
 
       {gsc && val && (val.rows.length > 0 || val.rough != null) && (
         <section className="panel" aria-label="Organic traffic value">
-          <h2>What your free Google traffic is worth</h2>
+          <PanelHead icon={Coins} title={<>What your free Google traffic is worth</>} />
           <p className="panel-note">
             {val.rows.length > 0 && <>Your organic clicks on searches you also advertise on would have cost <b>{$(val.matched)}</b> as ads ({n0(val.matchedClicks)} clicks at your own cost per click). </>}
             {val.rough != null && <>All {n0(gsc.totals.clicks)} organic clicks over {days} days at your average cost per click ({$(val.avgCpc!, 2)}) come to roughly <b>{$(val.rough)}</b>. This is a rough figure: prices differ a lot between searches.</>}
@@ -278,8 +278,7 @@ function AdsView({ d, gsc, homeUrl, findings }: { d: AdsData; gsc: GscData | nul
 
       {waste.length > 0 && (
         <section className="panel" aria-label="Searches with no conversions">
-          <h2>Searches with spend and no conversions</h2>
-          <p className="panel-note">Searches people typed that got 5+ clicks and no conversions in {days} days. Check whether they match what you sell; if not, add them as negative keywords.</p>
+          <PanelHead icon={Ban} title={<>Searches with spend and no conversions</>} note={<>Searches people typed that got 5+ clicks and no conversions in {days} days. Check whether they match what you sell; if not, add them as negative keywords.</>} />
           <DataTable
             rows={waste}
             rowKey={(t) => t.term}
