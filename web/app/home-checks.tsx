@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, Bot, ChartLine, Gauge, Lightbulb, Plug, ShieldCheck, Swords } from "lucide-react";
+import { Activity, ArrowRight, Bot, ChartLine, Gauge, Lightbulb, Plug, ShieldCheck, Swords } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type ElementType, type KeyboardEvent } from "react";
 import { FEATURES } from "./features-data";
 
@@ -123,7 +123,8 @@ export function HomeChecks() {
               ))}
             </ul>
             <Link className="hc-more" href={`/features/${f.slug}`}>
-              More on {f.name} <span aria-hidden="true">→</span>
+              <span>More on {f.name}</span>
+              <span className="hc-more-go" aria-hidden="true"><ArrowRight /></span>
             </Link>
           </div>
 

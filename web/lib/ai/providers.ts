@@ -9,16 +9,19 @@ export const PROVIDER = { id: "openai", label: "ChatGPT" } as const;
 /** Earlier runs may hold other providers; every view counts ChatGPT runs only. */
 export const isTracked = (provider: string) => provider === PROVIDER.id;
 
-export const configuredProviders = () => (process.env.OPENAI_API_KEY ? [{ ...PROVIDER }] : []);
+/* Local dev without a key: dev-mock sets OPENAI_MOCK_URL, and its fake OpenAI answers instead. */
+const mockBase = () => (process.env.OPENAI_API_KEY ? "" : process.env.OPENAI_MOCK_URL || "");
+export const configuredProviders = () => (process.env.OPENAI_API_KEY || mockBase() ? [{ ...PROVIDER }] : []);
 export const providerLabel = (id: string) => (id === PROVIDER.id ? PROVIDER.label : id);
 
 export async function askChatGpt(prompt: string): Promise<Raw> {
-  const key = process.env.OPENAI_API_KEY;
+  const key = process.env.OPENAI_API_KEY || (mockBase() ? "mock" : "");
   if (!key) throw new Error("OPENAI_API_KEY is not set.");
+  const base = (mockBase() || "https://api.openai.com").replace(/\/$/, "");
   const ctl = new AbortController();
   const t = setTimeout(() => ctl.abort(), 45_000);
   try {
-    const r = await fetch("https://api.openai.com/v1/responses", {
+    const r = await fetch(`${base}/v1/responses`, {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${key}` },
       body: JSON.stringify({ model: process.env.OPENAI_MODEL || "gpt-4.1-mini", tools: [{ type: "web_search_preview" }], input: prompt }),

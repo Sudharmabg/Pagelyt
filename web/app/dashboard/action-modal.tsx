@@ -8,7 +8,7 @@ import { ModalX } from "../modal-close";
 /* The modal behind the dashboard's Share, Export and More buttons: a title, an optional top slot (Share puts the
    report link there) and a grid of large option tiles. Built on <dialog>, so Escape, the backdrop and focus
    trapping come from the browser. */
-export function ActionModal({ open, onClose, title, sub, icon, top, children, variant }: { open: boolean; onClose: () => void; title: string; sub?: string; icon: IconKey; top?: React.ReactNode; children: React.ReactNode; variant?: "rich" | "rich3" }) {
+export function ActionModal({ open, onClose, title, sub, icon, top, children, variant, className }: { open: boolean; onClose: () => void; title: string; sub?: string; icon: IconKey; top?: React.ReactNode; children: React.ReactNode; variant?: "rich" | "rich3"; className?: string }) {
   const ref = useRef<HTMLDialogElement>(null);
   // The latest `open`, read when the dialog's close event fires. That event comes after the render that closed it,
   // so when the parent closed this modal to open another (the phone Actions sheet opening Share), calling onClose
@@ -18,13 +18,17 @@ export function ActionModal({ open, onClose, title, sub, icon, top, children, va
     openRef.current = open;
     const d = ref.current;
     if (!d) return;
-    if (open && !d.open) d.showModal();
+    if (open && !d.open) {
+      d.showModal();
+      // On touch screens the browser would put focus (and its ring) on the close button; start on the card instead.
+      if (window.matchMedia("(pointer: coarse)").matches) d.querySelector<HTMLElement>(".am-card")?.focus({ preventScroll: true });
+    }
     if (!open && d.open) d.close();
   }, [open]);
   return (
     <dialog
       ref={ref}
-      className={`amodal${variant ? ` amodal-rich${variant === "rich3" ? " amodal-rich3" : ""}` : ""}`}
+      className={`amodal${variant ? ` amodal-rich${variant === "rich3" ? " amodal-rich3" : ""}` : ""}${className ? ` ${className}` : ""}`}
       aria-labelledby={`am-${icon}`}
       onClose={() => {
         if (openRef.current) onClose();
@@ -34,7 +38,7 @@ export function ActionModal({ open, onClose, title, sub, icon, top, children, va
         if (e.target === e.currentTarget) e.currentTarget.close();
       }}
     >
-      <div className="am-card">
+      <div className="am-card" tabIndex={-1}>
         <header className="am-head">
           <span className="am-ico"><AreaIcon k={icon} size={22} /></span>
           <div>

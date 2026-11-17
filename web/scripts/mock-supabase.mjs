@@ -179,7 +179,7 @@ http
           if (ignore && rows.some((x) => ignore.every((c) => String(x[c]) === String(r[c])))) continue;
           if (hit) saved.push(Object.assign(hit, r));
           else {
-            const row = { id: crypto.randomUUID(), created_at: new Date().toISOString(), ...(m[1] === "profiles" ? { plan: MOCK_PLAN, account_type: null } : {}), ...(m[1] === "requests" ? { status: "new" } : {}), ...(m[1] === "bookings" ? { status: "confirmed", meet_url: null } : {}), ...(m[1] === "sites" ? { cadence: "none", uptime: false, next_run_at: null, brand_terms: [], competitors: [], ai_track: false } : {}), ...r };
+            const row = { id: crypto.randomUUID(), created_at: new Date().toISOString(), ...(m[1] === "profiles" ? { plan: MOCK_PLAN, account_type: null } : {}), ...(m[1] === "requests" ? { status: "new" } : {}), ...(m[1] === "bookings" ? { status: "confirmed", meet_url: null } : {}), ...(m[1] === "ai_runs" ? { at: new Date().toISOString() } : {}), ...(m[1] === "sites" ? { cadence: "none", uptime: false, next_run_at: null, brand_terms: [], competitors: [], ai_track: false } : {}), ...r };
             rows.push(row);
             saved.push(row);
           }
@@ -390,6 +390,36 @@ function mockOpenAI(res, body) {
   // Ask Pagelyt streams its answer (server-sent events, text deltas), like the real Responses API.
   if (body.stream) return mockChatStream(res, body);
   const input = String(body.input || "");
+  const text = (t, extra = {}) => send(res, 200, { id: `resp_${crypto.randomUUID()}`, object: "response", status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: t, ...extra }] }] });
+  // AI visibility: suggested questions, built from what the site offers.
+  if (body.text?.format?.name === "visibility_questions") {
+    const what = (input.match(/^What they offer, and where: (.+)$/m) || [])[1] || "services";
+    const brand = (input.match(/^Brand: (.+)$/m) || [])[1] || "this business";
+    const [kind, place] = what.split(/ in /i);
+    const at = place ? ` in ${place}` : "";
+    return text(JSON.stringify({ questions: [
+      `Who are the best ${kind}${at}?`, `Which ${kind}${at} would you recommend, and why?`, `What should I look for when choosing ${kind}?`,
+      `How much do ${kind}${at} usually cost?`, `Are there ${kind}${at} available at short notice?`, `Is ${brand} a good choice for ${kind}?`,
+      `What are the best alternatives to ${brand}?`, `What do customers say about ${brand}?`,
+    ] }));
+  }
+  // AI visibility: one ChatGPT answer (web search on). Names the brand about two times in three, with a link.
+  if ((body.tools || []).some((t) => String(t.type).startsWith("web_search"))) {
+    const named = Math.random() < 0.66;
+    const pr = tables.ai_prompts.find((x) => x.prompt === input);
+    const site = tables.sites.find((x) => x.id === pr?.site_id)?.host || "example.com";
+    return text(named
+      ? `Here are a few well-reviewed options:
+1. City Pros
+2. Example Co (${site})
+3. FixIt Fast
+
+(This is the mock ChatGPT: set OPENAI_API_KEY for real answers.)`
+      : `Popular choices include City Pros, FixIt Fast and HomeHelp. Compare reviews and prices before you book.
+
+(This is the mock ChatGPT: set OPENAI_API_KEY for real answers.)`,
+      named ? { annotations: [{ type: "url_citation", url: `https://${site}/` }] } : {});
+  }
   const reply = (insights) => send(res, 200, { id: `resp_${crypto.randomUUID()}`, object: "response", status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify({ insights }) }] }] });
   // The Search Console analysis: built from its SEARCH PAGES table.
   if (input.includes("SEARCH PAGES (")) {

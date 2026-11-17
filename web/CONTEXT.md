@@ -80,7 +80,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 
 | File | Purpose |
 |---|---|
-| `providers.ts` | `PROVIDER`, `isTracked`, `configuredProviders`, `askChatGpt`: AI visibility asks ChatGPT only (OpenAI Responses API with web search), on when `OPENAI_API_KEY` is set. Older runs from other providers are hidden |
+| `providers.ts` | `PROVIDER`, `isTracked`, `configuredProviders`, `askChatGpt`: AI visibility asks ChatGPT only (OpenAI Responses API with web search), on when `OPENAI_API_KEY` is set (or, in dev-mock, `OPENAI_MOCK_URL`, whose fake OpenAI answers). Older runs from other providers are hidden |
 | `parse.ts` | `parseOpenAI`: turns the OpenAI response into `{answer, citations}` |
 | `analyse.ts` | `analyse`, `visibilityScore`: was the brand named or cited, and at what rank |
 | `run.ts` | `runPrompts`: asks ChatGPT every prompt and stores the runs |
@@ -155,6 +155,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 | `report/pdf` POST | Branded PDF (paid plans); kept 30 min in the Workers Cache API, keyed on report + branding |
 | `compare` POST | Save a competitor comparison |
 | `ai/run` | List AI providers (GET) and run visibility prompts (POST) |
+| `ai/suggest` | AI visibility: ChatGPT suggests customer questions from what the site offers (POST, nothing saved; the owner picks which to add) |
 | `google/connect` POST, `google/callback` GET | Connect Google for a saved site (`product`: gsc, ga4 or ads): returns Google's consent URL; the callback stores the encrypted token, matches the Search Console or GA4 property or the Ads account and returns to `?view=google&google=<status>` (`&gtab=analytics&google=ga4<status>` for Analytics, `&gtab=ads&google=ads<status>` for Ads) |
 | `google/status` GET | Connection, the site's properties and cached data, plus the AI insights (`?siteId=`; `&props=1` / `&ga4props=1` / `&adsprops=1` list the account's properties or Ads accounts; `&scanId=` adds a `printToken` for the owner's PDF). Without `siteId`: the connection only (account page) |
 | `google/link` POST, `google/refresh` POST, `google/disconnect` POST | Pick the property or Ads account (`product`: gsc, ga4 or ads; checked against Google's list), refetch when older than 24 hours (`force`: 6 an hour per site and product), revoke and delete everything |
@@ -230,7 +231,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 - `account/`: plan and account details.
 - `account/brand`: brand editor; lists and revokes share links. `BrandEditor` takes `embedded` (no heading, breadcrumb or back link) for the dashboard.
 - `account/sites`: agency multi-site view.
-- `account/visibility/[siteId]`: AI visibility. `visibility.tsx` `Visibility({ siteId, embedded })`: run bar and summary tiles, then the questions beside "who ChatGPT names" and the settings. `embedded` is the same tool inside the dashboard's AI visibility view.
+- `account/visibility/[siteId]`: AI visibility. `visibility.tsx` `Visibility({ siteId, embedded })`: "Check all" bar and summary tiles, then the questions beside "who ChatGPT names" and the settings. Each question row has its own Check / Check again button (`checkOne`); questions are added through a guided 3-step card (`.vis-adder`: describe what you offer → pick ChatGPT's suggestions or write your own → check the new ones), which is the empty state when there are no questions. `embedded` is the same tool inside the dashboard's AI visibility view.
 
 **Admin:** `admin/`. `admin.tsx` `AdminPanel` (tabs: Operations, Scan, Websites, Bookings, Requests, Analytics). `kit.tsx`: `Caller`, `DataTable` (search, sortable headers, show more, CSV download with formula-safe cells), `ScoresDialog` (one website’s overall, area and speed scores, issue counts and past scans), `Score`, `fmtDate`. `scan.tsx` `AdminScan` (scan a URL from the tab, copy the link, list of shared scans with opened / claimed by). `websites.tsx` `AdminWebsites` (every scanned website with its emails). `analytics.tsx` `AdminAnalytics` (number tiles that open their table; no charts). `requests.tsx`, `bookings.tsx`.
 

@@ -197,6 +197,15 @@ export function Assistant({ scan, paid, mini, onExpand, onClose }: Props) {
     if (mini) box.current?.focus();
   }, [mini]);
   useEffect(() => setCanTalk(!!recCtor()), []);
+  // Phones get the short placeholder, so the composer stays one line high.
+  const [narrow, setNarrow] = useState(false);
+  useEffect(() => {
+    const m = window.matchMedia("(max-width: 640px)");
+    const on = () => setNarrow(m.matches);
+    on();
+    m.addEventListener("change", on);
+    return () => m.removeEventListener("change", on);
+  }, []);
 
   // First open in this tab: reopen the newest saved chat for this site.
   useEffect(() => {
@@ -264,8 +273,8 @@ export function Assistant({ scan, paid, mini, onExpand, onClose }: Props) {
     const el = box.current;
     if (!el) return;
     el.style.height = "auto";
-    el.style.height = `${Math.min(el.scrollHeight, mini ? 120 : 180)}px`;
-  }, [q, mini]);
+    el.style.height = `${Math.min(el.scrollHeight, mini || narrow ? 120 : 180)}px`;
+  }, [q, mini, narrow]);
 
   const setThread = (id: string | null) => {
     tid.current = id;
@@ -652,7 +661,7 @@ export function Assistant({ scan, paid, mini, onExpand, onClose }: Props) {
             ref={box}
             rows={1}
             maxLength={1000}
-            placeholder={listening ? "Listening… speak your question" : mini ? "Ask about your site…" : "Ask about SEO, speed, accessibility, security or AI search…"}
+            placeholder={listening ? "Listening… speak your question" : narrow ? "Ask a question…" : mini ? "Ask about your site…" : "Ask about SEO, speed, accessibility, security or AI search…"}
             value={q}
             onChange={(e) => setQ(e.target.value)}
             onKeyDown={(e) => {
@@ -708,7 +717,8 @@ export function Assistant({ scan, paid, mini, onExpand, onClose }: Props) {
           </div>
         </form>
         <p className="asst-note">
-          {mini ? "AI answers from your report and our guides; check before changing your site." : "Answers are written by AI from your report and Pagelyt’s guides, so check important changes before you make them."}{" "}
+          <span className="asst-note-long">{mini ? "AI answers from your report and our guides; check before changing your site." : "Answers are written by AI from your report and Pagelyt’s guides, so check important changes before you make them."}{" "}</span>
+          <span className="asst-note-short">AI answers: check before changing your site. </span>
           {paid ? "Up to 100 questions a day." : "10 free questions a day."}
         </p>
       </div>

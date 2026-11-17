@@ -2,7 +2,7 @@
 
 import { PageLoader } from "@/app/page-loader";
 import Link from "next/link";
-import { Hash, Link2, MessageSquareText, Plus, Sparkles, TrendingUp, Users, SlidersHorizontal } from "lucide-react";
+import { Check, Hash, Link2, MessageSquareText, Play, Plus, RotateCw, Sparkles, TrendingUp, Users, SlidersHorizontal, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { visibilityScore } from "@/lib/ai/analyse";
@@ -15,6 +15,8 @@ type Run = { id: number; prompt_id: string; provider: string; at: string; mentio
 type Provider = { id: string; label: string };
 
 const list = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean).slice(0, 12);
+const STEPS = ["Describe", "Pick", "Check"] as const;
+type Pick = { q: string; on: boolean };
 
 function Trend({ points }: { points: number[] }) {
   if (points.length < 2) return null;
@@ -40,11 +42,18 @@ export function Visibility({ siteId, embedded }: { siteId: string; embedded?: bo
   const [providers, setProviders] = useState<Provider[] | null>(null); // null until we know whether ChatGPT is connected
   const [terms, setTerms] = useState("");
   const [comps, setComps] = useState("");
-  const [newPrompt, setNewPrompt] = useState("");
-  const [category, setCategory] = useState("");
   const [msg, setMsg] = useState("");
-  const [busy, setBusy] = useState("");
-  const [step, setStep] = useState<[number, number] | null>(null); // progress of "Run check now"
+  const [busy, setBusy] = useState(""); // the "Check all" label while a batch runs
+  const [step, setStep] = useState<[number, number] | null>(null); // progress of a batch of checks
+  const [running, setRunning] = useState<string[]>([]); // prompt ids being asked right now
+  // The guided "add questions" flow: 1 describe what you offer, 2 pick from ChatGPT's suggestions (or write your own), 3 check them.
+  const [adder, setAdder] = useState<0 | 1 | 2 | 3>(0); // 0 = closed
+  const [offer, setOffer] = useState("");
+  const [picks, setPicks] = useState<Pick[]>([]);
+  const [own, setOwn] = useState("");
+  const [added, setAdded] = useState<string[]>([]);
+  const [thinking, setThinking] = useState(false);
+  const [addErr, setAddErr] = useState("");
 
   const load = useCallback(async () => {
     if (!sb) return;
@@ -78,6 +87,10 @@ export function Visibility({ siteId, embedded }: { siteId: string; embedded?: bo
     });
     return () => sub.subscription.unsubscribe();
   }, [sb, load]);
+
+  useEffect(() => {
+    try { setOffer(localStorage.getItem(`vis-offer:${siteId}`) ?? ""); } catch {}
+  }, [siteId]);
 
   /* latest ChatGPT result per prompt */
   const latest = useMemo(() => {
@@ -121,55 +134,96 @@ export function Visibility({ siteId, embedded }: { siteId: string; embedded?: bo
     void load();
   };
 
-  const addPrompt = async (text: string) => {
-    const t = text.trim();
-    if (t.length < 5 || t.length > 300) return setMsg("A prompt should be 5 to 300 characters.");
-    const user = (await sb!.auth.getUser()).data.user;
-    const { error } = await sb!.from("ai_prompts").insert({ site_id: siteId, user_id: user!.id, prompt: t });
-    setMsg(error ? error.message : "");
-    setNewPrompt("");
-    void load();
+  const token = async () => (await sb!.auth.getSession()).data.session?.access_token;
+
+  /* Ask ChatGPT one question; the row shows its own spinner meanwhile. Returns false when the call failed. */
+  const checkOne = async (id: string, tk?: string) => {
+    setRunning((x) => [...x, id]);
+    try {
+      const r = await fetch("/api/ai/run", { method: "POST", headers: { authorization: `Bearer ${tk ?? (await token())}`, "content-type": "application/json" }, body: JSON.stringify({ siteId, promptId: id }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "Check failed.");
+      await load();
+      return true;
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Check failed.");
+      return false;
+    } finally {
+      setRunning((x) => x.filter((k) => k !== id));
+    }
   };
 
-  const suggest = async () => {
-    const name = site?.brand_terms[0] || site?.host.split(".")[0] || "";
-    const cat = category.trim();
-    const base = [`What is ${name}?`, `Is ${name} a good choice? What do people say about it?`, `What are the best alternatives to ${name}?`];
-    const byCat = cat ? [`Who are the best ${cat}?`, `Which ${cat} would you recommend and why?`, `What should I look for when choosing ${cat}?`] : [];
+  /* Ask several questions one after another, filling each row in as it finishes. */
+  const checkMany = async (ids: string[]) => {
+    if (!ids.length) return setMsg("Add at least one question first.");
+    setMsg("");
+    const tk = await token();
+    for (let i = 0; i < ids.length; i++) {
+      setBusy(`Asking ${i + 1} of ${ids.length}…`);
+      setStep([i, ids.length]);
+      if (!(await checkOne(ids[i], tk))) break;
+      if (i === ids.length - 1) setMsg(`Done. ${ids.length === 1 ? "The result is" : "Results are"} below.`);
+    }
+    setBusy("");
+    setStep(null);
+  };
+
+  const openAdder = () => {
+    setAddErr("");
+    setPicks([]);
+    setAdded([]);
+    setAdder(1);
+  };
+
+  /* Step 1 → 2: ChatGPT suggests questions for what the site offers. `more` adds to the list instead of replacing it. */
+  const suggest = async (more = false) => {
+    const what = offer.trim();
+    if (what.length < 3) return setAddErr("Tell us what you offer, and where.");
+    try { localStorage.setItem(`vis-offer:${siteId}`, what); } catch {}
+    setThinking(true);
+    setAddErr("");
+    try {
+      const r = await fetch("/api/ai/suggest", { method: "POST", headers: { authorization: `Bearer ${await token()}`, "content-type": "application/json" }, body: JSON.stringify({ siteId, offer: what }) });
+      const j = (await r.json().catch(() => ({}))) as { questions?: string[]; error?: string };
+      if (!r.ok || !j.questions) throw new Error(j.error || "Could not suggest questions.");
+      setPicks((x) => {
+        const base = more ? x : [];
+        const have = new Set(base.map((p) => p.q.toLowerCase()));
+        return [...base, ...j.questions!.filter((q) => !have.has(q.toLowerCase())).map((q) => ({ q, on: !more }))];
+      });
+      setAdder(2);
+    } catch (e) {
+      setAddErr(e instanceof Error ? e.message : "Could not suggest questions.");
+    } finally {
+      setThinking(false);
+    }
+  };
+
+  const addOwn = () => {
+    const t = own.trim();
+    if (t.length < 5 || t.length > 300) return setAddErr("A question should be 5 to 300 characters.");
+    setAddErr("");
+    setPicks((x) => (x.some((p) => p.q.toLowerCase() === t.toLowerCase()) ? x : [...x, { q: t, on: true }]));
+    setOwn("");
+  };
+
+  /* Step 2 → 3: save the ticked questions. */
+  const addPicked = async () => {
     const have = new Set(prompts.map((p) => p.prompt.toLowerCase()));
+    const chosen = picks.filter((p) => p.on && !have.has(p.q.toLowerCase())).map((p) => p.q);
+    if (!chosen.length) return setAddErr("Tick at least one question.");
     const user = (await sb!.auth.getUser()).data.user;
-    const rows = [...base, ...byCat].filter((t) => !have.has(t.toLowerCase())).map((prompt) => ({ site_id: siteId, user_id: user!.id, prompt }));
-    if (rows.length) await sb!.from("ai_prompts").insert(rows);
-    setMsg(rows.length ? `Added ${rows.length} suggested prompts.` : "Those prompts are already there.");
+    const { data, error } = await sb!.from("ai_prompts").insert(chosen.map((prompt) => ({ site_id: siteId, user_id: user!.id, prompt }))).select("id");
+    if (error) return setAddErr(error.message);
+    setAdded(((data as { id: string }[] | null) ?? []).map((r) => r.id));
+    setAddErr("");
+    setAdder(3);
     void load();
   };
 
   const removePrompt = async (id: string) => {
     await sb!.from("ai_prompts").delete().eq("id", id);
     void load();
-  };
-
-  const runAll = async () => {
-    if (!prompts.length) return setMsg("Add at least one prompt first.");
-    setBusy("run");
-    setMsg("");
-    try {
-      const token = (await sb!.auth.getSession()).data.session?.access_token;
-      for (let i = 0; i < prompts.length; i++) {
-        setBusy(`Asking question ${i + 1} of ${prompts.length}…`);
-        setStep([i, prompts.length]);
-        const r = await fetch("/api/ai/run", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ siteId, promptId: prompts[i].id }) });
-        const j = await r.json();
-        if (!r.ok) throw new Error(j.error || "Run failed.");
-        await load();
-      }
-      setMsg("Done. Results below are from this run.");
-    } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Run failed.");
-    } finally {
-      setBusy("");
-      setStep(null);
-    }
   };
 
   if (!sb) return <div className="panel auth-card"><h1>Accounts aren’t switched on yet</h1><p className="panel-note">Add your Supabase keys to enable AI visibility. See DEPLOY.md.</p></div>;
@@ -190,8 +244,8 @@ export function Visibility({ siteId, embedded }: { siteId: string; embedded?: bo
           </p>
         </div>
         <div className="vis-run">
-          <button type="button" className="dash-btn primary" onClick={runAll} disabled={!!busy || !providers?.length || prompts.length === 0}>
-            {busy ? (busy === "run" ? "Starting…" : busy) : "Run check now"}
+          <button type="button" className="dash-btn primary" onClick={() => void checkMany(prompts.map((p) => p.id))} disabled={!!busy || running.length > 0 || !providers?.length || prompts.length === 0}>
+            {busy || (prompts.length > 1 ? `Check all ${prompts.length} questions` : "Check now")}
           </button>
           <small>{lastRun ? `Last checked ${new Date(lastRun).toLocaleDateString("en-GB", { dateStyle: "medium" })}` : "Not checked yet"}{site.ai_track && " · weekly"}</small>
         </div>
@@ -238,64 +292,129 @@ export function Visibility({ siteId, embedded }: { siteId: string; embedded?: bo
               <h2>Questions people ask</h2>
               <p className="panel-note">What your customers might type into ChatGPT.</p>
             </div>
-            <span className="vis-count">{prompts.length} question{prompts.length === 1 ? "" : "s"}</span>
+            {prompts.length > 0 && adder === 0 ? (
+              <button type="button" className="dash-btn vis-add-btn" onClick={openAdder}><Plus aria-hidden="true" />Add questions</button>
+            ) : (
+              <span className="vis-count">{prompts.length} question{prompts.length === 1 ? "" : "s"}</span>
+            )}
           </div>
-          {prompts.length === 0 ? (
-            <ul className="vis-empty sc-items">
-              <li style={{ ["--i" as string]: 0 }}>
-                <span className="sc-ic" aria-hidden="true"><Plus /></span>
-                <span><b>Add your own</b><small>Type a question a customer might ask, like &ldquo;Who are the best plumbers in Pune?&rdquo;</small></span>
-              </li>
-              <li style={{ ["--i" as string]: 1 }}>
-                <span className="sc-ic" aria-hidden="true"><Sparkles /></span>
-                <span><b>Or let us suggest some</b><small>Tell us what you offer and where, and we&rsquo;ll add a starter set.</small></span>
-              </li>
-            </ul>
-          ) : (
+
+          {(adder > 0 || prompts.length === 0) && (
+            <div className="vis-adder" role="group" aria-label="Add questions">
+              <ol className="vis-steps">
+                {STEPS.map((t, i) => {
+                  const n = (adder || 1) as number;
+                  return (
+                    <li key={t} className={i + 1 < n ? "done" : i + 1 === n ? "now" : ""} aria-current={i + 1 === n ? "step" : undefined}>
+                      <span className="vs-n">{i + 1 < n ? <Check aria-hidden="true" /> : i + 1}</span>
+                      <span className="vs-t">{t}</span>
+                    </li>
+                  );
+                })}
+              </ol>
+              {prompts.length > 0 && <button type="button" className="vis-adder-x" aria-label="Close" onClick={() => setAdder(0)}><X /></button>}
+
+              {(adder || 1) === 1 && (
+                <form className="vs-body" onSubmit={(e) => { e.preventDefault(); void suggest(); }}>
+                  <label htmlFor="v-offer"><b>What do you offer, and where?</b><small>ChatGPT turns this into questions your customers might ask.</small></label>
+                  <div className="vis-add">
+                    <input id="v-offer" className="fnd-search" placeholder="e.g. emergency plumbers in Pune" value={offer} onChange={(e) => setOffer(e.target.value)} maxLength={200} disabled={thinking} />
+                    <button className="dash-btn primary" type="submit" disabled={thinking || offer.trim().length < 3 || !providers?.length}>
+                      {thinking ? <><span className="live-spin" aria-hidden="true" />Thinking…</> : <><Sparkles aria-hidden="true" />Suggest questions</>}
+                    </button>
+                  </div>
+                  <button type="button" className="fnd-link vs-skip" onClick={() => { setAddErr(""); setAdder(2); }}>Skip, I&rsquo;ll write my own</button>
+                </form>
+              )}
+
+              {adder === 2 && (
+                <div className="vs-body">
+                  <p className="vs-lead"><b>Pick the questions to track</b><small>{picks.length ? `${picks.filter((p) => p.on).length} of ${picks.length} ticked.` : "Write the questions your customers might ask."}</small></p>
+                  {picks.length > 0 && (
+                    <ul className="vs-picks">
+                      {picks.map((p, i) => (
+                        <li key={p.q}>
+                          <label className={p.on ? "on" : ""}>
+                            <input type="checkbox" checked={p.on} onChange={(e) => setPicks((x) => x.map((y, k) => (k === i ? { ...y, on: e.target.checked } : y)))} />
+                            <span className="vs-box" aria-hidden="true"><Check /></span>
+                            <span>{p.q}</span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <form className="vis-add" onSubmit={(e) => { e.preventDefault(); addOwn(); }}>
+                    <label className="sr-only" htmlFor="v-own">Write your own question</label>
+                    <input id="v-own" className="fnd-search" placeholder="Write your own, e.g. Who are the best plumbers in Pune?" value={own} onChange={(e) => setOwn(e.target.value)} maxLength={300} />
+                    <button className="dash-btn" type="submit" disabled={own.trim().length < 5}><Plus aria-hidden="true" />Add</button>
+                  </form>
+                  <div className="vs-foot">
+                    <button type="button" className="fnd-link" onClick={() => setAdder(1)}>← Back</button>
+                    {offer.trim().length >= 3 && picks.length > 0 && (
+                      <button type="button" className="fnd-link" onClick={() => void suggest(true)} disabled={thinking}>{thinking ? "Thinking…" : "More ideas"}</button>
+                    )}
+                    <button type="button" className="dash-btn primary" onClick={() => void addPicked()} disabled={!picks.some((p) => p.on)}>
+                      Add {picks.filter((p) => p.on).length || ""} question{picks.filter((p) => p.on).length === 1 ? "" : "s"} →
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {adder === 3 && (
+                <div className="vs-body vs-done">
+                  <p className="vs-lead"><b>{added.length} question{added.length === 1 ? "" : "s"} added</b><small>Ask ChatGPT now to see whether it names {site.host}. About 10 seconds each.</small></p>
+                  <div className="vs-foot">
+                    <button type="button" className="fnd-link" onClick={() => setAdder(0)}>Later</button>
+                    <button type="button" className="dash-btn primary" disabled={!!busy || !providers?.length} onClick={() => { const ids = added; setAdder(0); void checkMany(ids); }}>
+                      <Play aria-hidden="true" />Check {added.length === 1 ? "it" : `these ${added.length}`} now
+                    </button>
+                  </div>
+                </div>
+              )}
+              {addErr && <p className="lm-err" role="alert">{addErr}</p>}
+            </div>
+          )}
+
+          {prompts.length > 0 && (
             <ul className="vis-prompts">
-              {prompts.map((p) => (
-                <li key={p.id}>
-                  <details>
-                    <summary>
-                      <span className="vp-q">{p.prompt}</span>
-                      <span className="vp-cells">
+              {prompts.map((p) => {
+                const r = latest.get(`${p.id}:${PROVIDER.id}`);
+                const asking = running.includes(p.id);
+                const state = asking ? "run" : !r ? "na" : r.error ? "err" : r.mentioned ? (r.cited ? "cited" : "yes") : "no";
+                const text = { run: "Asking…", na: "Not checked", err: "Error", cited: "Named and cited", yes: "Named", no: "Not named" }[state];
+                return (
+                  <li key={p.id} className={`vp vp-s-${state}`}>
+                    <details>
+                      <summary>
+                        <span className="vp-q">{p.prompt}</span>
+                        <span className="vp-cells">
+                          <span className={`vc vc-${state}`} title={`${PROVIDER.label}: ${text}`}>{asking && <span className="live-spin" aria-hidden="true" />}{text}</span>
+                        </span>
+                      </summary>
+                      <div className="vp-body">
                         {cols.map((c) => {
-                          const r = latest.get(`${p.id}:${c.id}`);
-                          const state = !r ? "na" : r.error ? "err" : r.mentioned ? (r.cited ? "cited" : "yes") : "no";
-                          const text = { na: "Not run", err: "Error", cited: "Named and cited", yes: "Named", no: "Not named" }[state];
-                          return <span key={c.id} className={`vc vc-${state}`} title={`${c.label}: ${text}`}>{text}</span>;
+                          const rr = latest.get(`${p.id}:${c.id}`);
+                          if (!rr) return <p key={c.id} className="panel-note">Not checked yet. Press Check to see ChatGPT’s answer.</p>;
+                          return (
+                            <div key={c.id} className="vp-ans">
+                              <h3>{c.label}’s answer <small>{new Date(rr.at).toLocaleDateString("en-GB", { dateStyle: "medium" })}</small></h3>
+                              {rr.error ? <p className="lm-err">{rr.error}</p> : <p>{(rr.answer ?? "").slice(0, 700)}{(rr.answer ?? "").length > 700 ? "…" : ""}</p>}
+                              {rr.citations.length > 0 && <p className="vp-src">Sources: {rr.citations.slice(0, 5).map((u) => <a key={u} href={u} target="_blank" rel="noopener noreferrer">{u.replace(/^https?:\/\/(www\.)?/, "").slice(0, 40)}</a>)}</p>}
+                            </div>
+                          );
                         })}
-                      </span>
-                    </summary>
-                    <div className="vp-body">
-                      {cols.map((c) => {
-                        const r = latest.get(`${p.id}:${c.id}`);
-                        if (!r) return <p key={c.id} className="panel-note">Not checked yet. Run a check to see ChatGPT’s answer.</p>;
-                        return (
-                          <div key={c.id} className="vp-ans">
-                            <h3>{c.label}’s answer <small>{new Date(r.at).toLocaleDateString("en-GB", { dateStyle: "medium" })}</small></h3>
-                            {r.error ? <p className="lm-err">{r.error}</p> : <p>{(r.answer ?? "").slice(0, 700)}{(r.answer ?? "").length > 700 ? "…" : ""}</p>}
-                            {r.citations.length > 0 && <p className="vp-src">Sources: {r.citations.slice(0, 5).map((u) => <a key={u} href={u} target="_blank" rel="noopener noreferrer">{u.replace(/^https?:\/\/(www\.)?/, "").slice(0, 40)}</a>)}</p>}
-                          </div>
-                        );
-                      })}
-                      <button type="button" className="fnd-link" onClick={() => removePrompt(p.id)}>Remove this question</button>
-                    </div>
-                  </details>
-                </li>
-              ))}
+                        <button type="button" className="fnd-link" onClick={() => removePrompt(p.id)}>Remove this question</button>
+                      </div>
+                    </details>
+                    <button type="button" className="vp-run" onClick={() => void checkOne(p.id)} disabled={asking || !!busy || !providers?.length} aria-label={`${r ? "Check again" : "Check"}: ${p.prompt}`}>
+                      {asking ? <span className="live-spin" aria-hidden="true" /> : r ? <RotateCw aria-hidden="true" /> : <Play aria-hidden="true" />}
+                      <span>{r ? "Check again" : "Check"}</span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
-          <form className="vis-add" onSubmit={(e) => { e.preventDefault(); void addPrompt(newPrompt); }}>
-            <label className="sr-only" htmlFor="v-new">New question</label>
-            <input id="v-new" className="fnd-search" placeholder="e.g. Who are the best plumbers in Pune?" value={newPrompt} onChange={(e) => setNewPrompt(e.target.value)} maxLength={300} />
-            <button className="dash-btn primary" type="submit" disabled={newPrompt.trim().length < 5}>Add</button>
-          </form>
-          <div className="vis-add">
-            <label className="sr-only" htmlFor="v-cat">What you offer, and where</label>
-            <input id="v-cat" className="fnd-search" placeholder="What you offer, e.g. emergency plumbers in Pune" value={category} onChange={(e) => setCategory(e.target.value)} />
-            <button className="dash-btn" type="button" onClick={suggest}>Suggest questions</button>
-          </div>
         </section>
 
         <aside className="vis-side">

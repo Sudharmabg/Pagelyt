@@ -179,13 +179,13 @@ export default function Home({ guides = [] }: { guides?: GuideCard[] }) {
             </p>
             <Link href="/features/google-integrations" className="hero-gchip">
               <span className="hero-gchip-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 20V10h3v10H5zm5.5 0V4h3v16h-3zM16 20v-7h3v7h-3z" /></svg></span>
-              <span><b>Works with Google</b> · Search Console, GA4 &amp; Google Ads</span>
-              <span className="hero-mon-go" aria-hidden="true">→</span>
+              <span className="hero-pill-t"><b>Works with Google</b><span className="hero-pill-sep"> · </span><span>Search Console, GA4 &amp; Google Ads</span></span>
+              <span className="hero-mon-go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
             </Link>
             <a href="#monitoring" className="hero-mon">
-              <span className="hmon-live" aria-hidden="true" />
-              <span><b>Rescanned every week, free</b> · email alerts if anything drops</span>
-              <span className="hero-mon-go" aria-hidden="true">→</span>
+              <span className="hero-gchip-ic hero-mon-ic" aria-hidden="true"><span className="hmon-live" /></span>
+              <span className="hero-pill-t"><b>Rescanned every week, free</b><span className="hero-pill-sep"> · </span><span>email alerts if anything drops</span></span>
+              <span className="hero-mon-go" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6" /></svg></span>
             </a>
           </div>
 

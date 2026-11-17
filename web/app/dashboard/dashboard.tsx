@@ -445,6 +445,14 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const legacyTool = params.get("view") === "tools" ? params.get("tool") : null;
   const asked = legacyTool && isTool(legacyTool) ? legacyTool : (params.get("view") ?? "overview");
   const view: View = order.includes(asked as View) ? (asked as View) : "overview";
+  // On phones the chat widget is a sheet over the page: hold the page still behind it so only the chat scrolls.
+  const chatSheet = chat && access === "owner" && view !== "assistant";
+  useEffect(() => {
+    if (!chatSheet || !window.matchMedia("(max-width: 640px)").matches) return;
+    const root = document.documentElement;
+    root.classList.add("asst-lock");
+    return () => root.classList.remove("asst-lock");
+  }, [chatSheet]);
   const setView = useCallback((v: View) => {
     const q = new URLSearchParams(window.location.search);
     q.delete("tool");
@@ -1151,7 +1159,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           }
         />
       </ActionModal>
-      <ActionModal open={modal === "actions"} onClose={() => setModal(null)} icon="dots" title="Report actions" sub={scan.host}>
+      <ActionModal open={modal === "actions"} onClose={() => setModal(null)} icon="dots" title="Report actions" sub={scan.host} className="amodal-acts">
         <Tile icon="search" title="Search the report" text="Jump to any area, finding or action." onClick={() => { setModal(null); setPalette(true); }} />
         <Tile icon="share" title="Share" text="Send a view-only link or a branded report." onClick={() => { setModal(null); openShare(); }} />
         <Tile icon="download" title={pdfBusy ? "Preparing PDF…" : "Export"} text="PDF, CSV and other copies of this report." onClick={() => setModal("export")} busy={pdfBusy} />
