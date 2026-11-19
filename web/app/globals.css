@@ -150,6 +150,29 @@ h4 {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+/* Hidden until a keyboard user tabs onto it. */
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  z-index: 1000;
+  padding: 10px 16px;
+  border-radius: 10px;
+  background: var(--ink);
+  color: var(--lime);
+  font-weight: 600;
+  text-decoration: none;
+  transform: translateY(-160%);
+}
+.skip-link:focus-visible {
+  transform: none;
+  outline: 2px solid var(--lime);
+  outline-offset: 2px;
+}
+main:focus,
+[data-skip-target]:focus {
+  outline: none;
+}
 
 /* ---------- reveal ---------- */
 .js [data-r] {
@@ -752,8 +775,15 @@ h4 {
   gap: 18px;
   margin-bottom: 14px;
 }
-.score-head h3 {
+/* A <p>, not a heading: the hero mock comes before the page's first h2. Styled like the h3 it replaced. */
+.score-head .score-verdict {
+  font-family: var(--fd);
   font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.08;
+  text-wrap: balance;
+  color: var(--n800);
 }
 .step-line {
   margin-top: 4px;

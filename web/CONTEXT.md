@@ -251,6 +251,9 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 - `blog-data.ts` + `blog-posts-more.ts` + `blog-posts-google.ts`: blog posts. `GOOGLE_POSTS` (tag `Google guides`) are the Search Console, GA4 and Google Ads setup guides (setup, connecting to Pagelyt, uses, tips); the assistant reads every post as a source.
 - `blog/`: blog pages, with `rich.tsx` and `toc.tsx`.
 - `tools-list.ts`: list of free tools for the Features page, built from `tools/catalog.ts`.
+- `.well-known/security.txt/route.ts`: serves /.well-known/security.txt (RFC 9116) with the contact email and page; Expires is always about six months ahead.
+- `skip-link.tsx`: `SkipLink`, the first element in the root layout. Focuses the first block in `<main>` after any nav, so pages need no id="main".
+- `llms.txt/route.ts`: serves /llms.txt (static Markdown guide for AI assistants), built from the same features, tools, blog and fix-guide data as the sitemap.
 - `site-config.ts`: name, URL and contact. `PRICING_ON` (false for now) hides every pricing link, drops /pricing from the sitemap and redirects /pricing to the home page.
 - Pages: `about`, `pricing`, `faq`, `features`, `fix`, `how-it-works` (its four steps stack as sticky cards on wide screens), `use-cases`, `consultation`, `contact`, `privacy`, `terms`, `tools`, `bot` (what PagelytBot fetches; linked from the scanner user agent).
 - `/consultation`: session cards (`sessions.tsx`, "Choose" fires `SESSION_EVENT`), `consultation/booker.tsx` `Booker` (session, day strip and times in the visitor's timezone, details prefilled when signed in, Turnstile when not; pay later by invoice), how booking works, who it's for, founder card and FAQ (FAQPage JSON-LD). `/consultation/manage?id&t` (`manage.tsx` `ManageBooking`) shows and cancels a booking. Styles in the "consultation booking" block of globals.css.

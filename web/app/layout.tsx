@@ -8,6 +8,7 @@ import { RevealHost } from "./reveal-host";
 import { Toaster } from "./toast";
 import { TooltipHost } from "./tooltip";
 import { CardFx } from "./card-fx";
+import { SkipLink } from "./skip-link";
 import { SITE_NAME, SITE_URL } from "./site-config";
 
 const display = Archivo({
@@ -23,7 +24,7 @@ const body = Inter({
 
 const TITLE = "Free SEO, GEO, Speed & Accessibility Audit + Google Data";
 const DESCRIPTION =
-  "Free AI website audit from one URL: SEO, GEO for AI search, speed and Core Web Vitals, accessibility and security, plus Search Console, GA4 and Google Ads data on every fix.";
+  "Free AI website audit: SEO, GEO for AI search, speed, accessibility and security, with Search Console, GA4 and Google Ads data on every fix.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
@@ -46,6 +47,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className={`${display.variable} ${body.variable}`}>
       <body>
+        <SkipLink />
         <Suspense fallback={null}>
           <ScrollTop />
         </Suspense>

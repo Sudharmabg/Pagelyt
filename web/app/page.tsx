@@ -2,7 +2,7 @@ import Home from "./home";
 import { POSTS } from "./blog-data";
 import { PLANS } from "./content";
 import { JsonLd } from "./json-ld";
-import { SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "./site-config";
+import { CONTACT_EMAIL, SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "./site-config";
 
 export default function Page() {
   return (
@@ -11,7 +11,14 @@ export default function Page() {
         data={{
           "@context": "https://schema.org",
           "@graph": [
-            { "@type": "Organization", name: SITE_NAME, url: SITE_URL, slogan: SITE_TAGLINE },
+            {
+              "@type": "Organization",
+              name: SITE_NAME,
+              url: SITE_URL,
+              slogan: SITE_TAGLINE,
+              logo: `${SITE_URL}/logo.png`,
+              contactPoint: { "@type": "ContactPoint", contactType: "customer support", email: CONTACT_EMAIL, url: `${SITE_URL}/contact` },
+            },
             { "@type": "WebSite", name: SITE_NAME, url: SITE_URL },
             {
               "@type": "SoftwareApplication",

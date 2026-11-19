@@ -136,7 +136,7 @@ export function ScanPreview({
             <Ring v={scanning ? 35 : overall} size={104} stroke={11} text={scanning ? "…" : String(overall)} />
             <div>
               <div className="mock-sub">Website Intelligence Score</div>
-              <h3>{scanning ? "Scanning your website" : verdict}</h3>
+              <p className="score-verdict">{scanning ? "Scanning your website" : verdict}</p>
               <div className="step-line">{scanning ? stepText : phase === "done" ? "Live results for your site" : "Preview using sample data"}</div>
             </div>
           </div>

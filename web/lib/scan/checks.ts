@@ -74,7 +74,8 @@ export function runChecks(ctx: Ctx): Finding[] {
   const enc = hdr("content-encoding");
   if (!enc && page.bytes > 10_000) add("performance", "medium", "no-compression", "HTML is not compressed", "Uncompressed pages take longer to download, especially on mobile.", "Enable gzip or Brotli compression on your server.");
   if (page.bytes > 500_000) add("performance", "medium", "heavy-html", `Very large HTML document (${Math.round(page.bytes / 1024)} KB)`, "Large documents slow parsing and rendering.", "Reduce inline scripts, styles and repeated markup.");
-  const blocking = $("head script[src]:not([async]):not([defer]):not([type=module])").length;
+  // nomodule scripts (legacy polyfills) are skipped by every modern browser, so they never block.
+  const blocking = $("head script[src]:not([async]):not([defer]):not([type=module]):not([nomodule])").length;
   if (blocking > 0) add("performance", blocking > 3 ? "medium" : "low", "render-blocking", `${blocking} render-blocking script${blocking > 1 ? "s" : ""} in <head>`, "Blocking scripts delay the first paint.", "Add defer or async to scripts that are not needed immediately.");
   const noLazy = $("img").filter((i, el) => i > 2 && $(el).attr("loading") !== "lazy").length;
   if (noLazy > 5) add("performance", "low", "no-lazy", `${noLazy} images are not lazy-loaded`, "Offscreen images compete with content that matters.", 'Add loading="lazy" to images below the fold.');
