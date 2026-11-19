@@ -9,6 +9,7 @@ import { Toaster } from "./toast";
 import { TooltipHost } from "./tooltip";
 import { CardFx } from "./card-fx";
 import { SkipLink } from "./skip-link";
+import { HireNudge } from "./hire-nudge";
 import { SITE_NAME, SITE_URL } from "./site-config";
 
 const display = Archivo({
@@ -57,6 +58,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <TooltipHost />
         <CardFx />
         <Toaster />
+        <HireNudge />
       </body>
     </html>
   );

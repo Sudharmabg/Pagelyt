@@ -641,3 +641,6 @@ export const STAGES = [
     more: "Compare scans, spot regressions early and watch your score climb as fixes land.",
   },
 ];
+
+/** What the signed-in "Work with me" modal (`hire-nudge.tsx`) offers; stored in a freelance request's `session`. */
+export const FREELANCE_SERVICES = ["Build a new website", "Fix my website", "Collaborate on a project"] as const;

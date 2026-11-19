@@ -52,6 +52,7 @@ export function AdminRequests({ call }: { call: Caller }) {
         <li className={fresh ? "bad" : undefined}><b>{fresh}</b><span>New requests</span></li>
         <li><b>{rows.filter((r) => r.kind === "consultation").length}</b><span>Consultations</span></li>
         <li><b>{rows.filter((r) => r.kind === "contact").length}</b><span>Messages</span></li>
+        <li><b>{rows.filter((r) => r.kind === "freelance").length}</b><span>Freelance</span></li>
       </ul>
       <p className="acct-msg" role="status" aria-live="polite">{msg}</p>
       <div className="ag-tools">
@@ -76,7 +77,7 @@ export function AdminRequests({ call }: { call: Caller }) {
               <tbody>
                 {list.map((r) => (
                   <tr key={r.id} className={r.status === "new" ? "is-new" : undefined}>
-                    <td data-label="Received">{fmt(r.created_at)}<span className="ag-sub">{r.kind === "consultation" ? "Consultation" : "Contact"}</span></td>
+                    <td data-label="Received">{fmt(r.created_at)}<span className="ag-sub">{r.kind === "consultation" ? "Consultation" : r.kind === "freelance" ? "Freelance" : "Contact"}</span></td>
                     <td data-label="From">
                       <strong>{r.name}</strong>
                       <span className="ag-sub"><a className="fnd-link" href={`mailto:${r.email}`}>{r.email}</a></span>

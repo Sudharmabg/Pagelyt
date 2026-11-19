@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { useSignedInUser } from "@/lib/use-signed-in";
 import { SignInLink } from "@/app/sign-in-modal";
+import { openHire } from "./hire-nudge";
 
 /* The header's account control. Visitors get an outlined "Sign in". Once signed in it shows who is signed in
    (initial, name, "Signed in") and opens a menu with the email, Account and Log out. */
@@ -57,6 +58,9 @@ export function AuthLink({ compact = false }: { compact?: boolean }) {
             Signed in as <strong>{user.email}</strong>
           </p>
           <Link role="menuitem" href="/account" onClick={() => setOpen(false)}>Account</Link>
+          <button role="menuitem" type="button" className="acct-hire" onClick={() => { setOpen(false); openHire(box.current?.querySelector(".acct-btn")); }}>
+            Hire the developer <span aria-hidden="true">👋</span>
+          </button>
           <button role="menuitem" type="button" onClick={logOut}>Log out</button>
         </div>
       )}

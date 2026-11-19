@@ -1,6 +1,7 @@
 import { clientIp, userFromRequest, verifyTurnstile } from "@/lib/auth";
 import { guard } from "@/lib/ratelimit";
 import { checkRequest, saveRequest } from "@/lib/requests";
+import { sendFreelanceToFounder } from "@/lib/email";
 
 /* Consultation and contact forms. Stores the request in Supabase for the admin panel to follow up. */
 export async function POST(req: Request) {
@@ -26,6 +27,8 @@ export async function POST(req: Request) {
   if ("error" in v) return Response.json({ error: v.error }, { status: 400 });
   try {
     await saveRequest(v.row);
+    // Freelance enquiries also email Sudharma (when emails are on). A failed email never fails the request.
+    if (v.row.kind === "freelance") await sendFreelanceToFounder(v.row).catch(() => false);
     return Response.json({ ok: true });
   } catch {
     return Response.json({ error: "We couldn't send that just now. Please try again, or email us instead." }, { status: 503 });

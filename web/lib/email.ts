@@ -126,3 +126,20 @@ export async function sendBookingToFounder(b: BookingMail, ics: string, kind: "n
   ].join("\n");
   return sendEmail({ from: bookingFrom(), to: contact(), subject: `${kind === "new" ? "Booking" : "Cancelled"}: ${b.session.split(" · ")[0]}, ${when.split(" (")[0]}`, text, replyTo: b.email, attachments: [{ filename: "booking.ics", content: b64(ics), contentType: "text/calendar" }] });
 }
+
+/** A heads-up to Sudharma for each freelance enquiry from the signed-in "Work with me" modal. */
+export async function sendFreelanceToFounder(r: { name: string; email: string; session: string | null; website: string | null; message: string | null }): Promise<boolean> {
+  const text = [
+    "New freelance enquiry from Pagelyt.",
+    "",
+    `Service: ${r.session ?? "-"}`,
+    `Name: ${r.name}`,
+    `Email: ${r.email}`,
+    `Website: ${r.website ?? "-"}`,
+    "",
+    r.message ? r.message : "No message.",
+    "",
+    "It is also in /admin (Requests). Reply to this email to answer them directly.",
+  ].join("\n");
+  return sendEmail({ from: bookingFrom(), to: contact(), subject: `Freelance: ${r.session ?? "enquiry"} from ${headerName(r.name)}`, text, replyTo: r.email });
+}

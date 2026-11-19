@@ -1,10 +1,10 @@
 import { live, rest } from "./scan/store";
-import { SESSIONS } from "@/app/content";
+import { FREELANCE_SERVICES, SESSIONS } from "@/app/content";
 
 /* Consultation requests and contact messages (table `requests`, migration 0008; service role only).
    Without Supabase env vars they are kept in memory, so `npm run dev` works with no setup. */
 
-export type RequestKind = "consultation" | "contact";
+export type RequestKind = "consultation" | "contact" | "freelance";
 export const REQUEST_STATUSES = ["new", "contacted", "scheduled", "closed"] as const;
 export type RequestStatus = (typeof REQUEST_STATUSES)[number];
 
@@ -34,12 +34,13 @@ const clip = (v: unknown, max: number) => {
 
 /** Checks and normalises a submitted form. Returns the row to store, or a message for the visitor. */
 export function checkRequest(body: Record<string, unknown>, userId: string | null): { row: NewRequest } | { error: string } {
-  const kind: RequestKind = body.kind === "consultation" ? "consultation" : "contact";
+  const kind: RequestKind = body.kind === "consultation" ? "consultation" : body.kind === "freelance" ? "freelance" : "contact";
   const name = clip(body.name, 100);
   const email = clip(body.email, 254)?.toLowerCase() ?? null;
   if (!name || !email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Please enter your name and a valid email address." };
-  const session = kind === "consultation" ? clip(body.session, 120) : null;
+  const session = kind === "contact" ? null : clip(body.session, 120);
   if (kind === "consultation" && (!session || !SESSIONS.includes(session))) return { error: "Please choose a session." };
+  if (kind === "freelance" && (!session || !(FREELANCE_SERVICES as readonly string[]).includes(session))) return { error: "Please pick what you need help with." };
   const message = clip(body.message, 3000);
   if (kind === "contact" && !message) return { error: "Please write a short message." };
   return {
