@@ -2,7 +2,7 @@ import Home from "./home";
 import { POSTS } from "./blog-data";
 import { PLANS } from "./content";
 import { JsonLd } from "./json-ld";
-import { CONTACT_EMAIL, SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL } from "./site-config";
+import { CONTACT_EMAIL, SITE_DESCRIPTION, SITE_NAME, SITE_TAGLINE, SITE_URL, SOCIAL_PROFILES } from "./site-config";
 
 export default function Page() {
   return (
@@ -14,7 +14,9 @@ export default function Page() {
             {
               "@type": "Organization",
               name: SITE_NAME,
+              alternateName: "Pagelyt.dev",
               url: SITE_URL,
+              sameAs: SOCIAL_PROFILES,
               slogan: SITE_TAGLINE,
               logo: `${SITE_URL}/logo.png`,
               contactPoint: { "@type": "ContactPoint", contactType: "customer support", email: CONTACT_EMAIL, url: `${SITE_URL}/contact` },

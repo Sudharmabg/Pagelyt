@@ -1,4 +1,6 @@
 export const SITE_NAME = "Pagelyt";
+/** Official profiles, listed as `sameAs` in the Organization schema so search and AI tools tie them to Pagelyt. */
+export const SOCIAL_PROFILES = ["https://www.linkedin.com/company/pagelyt", "https://www.instagram.com/pagelyt.dev/"];
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://pagelyt.dev").replace(/\/$/, "");
 export const SITE_TAGLINE = "Illuminate Your Website.";
 export const SITE_DESCRIPTION =
