@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ArrowRight, ChartColumn, Eye, Megaphone, MousePointerClick, Plug, Search, Target, Wallet, type LucideIcon } from "lucide-react";
+import { ArrowRight, ChartColumn, Eye, Megaphone, MousePointerClick, Plug, Search, Target, TrendingUp, Wallet, type LucideIcon } from "lucide-react";
 import { findingKey } from "@/lib/scan/score";
 import { MODULE_NAMES, type Finding } from "@/lib/scan/types";
 import { trafficMap } from "@/lib/google/gsc-insights";
@@ -112,11 +112,11 @@ function StatusCard({ i, icon: Icon, name, on, step, detail, value, onOpen }: { 
     <li className={on ? "on" : "off"} style={{ ["--i" as string]: i }}>
       <div className="gd-status-top">
         <span className="sc-ic" aria-hidden="true"><Icon /></span>
-        <div className="gd-status-name">
-          <h3>{name}</h3>
-          <p className="gd-status-d" title={detail}>{detail}</p>
-        </div>
-        <span className={`gd-pill${on ? " ok" : ""}`}>{on ? "Connected" : step}</span>
+        <span className={`gd-pill${on ? " ok" : ""}`}><i aria-hidden="true" />{on ? "Connected" : step}</span>
+      </div>
+      <div className="gd-status-name">
+        <h3>{name}</h3>
+        <p className="gd-status-d" title={detail}>{detail}</p>
       </div>
       {value ? (
         <div className="gd-status-num">
@@ -309,19 +309,26 @@ function AiTeaser({ g, onAi }: { g: GoogleState; onAi: (t?: AiTab) => void }) {
         </div>
       </div>
       {all.length > 0 && (
-        <ul className="gd-teaser">
+        <ol className="gd-teaser">
           {all.slice(0, 3).map((i, n) => {
             const m = i.metric ? METRIC[i.metric] : null;
             const MIc = m?.icon;
+            const gain = i.gain && !/hard to estimate/i.test(i.gain) ? i.gain : null;
             return (
-              <li key={i.from + i.title + n} className={`p-${i.priority}`}>
-                {m && MIc ? <span className={`gd-metric m-${i.metric}`}><MIc aria-hidden="true" />{m.label}</span> : null}
-                <h3>{i.title}</h3>
-                {i.gain && !/hard to estimate/i.test(i.gain) && <p className="gd-gain-t">{i.gain}</p>}
+              <li key={i.from + i.title + n} className={`p-${i.priority}`} style={{ ["--i" as string]: n }}>
+                <button type="button" className="gd-win" onClick={() => onAi(i.from)}>
+                  <span className="gd-win-top">
+                    <span className="gd-win-n" aria-hidden="true">{n + 1}</span>
+                    {m && MIc ? <span className="gd-metric"><MIc aria-hidden="true" />{m.label}</span> : null}
+                  </span>
+                  <span className="gd-win-t">{i.title}</span>
+                  {gain && <span className="gd-win-gain"><TrendingUp aria-hidden="true" />{gain}</span>}
+                  <span className="gd-win-go">See the steps <ArrowRight aria-hidden="true" /></span>
+                </button>
               </li>
             );
           })}
-        </ul>
+        </ol>
       )}
       <div className="gd-teaser-foot">
         <button type="button" className="dash-btn primary" onClick={() => onAi(combined ? "all" : undefined)}>

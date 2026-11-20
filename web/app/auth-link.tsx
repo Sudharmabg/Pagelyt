@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { useSignedInUser } from "@/lib/use-signed-in";
 import { SignInLink } from "@/app/sign-in-modal";
@@ -15,6 +15,17 @@ export function AuthLink({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  const pop = useRef<HTMLDivElement>(null);
+
+  // The menu lines up with the avatar's right edge. On phones the avatar sits mid-header, so push the menu right
+  // until its left edge clears the 16px gutter.
+  useLayoutEffect(() => {
+    const el = pop.current;
+    if (!open || !el) return;
+    el.style.translate = "";
+    const left = el.getBoundingClientRect().left;
+    if (left < 16) el.style.translate = `${16 - left}px 0`;
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -53,7 +64,7 @@ export function AuthLink({ compact = false }: { compact?: boolean }) {
         </span>
       </button>
       {open && (
-        <div className="acct-pop" role="menu">
+        <div className="acct-pop" role="menu" ref={pop}>
           <p className="acct-mail">
             Signed in as <strong>{user.email}</strong>
           </p>

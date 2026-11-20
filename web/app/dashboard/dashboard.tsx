@@ -43,6 +43,7 @@ import { DashTool, DashToolGrid, fixableCount, toolsByNeed } from "../tools/dash
 import { TOOL_LIST, TOOLS_BY_SLUG, type ToolInfo, type ToolSlug } from "../tools/catalog";
 import { TONE, ToolIcon } from "../tools/icons";
 import { SignInLink } from "@/app/sign-in-modal";
+import { BannerFx } from "./banner-fx";
 
 /* One plain-English line per area, shown at the top of its breakdown. */
 const BLURB: Record<ModuleKey, string> = {
@@ -1355,20 +1356,6 @@ function useNavGroups() {
   return { shut, toggle };
 }
 
-/* Decoration behind every animated banner: drifting light, a faint grid and twinkling sparks. */
-const SPARKS = [[8, 22], [18, 78], [34, 12], [52, 70], [66, 18], [78, 84], [90, 30], [96, 66]];
-function BannerFx() {
-  return (
-    <span className="bn-fx" aria-hidden="true">
-      <i className="bn-orb o1" />
-      <i className="bn-orb o2" />
-      <i className="bn-orb o3" />
-      <i className="bn-grid" />
-      <i className="bn-sweep" />
-      {SPARKS.map(([x, y], k) => <i key={k} className="bn-sp" style={{ left: `${x}%`, top: `${y}%`, ["--k" as string]: k }} />)}
-    </span>
-  );
-}
 
 /* The free tools, as a banner: on the Overview and as the heading of the All tools page. Tool icons circle the
    count of missing items they can fix; the button opens the tool with the most to fix. */

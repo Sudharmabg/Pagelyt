@@ -112,7 +112,10 @@ export function ActivityBell({ scan, snaps }: { scan: StoredScan; snaps: Snap[] 
         onClick={(e) => {
           if (!open) {
             const r = e.currentTarget.getBoundingClientRect();
-            setPos({ top: r.bottom + 10, right: Math.max(16, window.innerWidth - r.right) });
+            // Line the panel up under the bell, but never let its left edge go past the 16px gutter (phones).
+            const vw = window.innerWidth;
+            const w = Math.min(360, vw - 32);
+            setPos({ top: r.bottom + 10, right: Math.max(16, Math.min(vw - r.right, vw - 16 - w)) });
             setWas(seen);
             markRead();
           }

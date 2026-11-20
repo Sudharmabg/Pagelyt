@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ChartColumn, Eye, FileText, LayoutGrid, Link2, ListOrdered, Megaphone, MousePointerClick, Percent, ScanSearch, Search, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
-import { VerticalTabs } from "@/components/avara/VerticalTabs";
 import { LoaderBlock } from "@/components/avara/LoaderBlock";
 import { ToggleGroup, ToggleGroupItem } from "@/components/avara/ToggleGroupBlock";
 import { findingKey } from "@/lib/scan/score";
@@ -96,28 +95,49 @@ export function GoogleData({ g, scan, siteId, findings, onSave, onOpenFinding, t
     );
   return (
     <GoogleNav.Provider value={nav}>
-      {linked && (
-        <div className="gd-bar gd-bar-av">
-          <AiButton g={g} onOpen={() => onAi("any")} />
-          <RangePicker g={g} />
-        </div>
-      )}
+      <div className="gd-bar gd-bar-av">
+        {linked && <AiButton g={g} onOpen={() => onAi("any")} />}
+        {linked && <RangePicker g={g} />}
+        <ProductTabs tabs={TABS} active={tab} onPick={onTab} />
+      </div>
       {g.inRange.error && <p className="panel gd-note bad" role="alert">{g.inRange.error}</p>}
-      <VerticalTabs
-        tabs={TABS.map((t) => ({ ...t, content: body(t.id) }))}
-        orientation="vertical"
-        variant="segmented"
-        activeId={tab}
-        onActiveChange={(id) => onTab(id as GoogleTab)}
-        ariaLabel="Google data"
-        plain
-        className="gd-vtabs gap-5"
-        railClassName="gd-rail md:w-60 lg:w-64 self-start md:sticky md:top-24"
-        contentClassName="p-0 md:p-0 border-0 rounded-none"
-      />
+      <div className="gd-body" id="gd-panel" role="tabpanel" aria-labelledby={`gd-tab-${tab}`}>
+        {body(tab)}
+      </div>
       {page && <PageDrill page={page} g={g} scan={scan} findings={findings} onClose={() => setPage(null)} />}
       {ai && aiTabs(g).length > 0 && <AiInsightsModal g={g} scanId={scan.id} findings={findings} start={ai === "any" ? null : ai} onClose={closeAi} />}
     </GoogleNav.Provider>
+  );
+}
+
+/** Overview | Search Console | Analytics | Google Ads as pill tabs, each with its headline number. Scrolls sideways
+    on phones; arrow keys move between them. */
+function ProductTabs({ tabs, active, onPick }: { tabs: { id: GoogleTab; label: string; icon: React.ElementType; badge?: React.ReactNode }[]; active: GoogleTab; onPick: (t: GoogleTab) => void }) {
+  const go = (d: 1 | -1) => {
+    const i = Math.max(0, Math.min(tabs.length - 1, tabs.findIndex((t) => t.id === active) + d));
+    onPick(tabs[i].id);
+    document.getElementById(`gd-tab-${tabs[i].id}`)?.focus();
+  };
+  return (
+    <div className="gd-tabs" role="tablist" aria-label="Google data" onKeyDown={(e) => { if (e.key === "ArrowRight") { e.preventDefault(); go(1); } if (e.key === "ArrowLeft") { e.preventDefault(); go(-1); } }}>
+      {tabs.map(({ id, label, icon: Icon, badge }) => (
+        <button
+          key={id}
+          type="button"
+          role="tab"
+          id={`gd-tab-${id}`}
+          aria-selected={active === id}
+          aria-controls="gd-panel"
+          tabIndex={active === id ? 0 : -1}
+          className={`gd-tab gd-tab-${id}`}
+          onClick={(e) => { onPick(id); e.currentTarget.scrollIntoView({ block: "nearest", inline: "nearest" }); }}
+        >
+          <Icon aria-hidden="true" />
+          <span>{label}</span>
+          {badge}
+        </button>
+      ))}
+    </div>
   );
 }
 

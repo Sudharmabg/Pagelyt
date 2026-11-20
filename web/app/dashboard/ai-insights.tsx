@@ -8,6 +8,7 @@ import type { Ga4Insight, Metric, Source } from "@/lib/google/ga4-insights";
 import type { GoogleState } from "./use-google";
 import { AiMark, FindingLink, GoogleNav, PageLink } from "./google-kit";
 import { Busy } from "./google-data";
+import { BannerFx } from "./banner-fx";
 
 /* The AI insights modal of the ★ Google data view, opened from the "AI insights" button in its header (and from the
    Overview teaser). Tabs: Combined (every connected product read together, when two or more are connected), then
@@ -69,7 +70,8 @@ export function AiButton({ g, onOpen }: { g: GoogleState; onOpen: () => void }) 
   const n = allInsights(g).length;
   if (!aiTabs(g).length) return null;
   return (
-    <button type="button" className="gd-ai-btn" onClick={onOpen} aria-haspopup="dialog">
+    <button type="button" className="gd-ai-btn gd-bn" onClick={onOpen} aria-haspopup="dialog">
+      <BannerFx sparks={4} />
       <AiMark /> AI insights
       {n > 0 && <span className="gd-ai-n" aria-label={`${n} ready`}>{n}</span>}
     </button>
@@ -133,43 +135,46 @@ export function AiInsightsModal({ g, scanId, findings, start, onClose }: { g: Go
   return createPortal(
     <div className="gd-aim-wrap" onClick={(e) => e.target === e.currentTarget && onClose()}>
       <div className="gd-aim" role="dialog" aria-modal="true" aria-labelledby="gd-aim-h">
-        <header className="gd-aim-head">
-          <div className="gd-aim-title">
-            <AiMark />
-            <div>
-              <h2 id="gd-aim-h">AI insights</h2>
-              <p>Your biggest chances to grow clicks, visits and conversions, from your Google numbers and this report.</p>
+        <div className="gd-aim-top gd-bn">
+          <BannerFx />
+          <header className="gd-aim-head">
+            <div className="gd-aim-title">
+              <AiMark />
+              <div>
+                <h2 id="gd-aim-h">AI insights</h2>
+                <p>Your biggest chances to grow clicks, visits and conversions, from your Google numbers and this report.</p>
+              </div>
             </div>
-          </div>
-          <button ref={close} type="button" className="gd-aim-x" onClick={onClose} aria-label="Close"><X aria-hidden="true" /></button>
-        </header>
+            <button ref={close} type="button" className="gd-aim-x" onClick={onClose} aria-label="Close"><X aria-hidden="true" /></button>
+          </header>
 
-        {tabs.length > 1 && (
-          <div className="gd-aim-tabs" role="tablist" aria-label="Insights from" onKeyDown={(e) => { if (e.key === "ArrowRight") step(1); if (e.key === "ArrowLeft") step(-1); }}>
-            {tabs.map((t) => {
-              const Ic = TAB[t].icon;
-              const n = slot(g, t).ai?.insights.length ?? 0;
-              return (
-                <button
-                  key={t}
-                  ref={(el) => { tabRefs.current[t] = el; }}
-                  type="button"
-                  role="tab"
-                  id={`gd-aim-t-${t}`}
-                  aria-selected={tab === t}
-                  aria-controls="gd-aim-panel"
-                  tabIndex={tab === t ? 0 : -1}
-                  className={t === "all" ? "all" : undefined}
-                  onClick={() => pick(t)}
-                >
-                  <Ic aria-hidden="true" />
-                  {TAB[t].label}
-                  {n > 0 && <span className="gd-aim-tn">{n}</span>}
-                </button>
-              );
-            })}
-          </div>
-        )}
+          {tabs.length > 1 && (
+            <div className="gd-aim-tabs" role="tablist" aria-label="Insights from" onKeyDown={(e) => { if (e.key === "ArrowRight") step(1); if (e.key === "ArrowLeft") step(-1); }}>
+              {tabs.map((t) => {
+                const Ic = TAB[t].icon;
+                const n = slot(g, t).ai?.insights.length ?? 0;
+                return (
+                  <button
+                    key={t}
+                    ref={(el) => { tabRefs.current[t] = el; }}
+                    type="button"
+                    role="tab"
+                    id={`gd-aim-t-${t}`}
+                    aria-selected={tab === t}
+                    aria-controls="gd-aim-panel"
+                    tabIndex={tab === t ? 0 : -1}
+                    className={t === "all" ? "all" : undefined}
+                    onClick={() => pick(t)}
+                  >
+                    <Ic aria-hidden="true" />
+                    {TAB[t].label}
+                    {n > 0 && <span className="gd-aim-tn">{n}</span>}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         <div ref={body} className="gd-aim-body" id="gd-aim-panel" role={tabs.length > 1 ? "tabpanel" : undefined} aria-labelledby={tabs.length > 1 ? `gd-aim-t-${tab}` : undefined} aria-busy={cur.busy} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
           <GoogleNav.Provider value={inner}>
