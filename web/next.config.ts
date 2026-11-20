@@ -12,13 +12,18 @@ const supabaseOrigin = (() => {
     return "https://*.supabase.co";
   }
 })();
+// Google Analytics 4 (lib/analytics.ts), only when an ID is set: the gtag.js script, and the hosts it sends
+// hits to (Google's documented GA4 CSP list). img-src already allows any https: image.
+const ga = process.env.NEXT_PUBLIC_GA_ID
+  ? { script: " https://*.googletagmanager.com", connect: " https://*.google-analytics.com https://*.analytics.google.com https://*.googletagmanager.com" }
+  : { script: "", connect: "" };
 const csp = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com",
+  `script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com${ga.script}`,
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  `connect-src 'self' ${supabaseOrigin} https://challenges.cloudflare.com`,
+  `connect-src 'self' ${supabaseOrigin} https://challenges.cloudflare.com${ga.connect}`,
   "frame-src https://challenges.cloudflare.com",
   "object-src 'none'",
   "base-uri 'self'",
