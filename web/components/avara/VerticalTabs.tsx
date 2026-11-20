@@ -41,6 +41,8 @@ export interface TabItem {
   icon?: React.ElementType;
   /** Pagelyt: a short line under the label in the rail. */
   hint?: string;
+  /** Pagelyt: a small chip at the end of the tab (a live number, or "Connect"). */
+  badge?: React.ReactNode;
   content: React.ReactNode;
 }
 
@@ -475,6 +477,7 @@ export function VerticalTabs({
               ) : (
                 <span className="text-base tracking-tight">{tab.label}</span>
               )}
+              {tab.badge ? <span className="vt-badge md:ml-auto">{tab.badge}</span> : null}
             </button>
           );
         })}

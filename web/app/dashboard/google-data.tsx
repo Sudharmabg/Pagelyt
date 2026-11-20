@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { ChartColumn, FileText, LayoutGrid, Link2, ListOrdered, Megaphone, MousePointerClick, ScanSearch, Search, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
+import { ChartColumn, Eye, FileText, LayoutGrid, Link2, ListOrdered, Megaphone, MousePointerClick, Percent, ScanSearch, Search, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import { VerticalTabs } from "@/components/avara/VerticalTabs";
 import { LoaderBlock } from "@/components/avara/LoaderBlock";
 import { ToggleGroup, ToggleGroupItem } from "@/components/avara/ToggleGroupBlock";
@@ -14,11 +14,16 @@ import { AnalyticsTab } from "./analytics-data";
 import { AdsTab } from "./ads-data";
 import { GoogleOverview } from "./google-overview";
 import { PageDrill } from "./page-drill";
-import { DataTable, FindingLink, FindingList, GoogleNav, InsightsPanel, PageLink, SplitBars, countryName, deviceName, n0, pathOf, pct, type Col, GuideLink, PanelHead } from "./google-kit";
+import { AiButton, AiInsightsModal, aiTabs, type AiTab } from "./ai-insights";
+import { money } from "@/lib/google/ads-insights";
+import { DataTable, FindingLink, FindingList, GoogleNav, PageLink, StatTiles, SplitBars, countryName, deviceName, n0, pathOf, pct, type Col, GuideLink, PanelHead } from "./google-kit";
 
 /* The ★ Google data view: Overview | Search Console | Analytics | Google Ads, with a 7/28/90-day window, sortable
    tables with CSV download, and a drill-down panel for any page. Search Console lives here; Analytics in
    analytics-data.tsx, Ads in ads-data.tsx, the Overview in google-overview.tsx. Only the owner sees it. */
+
+/** 1234 → "1.2k", for the left menu. */
+const short = (n: number) => (n >= 10_000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1).replace(/\.0$/, "")}k` : String(Math.round(n)));
 
 const propLabel = (p: string) => (p.startsWith("sc-domain:") ? `${p.slice(10)} (domain)` : p);
 
@@ -37,7 +42,9 @@ export type GoogleTab = "overview" | "gsc" | "ga4" | "ads";
 type Scan = { id: string; url: string; host: string };
 
 /** `tab`: kept by the dashboard (from ?gtab= on arrival), so the banner and Overview cards can open a tab. */
-export function GoogleData({ g, scan, siteId, findings, onSave, onOpenFinding, tab, onTab }: { g: GoogleState; scan: Scan; siteId: string | null; findings: Finding[]; onSave: () => void; onOpenArea?: (m: ModuleKey) => void; onOpenFinding: (f: Finding) => void; tab: GoogleTab; onTab: (t: GoogleTab) => void }) {
+/** `ai`: the AI insights modal, open on that tab ("any": the best one), or null when closed; kept by the dashboard so
+    its Overview card can open it too. */
+export function GoogleData({ g, scan, siteId, findings, onSave, onOpenFinding, tab, onTab, ai, onAi }: { g: GoogleState; scan: Scan; siteId: string | null; findings: Finding[]; onSave: () => void; onOpenArea?: (m: ModuleKey) => void; onOpenFinding: (f: Finding) => void; tab: GoogleTab; onTab: (t: GoogleTab) => void; ai: AiTab | "any" | null; onAi: (t: AiTab | "any" | null) => void }) {
   const params = useSearchParams();
   const [notice] = useState(() => params.get("google"));
   const [page, setPage] = useState<string | null>(null);
@@ -51,6 +58,7 @@ export function GoogleData({ g, scan, siteId, findings, onSave, onOpenFinding, t
     window.history.replaceState(null, "", `${window.location.pathname}?${q}`);
   }, [notice, params]);
   const { status: s, error } = g;
+  const closeAi = useCallback(() => onAi(null), [onAi]);
 
   if (!siteId)
     return (
@@ -66,15 +74,19 @@ export function GoogleData({ g, scan, siteId, findings, onSave, onOpenFinding, t
   const gaNotice = notice?.startsWith("ga4") ? notice.slice(3) : null;
   const adsNotice = notice?.startsWith("ads") ? notice.slice(3) : null;
   const linked = (s.gsc && !!s.property) || (s.ga4 && !!s.ga4Property) || (!!s.adsOn && !!s.ads && !!s.adsCustomer);
-  const TABS: { id: GoogleTab; label: string; hint: string; icon: React.ElementType }[] = [
+  // The left menu: each product shows its headline number, or what is left to set up.
+  const gscN = g.inRange.gsc?.data, ga4N = g.inRange.ga4?.data, adsN = g.inRange.ads?.data;
+  const badge = (on: boolean, connected: boolean, value: string | null) =>
+    value ? <span className="gd-tab-badge">{value}</span> : <span className="gd-tab-badge off">{on ? "Loading" : connected ? "Set up" : "Connect"}</span>;
+  const TABS: { id: GoogleTab; label: string; hint: string; icon: React.ElementType; badge?: React.ReactNode }[] = [
     { id: "overview", label: "Overview", hint: "All your Google data at a glance", icon: LayoutGrid },
-    { id: "gsc", label: "Search Console", hint: "Searches, clicks and indexing", icon: Search },
-    { id: "ga4", label: "Analytics", hint: "Visitors and what they do", icon: ChartColumn },
-    ...(s.adsOn === false ? [] : [{ id: "ads" as GoogleTab, label: "Google Ads", hint: "Spend and landing pages", icon: Megaphone }]),
+    { id: "gsc", label: "Search Console", hint: "Searches, clicks and indexing", icon: Search, badge: badge(s.gsc && !!s.property, s.gsc, gscN ? `${short(gscN.totals.clicks)} clicks` : null) },
+    { id: "ga4", label: "Analytics", hint: "Visitors and what they do", icon: ChartColumn, badge: badge(s.ga4 && !!s.ga4Property, s.ga4, ga4N ? `${short(ga4N.totals.sessions)} visits` : null) },
+    ...(s.adsOn === false ? [] : [{ id: "ads" as GoogleTab, label: "Google Ads", hint: "Spend and landing pages", icon: Megaphone, badge: badge(!!s.ads && !!s.adsCustomer, !!s.ads, adsN ? money(adsN.totals.cost, adsN.currency) : null) }]),
   ];
   const body = (k: GoogleTab) =>
     k === "overview" ? (
-      <GoogleOverview g={g} scan={scan} findings={findings} onTab={onTab} />
+      <GoogleOverview g={g} scan={scan} findings={findings} onTab={onTab} onAi={(t) => onAi(t ?? "any")} />
     ) : k === "gsc" ? (
       <GscTab g={g} scan={scan} findings={findings} notice={gaNotice || adsNotice ? null : notice} />
     ) : k === "ga4" ? (
@@ -86,6 +98,7 @@ export function GoogleData({ g, scan, siteId, findings, onSave, onOpenFinding, t
     <GoogleNav.Provider value={nav}>
       {linked && (
         <div className="gd-bar gd-bar-av">
+          <AiButton g={g} onOpen={() => onAi("any")} />
           <RangePicker g={g} />
         </div>
       )}
@@ -99,10 +112,11 @@ export function GoogleData({ g, scan, siteId, findings, onSave, onOpenFinding, t
         ariaLabel="Google data"
         plain
         className="gd-vtabs gap-5"
-        railClassName="md:w-52 lg:w-56 self-start md:sticky md:top-24"
+        railClassName="gd-rail md:w-60 lg:w-64 self-start md:sticky md:top-24"
         contentClassName="p-0 md:p-0 border-0 rounded-none"
       />
       {page && <PageDrill page={page} g={g} scan={scan} findings={findings} onClose={() => setPage(null)} />}
+      {ai && aiTabs(g).length > 0 && <AiInsightsModal g={g} scanId={scan.id} findings={findings} start={ai === "any" ? null : ai} onClose={closeAi} />}
     </GoogleNav.Provider>
   );
 }
@@ -125,11 +139,17 @@ function RangePicker({ g }: { g: GoogleState }) {
 export function Skeleton({ label = "Loading your Google numbers…" }: { label?: string }) {
   return (
     <div className="gd-skel" role="status" aria-label={label}>
+      <Busy label={label} />
       <div className="gd-skel-row">{[0, 1, 2, 3].map((i) => <span key={i} />)}</div>
       <div className="gd-skel-chart" />
       <div className="gd-skel-lines">{[0, 1, 2, 3, 4].map((i) => <span key={i} />)}</div>
     </div>
   );
+}
+
+/** A spinner with its label, for anything Google is still fetching. */
+export function Busy({ label }: { label: string }) {
+  return <LoaderBlock variant="spinner" size="md" py={0} className="gd-busy" text={label} />;
 }
 
 /** "How it works" steps on each connect card. */
@@ -200,7 +220,6 @@ function GscTab({ g, scan, findings, notice }: { g: GoogleState; scan: Scan; fin
     <>
       {head}
       {c.error && <p className="panel gd-note bad" role="alert">{c.error} Showing the numbers from {new Date(c.fetchedAt).toLocaleDateString("en-GB")}.</p>}
-      <InsightsPanel title="AI insights from your searches" source="Search Console" ai={g.gscAi} busy={busy === "gscanalyse"} error={g.gscAiError} findings={findings} onRun={(force) => void g.analyseGsc(scan.id, force)} />
       <GscView d={c.data} scanUrl={scan.url} findings={findings} />
       <Footer g={g} property={s.property} fetchedAt={c.fetchedAt} />
     </>
@@ -219,7 +238,7 @@ function PropertyPicker({ g, host }: { g: GoogleState; host: string }) {
       <PanelHead icon={Link2} title={<>Which Search Console property is {host}?</>} />
       <Steps at={1} />
       {!props ? (
-        <p className="panel-note">Loading your properties…</p>
+        <div className="panel-note" role="status"><Busy label="Loading your properties…" /></div>
       ) : props.length === 0 ? (
         <p className="panel-note">This Google account ({g.status?.email}) can&rsquo;t see any Search Console properties. Add {host} in Search Console first (<GuideLink product="gsc">how to add and verify a site</GuideLink>), or disconnect from your account page and connect the Google account that has it.</p>
       ) : (
@@ -319,12 +338,16 @@ function GscView({ d, scanUrl, findings }: { d: GscData; scanUrl: string; findin
     <>
       <section className="panel gd-totals" aria-label="Search totals">
         <PanelHead icon={ChartColumn} title={<>Google Search, last {days} days</>} note={<>{d.range.start} to {d.range.end}, against the {days} days before. Search Console data is final about three days later.</>} />
-        <ul className="sec-stats">
-          <li><b>{n0(T.clicks)}</b><span>clicks</span><Delta now={T.clicks} before={T.prevClicks} days={days} /></li>
-          <li><b>{n0(T.impressions)}</b><span>impressions</span><Delta now={T.impressions} before={T.prevImpressions} days={days} /></li>
-          <li><b>{pct(T.ctr)}</b><span>click rate</span></li>
-          <li><b>{T.position.toFixed(1)}</b><span>average position</span></li>
-        </ul>
+        <StatTiles
+          days={days}
+          label={`Google Search, last ${days} days`}
+          tiles={[
+            { icon: MousePointerClick, label: "Clicks", value: n0(T.clicks), now: T.clicks, before: T.prevClicks, spark: d.daily.map((x) => x.clicks), tone: "var(--gd-s1)" },
+            { icon: Eye, label: "Impressions", value: n0(T.impressions), now: T.impressions, before: T.prevImpressions, spark: d.daily.map((x) => x.impressions), tone: "#7b3fe0" },
+            { icon: Percent, label: "Click rate", value: pct(T.ctr), ...(T.prevImpressions ? { now: T.ctr, before: T.prevClicks / T.prevImpressions } : {}), note: T.prevImpressions ? `was ${pct(T.prevClicks / T.prevImpressions)}` : undefined, tone: "#0f9d8a" },
+            { icon: ListOrdered, label: "Average position", value: T.position.toFixed(1), note: T.position <= 10 ? "on page one" : `page ${Math.ceil(T.position / 10)} on average`, tone: "#e8a10a" },
+          ]}
+        />
         {(d.devices?.length || d.countries?.length) ? (
           <div className="gd-splits">
             <SplitBars title="Clicks by device" unit="clicks" rows={(d.devices ?? []).map((x) => ({ key: deviceName(x.key), value: x.clicks }))} />

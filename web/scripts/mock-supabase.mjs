@@ -482,7 +482,24 @@ function mockOpenAI(res, body) {
 (This is the mock ChatGPT: set OPENAI_API_KEY for real answers.)`,
       named ? { annotations: [{ type: "url_citation", url: `https://${site}/` }] } : {});
   }
-  const reply = (insights) => send(res, 200, { id: `resp_${crypto.randomUUID()}`, object: "response", status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify({ insights }) }] }] });
+  // Every analysis answers in the metric / now / gain / steps format; the canned insights below fill it in from `action`.
+  const METRIC = { "SEARCH PAGES (": "search_clicks", "LANDING PAGES (": "ad_efficiency" };
+  const kind = Object.entries(METRIC).find(([k]) => input.includes(k))?.[1] ?? "visits";
+  const reply = (insights) => send(res, 200, { id: `resp_${crypto.randomUUID()}`, object: "response", status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify({ insights: insights.map((i, n) => ({
+    metric: kind, now: (i.title.match(/\d[\d,.]*%?( [a-z]+)?/) || ["–"])[0], gain: n === 0 ? "about +15% in a month" : n === 3 ? "hard to estimate" : `about +${20 - n * 5} a month`,
+    steps: [i.action, "Check the change on this page in Pagelyt next week."], ...i })) }) }] }] });
+  // The combined analysis (Search Console + Analytics + Ads): built from its PAGE JOURNEY table.
+  if (body.text?.format?.name === "growth_insights") {
+    const rows = [...input.matchAll(/^(\/[^ |]*) \| (.+)$/gm)].filter((m) => /search clicks|visits|ad spend/.test(m[2])).map((m) => ({ path: m[1], line: m[2], issues: ((m[2].match(/issues (.+)$/) || [])[1] || "").split(", ").filter(Boolean) }));
+    const a = rows[0], b = rows.find((r) => r.issues.length) ?? rows[1], c = rows.find((r) => /ad spend/.test(r.line)) ?? rows[2];
+    const n = (re, t) => (t?.match(re) || [])[1];
+    return send(res, 200, { id: `resp_${crypto.randomUUID()}`, object: "response", status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify({ insights: [
+      a && { metric: "conversions", title: `${a.path} wins ${n(/search clicks (\d+)/, a.line) ?? "most"} Google clicks but few visits turn into key events`, now: `${n(/visits (\d+)/, a.line) ?? "–"} visits a month`, gain: "about +12 key events a month", detail: `It is your busiest page across search and Analytics, so a clearer call to action there lifts conversions more than anywhere else.`, steps: [`Add one clear call to action above the fold on ${a.path}.`, `Fix the report issues listed on ${a.path}.`, "Mark the form submission as a key event in Google Analytics."], priority: "high", pages: [a.path], findings: a.issues.slice(0, 2), sources: ["gsc", "ga4"] },
+      b && { metric: "search_clicks", title: `${b.path} has report issues on a page Google already sends people to`, now: `${n(/search clicks (\d+)/, b.line) ?? "–"} clicks a month`, gain: "about +40 clicks a month", detail: "Speed and SEO problems on a page that already ranks hold back both its position and how long people stay.", steps: [`Fix the issues on ${b.path}, starting with the high ones.`, `Request indexing for ${b.path} in Search Console.`], priority: "high", pages: [b.path], findings: b.issues.slice(0, 3), sources: ["gsc", "ga4"] },
+      c && { metric: "ad_efficiency", title: `Ad spend lands on ${c.path}, which already gets organic clicks`, now: n(/ad spend (\S+)/, c.line) ? `${n(/ad spend (\S+)/, c.line)} a month` : "–", gain: "up to 20% less spend for the same conversions", detail: "You pay for clicks a page partly wins for free; its engaged share is lower for ad visitors than for search visitors.", steps: ["Check which paid searches you already rank in the top 3 for.", `Lower bids on those searches and watch conversions on ${c.path} for two weeks.`], priority: "medium", pages: [c.path], findings: [], sources: ["gsc", "ga4", "ads"] },
+      { metric: "engagement", title: "Mobile visitors engage less than desktop ones", now: "–", gain: "hard to estimate", detail: "Most search clicks come from phones, so mobile layout issues cost the most engaged visits.", steps: ["Work through the mobile issues in this report first.", "Compare mobile engaged share in Pagelyt after the fixes."], priority: "low", pages: [], findings: [], sources: ["gsc", "ga4"] },
+    ].filter(Boolean) }) }] }] });
+  }
   // The Search Console analysis: built from its SEARCH PAGES table.
   if (input.includes("SEARCH PAGES (")) {
     const sp = [...input.matchAll(/^(\/[^ |]*) \| clicks (\d+) \(before (\d+)\) \| impressions (\d+) \| position ([\d.]+)(?: \| issues (.+))?$/gm)].map((m) => ({ path: m[1], now: +m[2], before: +m[3], imp: +m[4], pos: +m[5], issues: m[6] ? m[6].split(", ") : [] }));

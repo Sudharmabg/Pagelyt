@@ -28,8 +28,28 @@ export type Ga4Data = {
   pageChannels: Ga4PageChannel[];
 };
 
-/** One written insight from the AI analysis. `findings` are finding ids from the report it was given. */
-export type Ga4Insight = { title: string; detail: string; action: string; priority: "high" | "medium" | "low"; pages: string[]; findings: string[] };
+/** The key website metrics an AI insight sets out to grow (or, for ad spend, to spend better). */
+export const METRICS = ["search_clicks", "search_visibility", "visits", "engagement", "conversions", "ad_efficiency"] as const;
+export type Metric = (typeof METRICS)[number];
+export type Source = "gsc" | "ga4" | "ads";
+
+/** One written insight from an AI analysis (Search Console, Analytics, Google Ads or all of them together). `findings`
+    are finding ids from the report it was given, `pages` page paths. `action` is the first step (older insights,
+    cached before steps existed, have only `action`). `metric`, `now`, `gain` and `steps` come with every new insight;
+    `sources` only with the combined analysis. */
+export type Ga4Insight = {
+  title: string;
+  detail: string;
+  action: string;
+  priority: "high" | "medium" | "low";
+  pages: string[];
+  findings: string[];
+  metric?: Metric;
+  now?: string;
+  gain?: string;
+  steps?: string[];
+  sources?: Source[];
+};
 export type Ga4Ai = { insights: Ga4Insight[]; basedOn: string; model: string };
 
 export const rate = (engaged: number, sessions: number) => (sessions ? engaged / sessions : 0);

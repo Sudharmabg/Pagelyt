@@ -2,12 +2,12 @@
 
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { Finding } from "@/lib/scan/types";
-import type { Ga4Insight } from "@/lib/google/ga4-insights";
 import Link from "next/link";
 import { Sparkles, type LucideIcon } from "lucide-react";
 
 /* Shared pieces of the ★ Google data view: sortable tables with CSV download, links that open a page's drill-down
-   panel or jump to the exact finding, device/country bars and the AI insights panel used by every tab. */
+   panel or jump to the exact finding, device/country bars and the stat tiles (number, change badge, trend line) used
+   by every tab. The AI insights live in ai-insights.tsx. */
 
 /* The setup guide for each Google product (blog posts in blog-posts-google.ts): setup, connecting, uses and tips. */
 export const GUIDES = {
@@ -219,51 +219,78 @@ export function countryName(code: string): string {
 }
 const A3: Record<string, string> = { ind: "in", usa: "us", gbr: "gb", can: "ca", aus: "au", deu: "de", fra: "fr", esp: "es", ita: "it", nld: "nl", bra: "br", mex: "mx", jpn: "jp", chn: "cn", sgp: "sg", are: "ae", sau: "sa", zaf: "za", nga: "ng", pak: "pk", bgd: "bd", lka: "lk", npl: "np", phl: "ph", idn: "id", mys: "my", nzl: "nz", irl: "ie", swe: "se", nor: "no", dnk: "dk", fin: "fi", pol: "pl", che: "ch", aut: "at", bel: "be", prt: "pt", tur: "tr", rus: "ru", ukr: "ua", kor: "kr", twn: "tw", hkg: "hk", tha: "th", vnm: "vn", egy: "eg", ken: "ke", arg: "ar", col: "co", chl: "cl", per: "pe", isr: "il" };
 
-/* ---------- AI insights panel (one per tab, each with its own cache) ---------- */
+/* ---------- Stat tiles: icon, label, big number, change badge and a small trend line ---------- */
 
-const PRIORITY = { high: "Important", medium: "Worth a look", low: "Minor" } as const;
+export type Tile = {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  /** Now and the same window before, for the change badge. */
+  now?: number;
+  before?: number;
+  /** Less is better (spend, cost per conversion). */
+  invert?: boolean;
+  /** One line under the number, e.g. "was 2.1%". */
+  note?: string;
+  /** Daily values, oldest first, for the trend line. */
+  spark?: number[];
+  /** Accent colour (a CSS colour or var). */
+  tone?: string;
+};
 
-export function InsightsPanel({ title, source, ai, busy, error, findings, onRun }: { title: string; source: string; ai: { insights: Ga4Insight[]; at: string; current: boolean } | null; busy: boolean; error: string; findings: Finding[]; onRun: (force: boolean) => void }) {
-  const byId = useMemo(() => new Map(findings.map((f) => [f.id, f])), [findings]);
+const changeOf = (now: number, before: number) => (before > 0 ? Math.round(((now - before) / before) * 100) : null);
+
+/** The change against the window before, as a coloured badge (↑ green when it's good news, ↓ red when it isn't). */
+export function DeltaBadge({ now, before, invert, days }: { now: number; before: number; invert?: boolean; days: number }) {
+  const d = changeOf(now, before);
+  if (d == null) return null;
+  const tone = d === 0 ? "flat" : (invert ? d < 0 : d > 0) ? "up" : "down";
   return (
-    <section className="panel gd-ai" aria-label={title} aria-busy={busy}>
-      <div className="gd-ai-top">
-        <AiMark /><h2>{title}</h2>
-        {ai && <button type="button" className="dash-btn" onClick={() => onRun(true)} disabled={busy}>{busy ? "Analysing…" : "Analyse again"}</button>}
-      </div>
-      {!ai ? (
-        <>
-          <p className="panel-note">AI reads your last 28 days of {source} next to this report and writes a few plain-English findings, each with a next step. It takes about half a minute.</p>
-          <button type="button" className="dash-btn primary" onClick={() => onRun(false)} disabled={busy}>{busy ? "Analysing your numbers…" : "Analyse with AI"}</button>
-        </>
-      ) : (
-        <>
-          <ol className="gd-ins">
-            {ai.insights.map((i) => (
-              <li key={i.title} className={`p-${i.priority}`}>
-                <span className="gd-ins-p">{PRIORITY[i.priority]}</span>
-                <h3>{i.title}</h3>
-                <p>{i.detail}</p>
-                <p className="gd-ins-do"><b>Next step:</b> {i.action}</p>
-                {(i.pages.length > 0 || i.findings.length > 0) && (
-                  <p className="gd-ins-refs">
-                    {i.pages.map((p) => <PageLink key={p} url={p} />)}
-                    {i.findings.map((id) => {
-                      const f = byId.get(id);
-                      return f ? <FindingLink key={id} f={f} /> : null;
-                    })}
-                  </p>
-                )}
-              </li>
-            ))}
-          </ol>
-          <p className="gd-fine">
-            Written by AI on {new Date(ai.at).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })} from your {source} and this report. Check before acting.
-            {!ai.current && ` Your ${source} numbers have updated since: analyse again for the latest.`}
-          </p>
-        </>
-      )}
-      {error && <p className="gd-note bad" role="alert">{error}</p>}
-    </section>
+    <span className={`gd-delta ${tone}`} title={`${d > 0 ? "+" : ""}${d}% vs the previous ${days} days`}>
+      <span aria-hidden="true">{d > 0 ? "↑" : d < 0 ? "↓" : "→"}</span> {Math.abs(d)}%<span className="sr-only"> {d >= 0 ? "up" : "down"} vs the previous {days} days</span>
+    </span>
+  );
+}
+
+/** A tiny line chart of daily values (decorative: the number and badge carry the meaning). */
+export function Spark({ values }: { values: number[] }) {
+  if (values.length < 3) return null;
+  const W = 100, H = 30;
+  const max = Math.max(...values), min = Math.min(...values);
+  const span = max - min || 1;
+  const pts = values.map((v, i) => [(i / (values.length - 1)) * W, H - 3 - ((v - min) / span) * (H - 6)] as const);
+  const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  return (
+    <svg className="gd-spark" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <path d={`${line} L${W} ${H} L0 ${H} Z`} className="gd-spark-a" />
+      <path d={line} className="gd-spark-l" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+/** A row of stat tiles. Columns follow the space available (container queries), never 4 + 2. */
+export function StatTiles({ tiles, days, label }: { tiles: Tile[]; days: number; label: string }) {
+  return (
+    <div className="gd-tiles-wrap">
+      <ul className="gd-tiles" aria-label={label} data-n={tiles.length}>
+        {tiles.map((t, i) => {
+          const Ic = t.icon;
+          return (
+            <li key={t.label} style={{ ["--tc" as string]: t.tone ?? "var(--gd-s1)", ["--i" as string]: i }}>
+              <div className="gd-tile-top">
+                <span className="gd-tile-ic" aria-hidden="true"><Ic /></span>
+                <span className="gd-tile-l">{t.label}</span>
+              </div>
+              <b className="gd-tile-v">{t.value}</b>
+              {t.note && <span className="gd-tile-note">{t.note}</span>}
+              <div className="gd-tile-foot">
+                {t.now != null && t.before != null ? <DeltaBadge now={t.now} before={t.before} invert={t.invert} days={days} /> : <span />}
+                {t.spark && <Spark values={t.spark} />}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 }

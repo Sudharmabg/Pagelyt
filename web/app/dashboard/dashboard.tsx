@@ -23,6 +23,7 @@ import { ActionModal, ArtCard, OrbitArt, Tile } from "./action-modal";
 import { AGENCY_UPSELL, AgencyModal, useAccount } from "./agency-modal";
 import { Assistant } from "./assistant";
 import { GoogleData, type GoogleTab } from "./google-data";
+import type { AiTab } from "./ai-insights";
 import { AiOverviewCard } from "./analytics-data";
 import { useGoogle } from "./use-google";
 import { byTraffic, trafficMap } from "@/lib/google/gsc-insights";
@@ -371,6 +372,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const googleTotal = gs?.adsOn === false ? 2 : 3;
   const googleLinked = [gs?.property, gs?.ga4Property, gs?.adsOn !== false && gs?.adsCustomer].filter(Boolean).length;
   const [gTab, setGTab] = useState<GoogleTab>(() => (params.get("gtab") === "analytics" ? "ga4" : params.get("gtab") === "ads" ? "ads" : params.get("gtab") === "search" ? "gsc" : "overview"));
+  const [gAi, setGAi] = useState<AiTab | "any" | null>(null);
 
   // Show the compact score bar once the hero has scrolled out of view.
   const watchHero = useCallback((el: HTMLElement | null) => {
@@ -800,7 +802,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
         {remaining.length > 0 && (
           <Findings findings={topFixes} title={traffic ? "Top fixes · by Google traffic" : "Top fixes"} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} visits={visits} spend={spend} />
         )}
-        {google.ai?.insights.length ? <AiOverviewCard ai={google.ai} onOpen={() => { setGTab("ga4"); setView("google"); }} /> : null}
+        {google.ai?.insights.length ? <AiOverviewCard ai={google.ai} onOpen={() => { setGAi("ga4"); setView("google"); }} /> : null}
         <QuickWins findings={remaining} gains={gains} onOpen={(f) => setView(f.module)} />
         {remaining.length > 5 && (
           <p className="dash-more">
@@ -960,7 +962,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     else if (s.id === "assistant") content = access === "owner" ? <Assistant key={scan.id} scan={scan} paid={!!acct?.paid} /> : empty("The assistant needs accounts, which aren't switched on here.");
     else if (s.id === "google")
       content = access === "owner" ? (
-        <GoogleData g={google} scan={scan} siteId={siteId} findings={remaining} onSave={() => setView("monitor")} onOpenFinding={openFinding} tab={gTab} onTab={setGTab} />
+        <GoogleData g={google} scan={scan} siteId={siteId} findings={remaining} onSave={() => setView("monitor")} onOpenFinding={openFinding} tab={gTab} onTab={setGTab} ai={gAi} onAi={setGAi} />
       ) : empty("Google data needs accounts, which aren't switched on here.");
     else if (s.id === "monitor") content = access === "local" ? empty("Saving sites needs accounts, which aren't switched on here.") : <SaveSite scanId={scan.id} host={scan.host} />;
     else if (s.id === "ai")

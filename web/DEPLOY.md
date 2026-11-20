@@ -236,7 +236,7 @@ What it does: dashboard star feature **Google data** (`?view=google`, owner only
 
 ### 1. Database
 
-Run `supabase/migrations/0010_google.sql`, then `0011_google_analytics.sql`, then `0012_google_ads.sql`, then `0013_google_ranges_bookings.sql` (date windows, Search Console AI and consultation bookings), in the Supabase SQL editor before deploying.
+Run `supabase/migrations/0010_google.sql`, then `0011_google_analytics.sql`, then `0012_google_ads.sql`, then `0013_google_ranges_bookings.sql` (date windows, Search Console AI and consultation bookings), and `0019_google_all_ai.sql` (Combined AI insights), in the Supabase SQL editor before deploying. Without 0019, "Analyse with AI" on the Combined tab fails to save.
 
 ### 2. Google Cloud project (one time, about 20 minutes)
 

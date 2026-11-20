@@ -1,24 +1,24 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChartColumn, Megaphone, Plug, Search, type LucideIcon } from "lucide-react";
+import { ArrowRight, ChartColumn, Eye, Megaphone, MousePointerClick, Plug, Search, Target, Wallet, type LucideIcon } from "lucide-react";
 import { findingKey } from "@/lib/scan/score";
 import { MODULE_NAMES, type Finding } from "@/lib/scan/types";
 import { trafficMap } from "@/lib/google/gsc-insights";
 import { visitsMap } from "@/lib/google/ga4-insights";
 import { money, spendMap } from "@/lib/google/ads-insights";
-import type { Ga4Insight } from "@/lib/google/ga4-insights";
 import type { GoogleState } from "./use-google";
-import { Delta, Skeleton, type GoogleTab } from "./google-data";
-import { DataTable, FindingLink, PageLink, n0, type Col, AiMark } from "./google-kit";
+import { Skeleton, type GoogleTab } from "./google-data";
+import { DataTable, DeltaBadge, FindingLink, Spark, StatTiles, n0, type Col, type Tile, AiMark } from "./google-kit";
+import { METRIC, allInsights, type AiTab } from "./ai-insights";
 
 /* The Overview tab of ★ Google data: where each product stands, the combined numbers for the window on screen, one
    daily trend (clicks, visits, ad spend as small multiples on a shared date axis: never two scales on one axis), the
-   issues to fix first by all the traffic they touch, and the most important AI insights from every product. */
+   issues to fix first by all the traffic they touch, and a teaser of the AI insights (the full list opens in the AI insights modal). */
 
 type Scan = { id: string; url: string; host: string; scannedAt?: string };
 
-export function GoogleOverview({ g, scan, findings, onTab }: { g: GoogleState; scan: Scan; findings: Finding[]; onTab: (t: GoogleTab) => void }) {
+export function GoogleOverview({ g, scan, findings, onTab, onAi }: { g: GoogleState; scan: Scan; findings: Finding[]; onTab: (t: GoogleTab) => void; onAi: (t?: AiTab) => void }) {
   const s = g.status!;
   if (g.inRange.loading) return <Skeleton />;
   const gsc = g.inRange.gsc?.data ?? null;
@@ -29,6 +29,7 @@ export function GoogleOverview({ g, scan, findings, onTab }: { g: GoogleState; s
 
   return (
     <>
+      <div className="gd-status-wrap">
       <ul className="gd-status" aria-label="Your Google products">
         <StatusCard
           i={0}
@@ -37,7 +38,7 @@ export function GoogleOverview({ g, scan, findings, onTab }: { g: GoogleState; s
           on={s.gsc && !!s.property}
           step={!s.connected || !s.gsc ? "Not connected" : !s.property ? "Pick a property" : null}
           detail={s.property ? s.property.replace(/^sc-domain:/, "") : "Searches, clicks, positions and indexing"}
-          value={gsc ? <><b>{n0(gsc.totals.clicks)}</b> clicks <Delta now={gsc.totals.clicks} before={gsc.totals.prevClicks} days={days} /></> : null}
+          value={gsc ? { v: n0(gsc.totals.clicks), unit: "clicks", badge: <DeltaBadge now={gsc.totals.clicks} before={gsc.totals.prevClicks} days={days} />, spark: gsc.daily.map((x) => x.clicks) } : null}
           onOpen={() => onTab("gsc")}
         />
         <StatusCard
@@ -47,7 +48,7 @@ export function GoogleOverview({ g, scan, findings, onTab }: { g: GoogleState; s
           on={s.ga4 && !!s.ga4Property}
           step={!s.connected || !s.ga4 ? "Not connected" : !s.ga4Property ? "Pick a property" : null}
           detail={s.ga4Name ?? "Visits, engagement, channels and key events"}
-          value={ga4 ? <><b>{n0(ga4.totals.sessions)}</b> visits <Delta now={ga4.totals.sessions} before={ga4.prev.sessions} days={days} /></> : null}
+          value={ga4 ? { v: n0(ga4.totals.sessions), unit: "visits", badge: <DeltaBadge now={ga4.totals.sessions} before={ga4.prev.sessions} days={days} />, spark: ga4.daily.map((x) => x.sessions) } : null}
           onOpen={() => onTab("ga4")}
         />
         {s.adsOn !== false && (
@@ -58,11 +59,12 @@ export function GoogleOverview({ g, scan, findings, onTab }: { g: GoogleState; s
             on={!!s.ads && !!s.adsCustomer}
             step={!s.connected || !s.ads ? "Not connected" : !s.adsCustomer ? "Pick an account" : null}
             detail={s.adsName ?? "Spend, landing pages and paid vs organic"}
-            value={ads ? <><b>{money(ads.totals.cost, ads.currency)}</b> spend <Delta now={ads.totals.cost} before={ads.prev.cost} days={days} invert /></> : null}
+            value={ads ? { v: money(ads.totals.cost, ads.currency), unit: "spend", badge: <DeltaBadge now={ads.totals.cost} before={ads.prev.cost} days={days} invert />, spark: ads.daily.map((x) => x.cost) } : null}
             onOpen={() => onTab("ads")}
           />
         )}
       </ul>
+      </div>
 
       {!gsc && !ga4 && !ads ? (
         busy ? <Skeleton /> : (
@@ -92,7 +94,7 @@ export function GoogleOverview({ g, scan, findings, onTab }: { g: GoogleState; s
           <Kpis g={g} />
           <Trend g={g} scannedAt={scan.scannedAt} />
           <FixFirst g={g} scanUrl={scan.url} findings={findings} />
-          <TopInsights g={g} onTab={onTab} />
+          <AiTeaser g={g} onAi={onAi} />
         </>
       )}
     </>
@@ -105,17 +107,27 @@ const CONNECT_ROWS: [LucideIcon, string, string][] = [
   [Megaphone, "Then Google Ads", "Ad spend landing on pages that need fixing"],
 ];
 
-function StatusCard({ i, icon: Icon, name, on, step, detail, value, onOpen }: { i: number; icon: LucideIcon; name: string; on: boolean; step: string | null; detail: string; value: React.ReactNode; onOpen: () => void }) {
+function StatusCard({ i, icon: Icon, name, on, step, detail, value, onOpen }: { i: number; icon: LucideIcon; name: string; on: boolean; step: string | null; detail: string; value: { v: string; unit: string; badge: React.ReactNode; spark: number[] } | null; onOpen: () => void }) {
   return (
-    <li className={on ? "on" : ""} style={{ ["--i" as string]: i }}>
+    <li className={on ? "on" : "off"} style={{ ["--i" as string]: i }}>
       <div className="gd-status-top">
         <span className="sc-ic" aria-hidden="true"><Icon /></span>
-        <h3>{name}</h3>
+        <div className="gd-status-name">
+          <h3>{name}</h3>
+          <p className="gd-status-d" title={detail}>{detail}</p>
+        </div>
         <span className={`gd-pill${on ? " ok" : ""}`}>{on ? "Connected" : step}</span>
       </div>
-      <p className="gd-status-d" title={detail}>{detail}</p>
-      {value && <p className="gd-status-v">{value}</p>}
-      <button type="button" className="fnd-link" onClick={onOpen}>{on ? `Open ${name}` : step === "Not connected" ? `Connect ${name}` : "Finish setup"} <span aria-hidden="true">→</span></button>
+      {value ? (
+        <div className="gd-status-num">
+          <p className="gd-status-v"><b>{value.v}</b> <span>{value.unit}</span></p>
+          {value.badge}
+          <Spark values={value.spark} />
+        </div>
+      ) : (
+        <p className="gd-status-empty">{on ? "Numbers load once a day." : "Not adding numbers to this report yet."}</p>
+      )}
+      <button type="button" className="fnd-link" onClick={onOpen}>{on ? `Open ${name}` : step === "Not connected" ? `Connect ${name}` : "Finish setup"} <ArrowRight aria-hidden="true" /></button>
     </li>
   );
 }
@@ -123,23 +135,23 @@ function StatusCard({ i, icon: Icon, name, on, step, detail, value, onOpen }: { 
 function Kpis({ g }: { g: GoogleState }) {
   const gsc = g.inRange.gsc?.data, ga4 = g.inRange.ga4?.data, ads = g.inRange.ads?.data;
   const days = g.days;
-  const tiles: { v: string; l: string; d?: React.ReactNode }[] = [];
+  const tiles: Tile[] = [];
   if (gsc) {
-    tiles.push({ v: n0(gsc.totals.clicks), l: "Google search clicks", d: <Delta now={gsc.totals.clicks} before={gsc.totals.prevClicks} days={days} /> });
-    tiles.push({ v: n0(gsc.totals.impressions), l: "times seen in Google", d: <Delta now={gsc.totals.impressions} before={gsc.totals.prevImpressions} days={days} /> });
+    tiles.push({ icon: MousePointerClick, label: "Search clicks", value: n0(gsc.totals.clicks), now: gsc.totals.clicks, before: gsc.totals.prevClicks, spark: gsc.daily.map((x) => x.clicks), tone: "var(--gd-s1)" });
+    tiles.push({ icon: Eye, label: "Seen in Google", value: n0(gsc.totals.impressions), now: gsc.totals.impressions, before: gsc.totals.prevImpressions, spark: gsc.daily.map((x) => x.impressions), tone: "#7b3fe0" });
   }
   if (ga4) {
-    tiles.push({ v: n0(ga4.totals.sessions), l: "visits", d: <Delta now={ga4.totals.sessions} before={ga4.prev.sessions} days={days} /> });
-    tiles.push({ v: n0(ga4.totals.keyEvents), l: "key events", d: <Delta now={ga4.totals.keyEvents} before={ga4.prev.keyEvents} days={days} /> });
+    tiles.push({ icon: ChartColumn, label: "Visits", value: n0(ga4.totals.sessions), now: ga4.totals.sessions, before: ga4.prev.sessions, spark: ga4.daily.map((x) => x.sessions), tone: "var(--gd-s2)" });
+    tiles.push({ icon: Target, label: "Key events", value: n0(ga4.totals.keyEvents), now: ga4.totals.keyEvents, before: ga4.prev.keyEvents, tone: "#0f9d8a" });
   }
   if (ads) {
-    tiles.push({ v: money(ads.totals.cost, ads.currency), l: "ad spend", d: <Delta now={ads.totals.cost} before={ads.prev.cost} days={days} invert /> });
-    tiles.push({ v: n0(ads.totals.conversions), l: "ad conversions", d: <Delta now={ads.totals.conversions} before={ads.prev.conversions} days={days} /> });
+    tiles.push({ icon: Wallet, label: "Ad spend", value: money(ads.totals.cost, ads.currency), now: ads.totals.cost, before: ads.prev.cost, invert: true, spark: ads.daily.map((x) => x.cost), tone: "var(--gd-s3)" });
+    tiles.push({ icon: Target, label: "Ad conversions", value: n0(ads.totals.conversions), now: ads.totals.conversions, before: ads.prev.conversions, tone: "#e8a10a" });
   }
   return (
     <section className="panel gd-totals" aria-label={`Last ${days} days`}>
       <h2>Your Google numbers, last {days} days</h2>
-      <ul className="sec-stats">{tiles.map((t) => <li key={t.l}><b>{t.v}</b><span>{t.l}</span>{t.d}</li>)}</ul>
+      <StatTiles tiles={tiles} days={days} label={`Your Google numbers, last ${days} days`} />
     </section>
   );
 }
@@ -282,47 +294,40 @@ function FixFirst({ g, scanUrl, findings }: { g: GoogleState; scanUrl: string; f
   );
 }
 
-/* ---------- The most important AI insights from every product ---------- */
+/* ---------- AI insights teaser: the top few, the rest in the modal ---------- */
 
-const RANK = { high: 0, medium: 1, low: 2 } as const;
-
-function TopInsights({ g, onTab }: { g: GoogleState; onTab: (t: GoogleTab) => void }) {
-  const all: (Ga4Insight & { from: string; tab: GoogleTab })[] = [
-    ...(g.gscAi?.insights ?? []).map((i) => ({ ...i, from: "Search Console", tab: "gsc" as GoogleTab })),
-    ...(g.ai?.insights ?? []).map((i) => ({ ...i, from: "Analytics", tab: "ga4" as GoogleTab })),
-    ...(g.adsAi?.insights ?? []).map((i) => ({ ...i, from: "Google Ads", tab: "ads" as GoogleTab })),
-  ].sort((a, b) => RANK[a.priority] - RANK[b.priority]);
-  const s = g.status!;
-  const can: [GoogleTab, string][] = [];
-  if (s.property && !g.gscAi) can.push(["gsc", "Search Console"]);
-  if (s.ga4Property && !g.ai) can.push(["ga4", "Analytics"]);
-  if (s.adsCustomer && s.adsOn !== false && !g.adsAi) can.push(["ads", "Google Ads"]);
-  if (!all.length && !can.length) return null;
+function AiTeaser({ g, onAi }: { g: GoogleState; onAi: (t?: AiTab) => void }) {
+  const all = allInsights(g);
+  const combined = !!g.status && [g.gsc, g.ga4, g.ads].filter(Boolean).length >= 2;
   return (
-    <section className="panel gd-ai" aria-label="Top AI insights">
-      <div className="gd-ai-top"><AiMark /><h2>What AI sees in your numbers</h2></div>
+    <section className="panel gd-ai gd-ai-teaser" aria-labelledby="gd-ai-teaser-h">
+      <div className="gd-ai-top">
+        <AiMark />
+        <div>
+          <h2 id="gd-ai-teaser-h">{all.length ? "Your biggest wins, according to AI" : "Let AI find your biggest wins"}</h2>
+          <p className="panel-note">{combined ? "It reads Search Console, Analytics and Google Ads together, page by page." : "It reads your Google numbers next to this report."}</p>
+        </div>
+      </div>
       {all.length > 0 && (
-        <ul className="gd-ins gd-ins-mini">
-          {all.slice(0, 5).map((i) => (
-            <li key={i.from + i.title} className={`p-${i.priority}`}>
-              <span className="gd-ins-p">{i.from}</span>
-              <h3>{i.title}</h3>
-              <p className="gd-ins-do"><b>Next step:</b> {i.action}</p>
-              {i.pages.length > 0 && <p className="gd-ins-refs">{i.pages.slice(0, 3).map((p) => <PageLink key={p} url={p} />)}</p>}
-            </li>
-          ))}
+        <ul className="gd-teaser">
+          {all.slice(0, 3).map((i, n) => {
+            const m = i.metric ? METRIC[i.metric] : null;
+            const MIc = m?.icon;
+            return (
+              <li key={i.from + i.title + n} className={`p-${i.priority}`}>
+                {m && MIc ? <span className={`gd-metric m-${i.metric}`}><MIc aria-hidden="true" />{m.label}</span> : null}
+                <h3>{i.title}</h3>
+                {i.gain && !/hard to estimate/i.test(i.gain) && <p className="gd-gain-t">{i.gain}</p>}
+              </li>
+            );
+          })}
         </ul>
       )}
-      {can.length > 0 && (
-        <p className="panel-note">
-          {all.length ? "Not analysed yet: " : "AI hasn't read your numbers yet. Run it on "}
-          {can.map(([t, label], i) => (
-            <span key={t}>{i ? ", " : ""}<button type="button" className="fnd-link" onClick={() => onTab(t)}>{label}</button></span>
-          ))}
-          .
-        </p>
-      )}
+      <div className="gd-teaser-foot">
+        <button type="button" className="dash-btn primary" onClick={() => onAi(combined ? "all" : undefined)}>
+          {all.length ? `See all ${all.length} insights` : combined ? "Analyse everything together" : "Analyse with AI"} <ArrowRight aria-hidden="true" />
+        </button>
+      </div>
     </section>
   );
 }
-

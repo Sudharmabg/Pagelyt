@@ -20,7 +20,7 @@ export async function canUseGoogle(userId: string) {
 
 export type Connection = { user_id: string; google_email: string | null; scopes: string[]; refresh_token_enc: string; created_at: string; updated_at: string };
 export type Link = { site_id: string; user_id: string; gsc_property: string | null; ga4_property: string | null; ga4_name: string | null; ads_customer: string | null; ads_login: string | null; ads_name: string | null };
-export type Source = "gsc" | "gsc_7" | "gsc_90" | "gsc_ai" | "ga4" | "ga4_7" | "ga4_90" | "ga4_ai" | "ads" | "ads_7" | "ads_90" | "ads_ai";
+export type Source = "gsc" | "gsc_7" | "gsc_90" | "gsc_ai" | "ga4" | "ga4_7" | "ga4_90" | "ga4_ai" | "ads" | "ads_7" | "ads_90" | "ads_ai" | "all_ai";
 /** The date windows the Google data view offers. 28 days is the main one (findings, AI, PDF use it). */
 export type Days = 7 | 28 | 90;
 export const asDays = (v: unknown): Days => (v === 7 || v === 90 ? v : 28);
@@ -89,19 +89,19 @@ export async function setGscProperty(siteId: string, userId: string, property: s
   const row = { site_id: siteId, user_id: userId, gsc_property: property, updated_at: new Date().toISOString() };
   await rest("google_links?on_conflict=site_id", { method: "POST", body: JSON.stringify(row), prefer: "resolution=merge-duplicates,return=minimal" });
   // A different property makes the cached numbers wrong.
-  await rest(`google_cache?site_id=eq.${q(siteId)}&source=in.(gsc,gsc_7,gsc_90,gsc_ai)`, { method: "DELETE" });
+  await rest(`google_cache?site_id=eq.${q(siteId)}&source=in.(gsc,gsc_7,gsc_90,gsc_ai,all_ai)`, { method: "DELETE" });
 }
 
 export async function setGa4Property(siteId: string, userId: string, property: string | null, name: string | null) {
   const row = { site_id: siteId, user_id: userId, ga4_property: property, ga4_name: name, updated_at: new Date().toISOString() };
   await rest("google_links?on_conflict=site_id", { method: "POST", body: JSON.stringify(row), prefer: "resolution=merge-duplicates,return=minimal" });
-  await rest(`google_cache?site_id=eq.${q(siteId)}&source=in.(ga4,ga4_7,ga4_90,ga4_ai)`, { method: "DELETE" });
+  await rest(`google_cache?site_id=eq.${q(siteId)}&source=in.(ga4,ga4_7,ga4_90,ga4_ai,all_ai)`, { method: "DELETE" });
 }
 
 export async function setAdsAccount(siteId: string, userId: string, acct: { id: string; login: string | null; name: string } | null) {
   const row = { site_id: siteId, user_id: userId, ads_customer: acct?.id ?? null, ads_login: acct?.login ?? null, ads_name: acct?.name ?? null, updated_at: new Date().toISOString() };
   await rest("google_links?on_conflict=site_id", { method: "POST", body: JSON.stringify(row), prefer: "resolution=merge-duplicates,return=minimal" });
-  await rest(`google_cache?site_id=eq.${q(siteId)}&source=in.(ads,ads_7,ads_90,ads_ai)`, { method: "DELETE" });
+  await rest(`google_cache?site_id=eq.${q(siteId)}&source=in.(ads,ads_7,ads_90,ads_ai,all_ai)`, { method: "DELETE" });
 }
 
 export async function getCache<T>(siteId: string, source: Source): Promise<CacheRow<T> | null> {

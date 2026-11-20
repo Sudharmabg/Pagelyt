@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarRange, ChartColumn, FileText, Hourglass, Link2, ListOrdered, Sparkles, TrendingDown, Users } from "lucide-react";
+import { Activity, CalendarRange, ChartColumn, FileText, Hourglass, Link2, ListOrdered, MousePointerClick, Sparkles, Target, TrendingDown, Users } from "lucide-react";
 import { findingKey } from "@/lib/scan/score";
 import { MODULE_NAMES, type Finding } from "@/lib/scan/types";
 import { byVisits, channelRows, findingsOnPath, ga4Drops, lowEngagement, rate, visitsMap, type Ga4Data, type Visits } from "@/lib/google/ga4-insights";
 import { change } from "@/lib/google/gsc-insights";
-import { Delta, GoogleMark, Skeleton, Steps } from "./google-data";
-import { DataTable, FindingLink, FindingList, InsightsPanel, PageLink, SplitBars, deviceName, n0, type Col, GuideLink, PanelHead, AiMark } from "./google-kit";
+import { Busy, GoogleMark, Skeleton, Steps } from "./google-data";
+import { DataTable, FindingLink, FindingList, PageLink, SplitBars, StatTiles, deviceName, n0, type Col, GuideLink, PanelHead, AiMark } from "./google-kit";
 import type { AiInsights, GoogleState } from "./use-google";
 
 /* The Analytics tab of ★ Google data: Connect Google Analytics, pick the GA4 property, then the AI's insights (on a
@@ -80,7 +80,6 @@ export function AnalyticsTab({ g, scan, findings, notice }: Props) {
     <>
       {head}
       {c.error && <p className="panel gd-note bad" role="alert">{c.error} Showing the numbers from {new Date(c.fetchedAt).toLocaleDateString("en-GB")}.</p>}
-      <InsightsPanel title="AI insights from your Analytics" source="Analytics" ai={g.ai} busy={g.busy === "analyse"} error={g.aiError} findings={findings} onRun={(force) => void g.analyse(scan.id, force)} />
       <Ga4View d={c.data} findings={findings} />
       <Footer g={g} fetchedAt={c.fetchedAt} />
     </>
@@ -99,7 +98,7 @@ function Ga4Picker({ g, host }: { g: GoogleState; host: string }) {
       <PanelHead icon={Link2} title={<>Which Google Analytics property is {host}?</>} />
       <Steps at={1} />
       {!props ? (
-        <p className="panel-note">Loading your Analytics properties…</p>
+        <div className="panel-note" role="status"><Busy label="Loading your Analytics properties…" /></div>
       ) : props.length === 0 ? (
         <p className="panel-note">This Google account ({g.status?.email}) can&rsquo;t see any Google Analytics 4 properties. Ask the site&rsquo;s Analytics admin to add it with Viewer access, or disconnect from your account page and connect the Google account that has it.</p>
       ) : (
@@ -190,14 +189,18 @@ function Ga4View({ d, findings }: { d: Ga4Data; findings: Finding[] }) {
     <>
       <section className="panel gd-totals" aria-label={`Visitors, last ${days} days`}>
         <PanelHead icon={Users} title={<>Visitors, last {days} days</>} note={<>{d.range.start} to {d.range.end}, against the {days} days before.{d.name ? ` Property: ${d.name}.` : ""}</>} />
-        <ul className="sec-stats">
-          <li><b>{n0(T.sessions)}</b><span>visits</span><Delta now={T.sessions} before={P.sessions} days={days} /></li>
-          <li><b>{n0(T.users)}</b><span>visitors ({n0(T.newUsers)} new)</span><Delta now={T.users} before={P.users} days={days} /></li>
-          <li><b>{p0(rate(T.engaged, T.sessions))}</b><span>engaged visits (was {p0(rate(P.engaged, P.sessions))})</span></li>
-          <li><b>{dur(T.avgDuration)}</b><span>average visit</span><Delta now={T.avgDuration} before={P.avgDuration} days={days} /></li>
-          <li><b>{n0(T.views)}</b><span>page views</span><Delta now={T.views} before={P.views} days={days} /></li>
-          <li><b>{n0(T.keyEvents)}</b><span>key events</span><Delta now={T.keyEvents} before={P.keyEvents} days={days} /></li>
-        </ul>
+        <StatTiles
+          days={days}
+          label={`Visitors, last ${days} days`}
+          tiles={[
+            { icon: MousePointerClick, label: "Visits", value: n0(T.sessions), now: T.sessions, before: P.sessions, spark: d.daily.map((x) => x.sessions), tone: "var(--gd-s2)" },
+            { icon: Users, label: "Visitors", value: n0(T.users), now: T.users, before: P.users, note: `${n0(T.newUsers)} new`, spark: d.daily.map((x) => x.users), tone: "#7b3fe0" },
+            { icon: Activity, label: "Engaged visits", value: p0(rate(T.engaged, T.sessions)), now: rate(T.engaged, T.sessions), before: rate(P.engaged, P.sessions), note: `was ${p0(rate(P.engaged, P.sessions))}`, tone: "#0f9d8a" },
+            { icon: Hourglass, label: "Average visit", value: dur(T.avgDuration), now: T.avgDuration, before: P.avgDuration, tone: "#e8a10a" },
+            { icon: FileText, label: "Page views", value: n0(T.views), now: T.views, before: P.views, tone: "var(--gd-s1)" },
+            { icon: Target, label: "Key events", value: n0(T.keyEvents), now: T.keyEvents, before: P.keyEvents, tone: "var(--gd-s3)" },
+          ]}
+        />
         {(d.devices?.length || d.countries?.length) ? (
           <div className="gd-splits">
             <SplitBars title="Visits by device" unit="visits" rows={(d.devices ?? []).map((x) => ({ key: deviceName(x.key), value: x.sessions }))} />

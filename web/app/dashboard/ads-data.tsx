@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Ban, CalendarRange, Coins, Link2, Megaphone, Scale, Target, TriangleAlert, Wallet } from "lucide-react";
+import { Ban, CalendarRange, Coins, Eye, Link2, Megaphone, MousePointerClick, Scale, Tag, Target, TriangleAlert, Wallet } from "lucide-react";
 import { findingKey } from "@/lib/scan/score";
 import { MODULE_NAMES, type Finding } from "@/lib/scan/types";
 import { campaignRows, cpa, cpc, findingsOnUrl, landingHealth, money, organicValue, paidOrganicOverlap, spendMap, wastedTerms, weakLanding, type AdsData, type Spend } from "@/lib/google/ads-insights";
 import type { GscData } from "@/lib/google/gsc-insights";
-import { Delta, GoogleMark, Skeleton, Steps } from "./google-data";
-import { DataTable, FindingLink, FindingList, InsightsPanel, PageLink, n0, type Col, GuideLink, PanelHead } from "./google-kit";
+import { Busy, GoogleMark, Skeleton, Steps } from "./google-data";
+import { DataTable, FindingLink, FindingList, PageLink, StatTiles, n0, type Col, GuideLink, PanelHead } from "./google-kit";
 import type { GoogleState } from "./use-google";
 
 /* The Ads tab of ★ Google data: Connect Google Ads, pick the account (agency manager accounts included), then the AI's
@@ -84,7 +84,6 @@ export function AdsTab({ g, scan, findings, notice }: Props) {
     <>
       {head}
       {c.error && <p className="panel gd-note bad" role="alert">{c.error} Showing the numbers from {new Date(c.fetchedAt).toLocaleDateString("en-GB")}.</p>}
-      <InsightsPanel title="AI insights from your Google Ads" source="Google Ads" ai={g.adsAi} busy={g.busy === "adsanalyse"} error={g.adsAiError} findings={findings} onRun={(force) => void g.analyseAds(scan.id, force)} />
       <AdsView d={c.data} gsc={g.inRange.gsc?.data ?? (g.days === 28 ? g.gsc : null)} homeUrl={scan.url} findings={findings} />
       <Footer g={g} fetchedAt={c.fetchedAt} />
     </>
@@ -103,7 +102,7 @@ function AdsPicker({ g, host }: { g: GoogleState; host: string }) {
       <PanelHead icon={Link2} title={<>Which Google Ads account advertises {host}?</>} />
       <Steps at={1} />
       {!accounts ? (
-        <p className="panel-note">Loading your Google Ads accounts…</p>
+        <div className="panel-note" role="status"><Busy label="Loading your Google Ads accounts…" /></div>
       ) : accounts.length === 0 ? (
         <p className="panel-note">This Google account ({g.status?.email}) can&rsquo;t see any Google Ads accounts Pagelyt can read. Ask the account&rsquo;s admin to add it with Read only access, or disconnect from your account page and connect the Google account that has it.</p>
       ) : (
@@ -174,14 +173,18 @@ function AdsView({ d, gsc, homeUrl, findings }: { d: AdsData; gsc: GscData | nul
     <>
       <section className="panel gd-totals" aria-label={`Google Ads, last ${days} days`}>
         <PanelHead icon={Wallet} title={<>Google Ads, last {days} days</>} note={<>{d.range.start} to {d.range.end}, against the {days} days before.{d.name ? ` Account: ${d.name}.` : ""} Amounts in {d.currency}.</>} />
-        <ul className="sec-stats">
-          <li><b>{$(T.cost)}</b><span>spend</span><Delta now={T.cost} before={P.cost} days={days} /></li>
-          <li><b>{n0(T.clicks)}</b><span>clicks</span><Delta now={T.clicks} before={P.clicks} days={days} /></li>
-          <li><b>{n0(T.conversions)}</b><span>conversions</span><Delta now={T.conversions} before={P.conversions} days={days} /></li>
-          <li><b>{c == null ? "–" : $(c, 2)}</b><span>per conversion{pc == null ? "" : ` (was ${$(pc, 2)})`}</span></li>
-          <li><b>{cpc(T) == null ? "–" : $(cpc(T)!, 2)}</b><span>per click</span></li>
-          <li><b>{n0(T.impressions)}</b><span>impressions</span><Delta now={T.impressions} before={P.impressions} days={days} /></li>
-        </ul>
+        <StatTiles
+          days={days}
+          label={`Google Ads, last ${days} days`}
+          tiles={[
+            { icon: Wallet, label: "Spend", value: $(T.cost), now: T.cost, before: P.cost, invert: true, spark: d.daily.map((x) => x.cost), tone: "var(--gd-s3)" },
+            { icon: MousePointerClick, label: "Clicks", value: n0(T.clicks), now: T.clicks, before: P.clicks, spark: d.daily.map((x) => x.clicks), tone: "var(--gd-s1)" },
+            { icon: Target, label: "Conversions", value: n0(T.conversions), now: T.conversions, before: P.conversions, tone: "#7b3fe0" },
+            { icon: Coins, label: "Per conversion", value: c == null ? "–" : $(c, 2), ...(c != null && pc != null ? { now: c, before: pc } : {}), invert: true, note: pc == null ? undefined : `was ${$(pc, 2)}`, tone: "#e8a10a" },
+            { icon: Tag, label: "Per click", value: cpc(T) == null ? "–" : $(cpc(T)!, 2), ...(cpc(T) != null && cpc(P) != null ? { now: cpc(T)!, before: cpc(P)! } : {}), invert: true, tone: "#0f9d8a" },
+            { icon: Eye, label: "Impressions", value: n0(T.impressions), now: T.impressions, before: P.impressions, tone: "var(--gd-s2)" },
+          ]}
+        />
         <h3 className="gd-sub">Campaigns</h3>
         <DataTable
           rows={camps}

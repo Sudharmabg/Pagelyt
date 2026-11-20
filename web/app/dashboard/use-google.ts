@@ -16,6 +16,8 @@ export type Ga4Property = { property: string; name: string; account: string };
 export type AiInsights = Ga4Ai & { at: string; current: boolean };
 export type AdsAiInsights = AdsAi & { at: string; current: boolean };
 export type GscAiInsights = Ga4Ai & { at: string; current: boolean };
+/** The combined analysis of every connected product (`products` says which). */
+export type AllAiInsights = Ga4Ai & { products: Product[]; at: string; current: boolean };
 /** The date windows the Google data view offers. 28 days is the main one: findings, AI insights and the PDF use it. */
 export type Days = 7 | 28 | 90;
 /** Data for a 7- or 90-day window, fetched when the owner picks it (cached on the server for 24 hours). */
@@ -46,6 +48,7 @@ export type GoogleStatus = {
   adsAccounts?: AdsAccount[];
   adsCache?: Cached<AdsData> | null;
   adsAi?: AdsAiInsights | null;
+  allAi?: AllAiInsights | null;
   printToken?: string;
 };
 
@@ -63,7 +66,7 @@ async function call<T>(path: string, body?: unknown): Promise<T> {
   return d;
 }
 
-type Busy = null | "load" | "refresh" | "ga4refresh" | "adsrefresh" | "connect" | "link" | "props" | "analyse" | "adsanalyse" | "gscanalyse" | "range";
+type Busy = null | "load" | "refresh" | "ga4refresh" | "adsrefresh" | "connect" | "link" | "props" | "analyse" | "adsanalyse" | "gscanalyse" | "allanalyse" | "range";
 
 export function useGoogle(siteId: string | null, enabled: boolean) {
   const [status, setStatus] = useState<GoogleStatus | null>(null);
@@ -72,6 +75,7 @@ export function useGoogle(siteId: string | null, enabled: boolean) {
   const [aiError, setAiError] = useState("");
   const [adsAiError, setAdsAiError] = useState("");
   const [gscAiError, setGscAiError] = useState("");
+  const [allAiError, setAllAiError] = useState("");
   const [days, setDaysState] = useState<Days>(28);
   const [ranges, setRanges] = useState<Partial<Record<Days, RangeSet>>>({});
 
@@ -96,8 +100,10 @@ export function useGoogle(siteId: string | null, enabled: boolean) {
 
   const fetchFresh = useCallback(async (product: Product, force: boolean) => {
     const cache = await call<Cached<GscData | Ga4Data | AdsData>>("/api/google/refresh", { siteId, force, product });
-    setStatus((s) => {
-      if (!s) return s;
+    setStatus((s0) => {
+      if (!s0) return s0;
+      // The combined insights stay current only while they were made from this product's latest numbers.
+      const s = s0.allAi ? { ...s0, allAi: { ...s0.allAi, current: s0.allAi.current && s0.allAi.basedOn.includes(`${product}:${cache.fetchedAt}`) } } : s0;
       if (product === "ga4") return { ...s, ga4Cache: cache as Cached<Ga4Data>, ai: s.ai ? { ...s.ai, current: s.ai.basedOn === cache.fetchedAt } : s.ai };
       if (product === "ads") return { ...s, adsCache: cache as Cached<AdsData>, adsAi: s.adsAi ? { ...s.adsAi, current: s.adsAi.basedOn === cache.fetchedAt } : s.adsAi };
       return { ...s, cache: cache as Cached<GscData> };
@@ -183,6 +189,15 @@ export function useGoogle(siteId: string | null, enabled: boolean) {
     }, setGscAiError);
   }, [siteId, run]);
 
+  /** The combined analysis: every connected product read together (two or more). */
+  const analyseAll = useCallback(async (scanId: string, force = false) => {
+    if (!siteId) return;
+    await run("allanalyse", async () => {
+      const allAi = await call<AllAiInsights>("/api/google/analyse", { siteId, scanId, force, product: "all" });
+      setStatus((s) => (s ? { ...s, allAi } : s));
+    }, setAllAiError);
+  }, [siteId, run]);
+
   /** Switches the Google data view to another date window, fetching each linked product's numbers for it once. */
   const setDays = useCallback(async (d: Days, force = false) => {
     setDaysState(d);
@@ -233,7 +248,7 @@ export function useGoogle(siteId: string | null, enabled: boolean) {
     ads: days === 28 ? (status?.adsCache ?? null) : (r?.ads ?? null),
   };
 
-  return { status, busy, error, aiError, adsAiError, gscAiError, days, setDays, inRange, gscAi: status?.gscAi ?? null, analyseGsc, gsc: status?.cache?.data ?? null, ga4: status?.ga4Cache?.data ?? null, ai: status?.ai ?? null, ads: status?.adsCache?.data ?? null, adsAi: status?.adsAi ?? null, refresh, connect, loadProps, link, analyse, analyseAds, printPass };
+  return { status, busy, error, aiError, adsAiError, gscAiError, days, setDays, inRange, gscAi: status?.gscAi ?? null, analyseGsc, gsc: status?.cache?.data ?? null, ga4: status?.ga4Cache?.data ?? null, ai: status?.ai ?? null, ads: status?.adsCache?.data ?? null, adsAi: status?.adsAi ?? null, allAi: status?.allAi ?? null, allAiError, analyseAll, refresh, connect, loadProps, link, analyse, analyseAds, printPass };
 }
 
 export type GoogleState = ReturnType<typeof useGoogle>;

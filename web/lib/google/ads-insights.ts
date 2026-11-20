@@ -6,7 +6,7 @@
 
 import type { Finding } from "../scan/types";
 import { change, SITEWIDE, type GscData } from "./gsc-insights";
-import { gaPath } from "./ga4-insights";
+import { gaPath, type Ga4Insight } from "./ga4-insights";
 
 export type AdsTotals = { cost: number; clicks: number; impressions: number; conversions: number; value: number };
 export type AdsCampaign = AdsTotals & { name: string; status: string; type: string };
@@ -32,7 +32,7 @@ export type AdsData = {
 };
 
 /** One written insight from the AI analysis of the Ads numbers. `pages` are landing-page paths, `findings` finding ids. */
-export type AdsInsight = { title: string; detail: string; action: string; priority: "high" | "medium" | "low"; pages: string[]; findings: string[] };
+export type AdsInsight = Ga4Insight;
 export type AdsAi = { insights: AdsInsight[]; basedOn: string; model: string };
 
 export const ZERO: AdsTotals = { cost: 0, clicks: 0, impressions: 0, conversions: 0, value: 0 };
