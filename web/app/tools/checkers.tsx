@@ -10,6 +10,7 @@ import type { HreflangReport } from "@/lib/tools/hreflang";
 import { parseRobots, robotsPath, robotsVerdict } from "@/lib/tools/robots";
 import { Field, Output, type Ctx } from "./tools";
 import { SignInLink } from "@/app/sign-in-modal";
+import { track } from "@/lib/analytics";
 
 /* The free checkers. The ones that fetch another site call /api/tools with the visitor's session. */
 
@@ -24,6 +25,7 @@ export async function callTool<T>(payload: Record<string, unknown>): Promise<T |
       body: JSON.stringify(payload),
     });
     const j = (await r.json().catch(() => ({}))) as T & { error?: string; code?: string; upgrade?: boolean };
+    if (payload.tool !== "plan") track(r.ok ? "tool_run" : "tool_error", { tool: String(payload.tool ?? ""), upgrade_needed: !!j.upgrade || undefined });
     if (!r.ok) return { error: j.error || "Something went wrong. Please try again.", signedOut: j.code === "signed_out", upgrade: !!j.upgrade };
     return j;
   } catch {

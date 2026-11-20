@@ -7,6 +7,7 @@ import { SESSION_EVENT } from "../request-form";
 import { useTurnstile } from "../use-turnstile";
 import { useSignedInUser } from "@/lib/use-signed-in";
 import { supabaseBrowser } from "@/lib/supabase-browser";
+import { track } from "@/lib/analytics";
 
 /* The consultation booking picker: choose a session, a day and a free start time (shown in the visitor's own
    timezone), then name and email. Booking confirms straight away; nothing is paid now (an invoice follows by email).
@@ -125,6 +126,7 @@ export function Booker() {
         throw new Error(j.error || "That time was just taken. Please pick another.");
       }
       if (!r.ok || !j.starts_at) throw new Error(j.error || "We couldn't book that just now.");
+      track("consultation_booked", { session: String(SESSIONS[idx] ?? ""), signed_in: !!user });
       setDone({ starts_at: j.starts_at, ends_at: j.ends_at ?? j.starts_at, session: j.session ?? SESSIONS[idx] });
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "We couldn't book that just now.");

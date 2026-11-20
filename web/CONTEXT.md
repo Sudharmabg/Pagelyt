@@ -111,6 +111,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 
 | File | Key exports | Purpose |
 |---|---|---|
+| `analytics.ts` | `track`, `trackPageView`, `readConsent`, `saveConsent`, `openCookieSettings`, `GA_ID` | GA4 for our own site behind Consent Mode v2 (`NEXT_PUBLIC_GA_ID`, `pl_consent` cookie); no-op on /admin and /print |
 | `auth.ts` | `userFromRequest`, `adminFromRequest`, `isAdmin`, `verifyTurnstile`, `clientIp`, `AuthUser` | Server-side auth helpers (Bearer token) |
 | `gotrue.ts` | `signUp`, `signInWithPassword`, `verifyEmailCode`, `verifyRecoveryCode`, `setPassword`, `resendConfirmation`, `recover`, `reply`, `NO_STORE` | Supabase Auth calls. `recover` returns `"sent" \| "limited" \| "failed"` and logs Supabase's status and error code |
 | `session-age.ts` | `SESSION_DAYS` (7), `sessionFresh`, `signedInAt` | Hard 7-day session limit |
@@ -242,6 +243,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 - `reveal-host.tsx`: `RevealHost`, mounted once in `layout.tsx`. Adds the `.js` class, gives every `[data-r]` element `.in` when it scrolls into view, and auto-reveals blocks that start below the fold (`main .sec .container > *`, `.dash-main > *`, `.dash-cards > *`, `.star-strip > *`; grid lists reveal item by item) through the `data-rv` attribute ("" waiting, "in" animating, "done"). Skips reduced motion, fixed/sticky elements and elements that already animate. Styles in the "Motion pass" block at the end of globals.css.
 - `roll-num.tsx`: `RollNum`, an odometer number whose digits roll to their value when scrolled into view (home stats, step card, stories, bento).
 - `home-media.tsx`: `WorksWith` ("works with" platform ticker at the top of #product) and `GuidesCarousel` (scroll-snap row of blog guide cards that turn in 3D with scroll position).
+- `cookie-consent.tsx`: `CookieConsent` (mounted in `layout.tsx`): bottom-bar cookie banner (Accept/Reject/Settings), page views on route change, and site-wide click tracking (`role="tab"` → tab_switch, plan links → upgrade_click, `.btn`/`.dash-btn`/`[data-cta]` → cta_click). `CookieSettingsLink` reopens it (footer).
 - `toast.tsx`: `toast(text, {tone, action, ms})` raises a stacking toast; `Toaster` is mounted in `layout.tsx`.
 - `tooltip.tsx`: `TooltipHost`, one site-wide tooltip for any `data-tip` element (hover and keyboard focus), mounted in `layout.tsx`.
 - `card-fx.tsx`: `CardFx`, pointer tilt and glow for dashboard cards, tool cards, feature tiles, bento tiles and the featured post (mouse only, no reduced motion).

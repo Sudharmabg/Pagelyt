@@ -8,6 +8,7 @@ import { RevealHost } from "./reveal-host";
 import { Toaster } from "./toast";
 import { TooltipHost } from "./tooltip";
 import { CardFx } from "./card-fx";
+import { CookieConsent } from "./cookie-consent";
 import { SkipLink } from "./skip-link";
 import { HireNudge } from "./hire-nudge";
 import { SITE_NAME, SITE_URL } from "./site-config";
@@ -58,6 +59,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <TooltipHost />
         <CardFx />
         <Toaster />
+        <CookieConsent />
         <HireNudge />
       </body>
     </html>

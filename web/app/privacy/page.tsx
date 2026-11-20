@@ -23,7 +23,7 @@ export default function PrivacyPage() {
       <main>
         <PageHero
           h1="Privacy Policy."
-          lead="Last updated 13 November 2026. This page explains what Pagelyt collects and why."
+          lead="Last updated 20 November 2026. This page explains what Pagelyt collects and why."
         />
         <section className="sec">
           <div className="container legal">
@@ -72,6 +72,24 @@ export default function PrivacyPage() {
               the law requires it. We do not use it to train AI models. When you ask the Pagelyt Assistant a question,
               or press Analyse with AI on the Analytics or Google Ads tab, a summary of these numbers and your report&rsquo;s findings
               is sent to our AI provider (OpenAI) only to write that answer or those insights for you.
+            </p>
+            <h2 id="cookies">Cookies and analytics</h2>
+            <p>
+              We ask before we set any analytics cookies. The banner on your first visit lets you accept, reject or pick,
+              and you can change your mind at any time with <strong>Cookie settings</strong> at the bottom of every page.
+            </p>
+            <p>
+              <strong>Essential (always on).</strong> Your sign-in session is kept in your browser&rsquo;s local storage
+              and ends 7 days after you sign in. The <code>pl_consent</code> cookie remembers your cookie choice for 6
+              months. Our hosting provider, Cloudflare, may set short-lived security cookies to block abuse.
+            </p>
+            <p>
+              <strong>Analytics (only if you accept).</strong> Google Analytics sets <code>_ga</code> and{" "}
+              <code>_ga_&lt;id&gt;</code> cookies, kept for up to 2 years, to count visits and see which pages and
+              features people use, such as starting a scan or running a free tool. We do not use this data for
+              advertising, and Google&rsquo;s advertising storage stays off. If you reject analytics, Google may still
+              receive basic cookieless signals (such as a page load) with no identifier stored on your device. Admin
+              pages are never tracked. If you withdraw consent, we delete the Google Analytics cookies.
             </p>
             <h2>Sharing</h2>
             <p>

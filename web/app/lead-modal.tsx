@@ -10,6 +10,7 @@ import { isDisposable } from "@/lib/disposable";
 import { CodeForm } from "./code-form";
 import { ModalX, onBackdrop } from "./modal-close";
 import { SignInLink } from "@/app/sign-in-modal";
+import { track } from "@/lib/analytics";
 
 export type LeadInput = { name: string; email: string };
 
@@ -279,6 +280,7 @@ export function LeadModal({
       return fail(msg(r.json, "We couldn't log you in just now. Please try again."));
     }
     if (!sb || !(await adoptSession(sb, session))) return fail("We couldn't log you in just now. Please try again.");
+    track("login", { method: "password", source: "scan_modal" });
     save(c.value);
     await scanAs(session, null);
   };
@@ -300,6 +302,7 @@ export function LeadModal({
       return switchTo("login", msg(r.json, "Please log in instead."));
     }
     if (r.status !== 200) return fail(msg(r.json, "We couldn't create your account just now. Please try again."));
+    track("sign_up", { method: "email", claim, from_tool: !!tool });
     save(v.lead.email);
     const session = r.json.session as SessionTokens | null;
     if (session && sb && (await adoptSession(sb, session))) {

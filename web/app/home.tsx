@@ -19,6 +19,7 @@ import { ScanPreview, type ModScore } from "./ui";
 import { LeadModal, type ScanProblem, type ScanStart } from "./lead-modal";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { sessionFresh } from "@/lib/session-age";
+import { track } from "@/lib/analytics";
 
 const BASE: ModScore[] = [
   { name: "Website health", score: 92 },
@@ -112,6 +113,7 @@ export default function Home({ guides = [] }: { guides?: GuideCard[] }) {
       });
       const start = await res.json();
       if (!res.ok) return { error: start.error || "Scan failed.", code: start.code, domain: start.domain };
+      track("scan_started", { source: "home", signed_in: !!token });
       // The dashboard runs the scan and shows each area as it finishes. A signed-in visitor's scan is theirs:
       // the dashboard saves it to their account when it's done (?new=1); a cached, finished scan is saved here.
       if (token && start.done) await fetch("/api/account/claim", { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ scanId: start.id }) }).catch(() => {});

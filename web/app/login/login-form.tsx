@@ -8,6 +8,7 @@ import { CodeForm } from "../code-form";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { checkCode, checkEmail, checkPassword, passwordsMatch } from "@/lib/validate";
 import { useTurnstile } from "../use-turnstile";
+import { track } from "@/lib/analytics";
 
 async function post(path: string, body: Record<string, unknown>): Promise<{ status: number; json: Record<string, unknown> }> {
   try {
@@ -76,6 +77,7 @@ export function LoginForm({ next, startForgot, onSignedIn, title, bare = false, 
       return fail(msg(r.json, "We couldn't sign you in just now. Please try again."));
     }
     if (!sb || !(await adoptSession(sb, session))) return fail("We couldn't sign you in just now. Please try again.");
+    track("login", { method: "password", source: "login_page" });
     await claimAndFindReport(sb); // attaches any scans started with this email before the account existed
     await done(session.access_token);
   };

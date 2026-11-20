@@ -9,6 +9,7 @@ import type { StoredScan } from "@/lib/scan/store";
 import type { Finding } from "@/lib/scan/types";
 import { AGENCY_UPSELL } from "./agency-modal";
 import { AreaIcon } from "./icons";
+import { track } from "@/lib/analytics";
 
 /* Pagelyt Assistant: website-optimisation questions about this report, answered from the report, the fix guides and
    the blog (see lib/ai/chat.ts). Every question and answer is saved to the owner's account per site (api/chat,
@@ -332,6 +333,7 @@ export function Assistant({ scan, paid, mini, onExpand, onClose }: Props) {
     ctl.current = ac;
     let answerId: string | undefined;
     let sources: Source[] = [];
+    track("ask_pagelyt_message", { about_finding: !!about, regenerate: !!opt.replace });
     try {
       const r = await fetch("/api/chat", {
         method: "POST",
@@ -405,6 +407,7 @@ export function Assistant({ scan, paid, mini, onExpand, onClose }: Props) {
     update((all) => all.map((x, j) => (j === i ? { ...x, feedback: value } : x)));
     if (value) toast(value === 1 ? "Thanks, glad it helped" : "Thanks, we'll use this to improve answers");
     try {
+      track("ask_pagelyt_feedback", { value: value ?? 0 });
       await fetch("/api/chat/feedback", { method: "POST", headers: { "content-type": "application/json", ...(await auth()) }, body: JSON.stringify({ messageId: m.id, value: value ?? 0 }) });
     } catch {}
   };

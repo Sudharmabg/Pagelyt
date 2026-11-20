@@ -14,6 +14,7 @@ import { disconnectGoogle, googleAccount, type GoogleStatus } from "../dashboard
 import { firstName, useSignedInUser } from "@/lib/use-signed-in";
 import { checkPassword, passwordsMatch } from "@/lib/validate";
 import { SignInLink } from "@/app/sign-in-modal";
+import { track } from "@/lib/analytics";
 
 type Cadence = "none" | "daily" | "weekly" | "monthly";
 type SiteRow = { id: string; host: string; url: string; cadence: Cadence; uptime: boolean; alerts: boolean; last_scan_id: string | null };
@@ -88,6 +89,7 @@ export function Account() {
       const auth = { authorization: `Bearer ${await token()}`, "content-type": "application/json" };
       const start = await (await fetch("/api/scan", { method: "POST", headers: auth, body: JSON.stringify({ url }) })).json();
       if (!start.id) throw new Error(start.error || "Scan failed.");
+      track("scan_started", { source: "account", signed_in: true });
       let done = !!start.done;
       while (!done) {
         const r = await fetch(`/api/scan/${start.id}/step`, { method: "POST" });

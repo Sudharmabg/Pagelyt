@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { SESSIONS } from "./content";
 import { CONTACT_EMAIL } from "./site-config";
 import { useTurnstile } from "./use-turnstile";
+import { track } from "@/lib/analytics";
 
 type Kind = "consultation" | "contact";
 
@@ -55,6 +56,7 @@ export function RequestForm({ kind }: { kind: Kind }) {
       });
       const j = (await r.json().catch(() => ({}))) as { error?: string };
       if (!r.ok) throw new Error(j.error || "We couldn't send that just now.");
+      track("generate_lead", { form: kind });
       setState("sent");
     } catch (e2) {
       setErr(e2 instanceof Error ? e2.message : "We couldn't send that just now.");

@@ -5,6 +5,7 @@ import { adoptSession, type SessionTokens } from "@/lib/pending";
 import { supabaseBrowser } from "@/lib/supabase-browser";
 import { checkCode, checkEmail } from "@/lib/validate";
 import { OtpInput } from "./otp-input";
+import { track } from "@/lib/analytics";
 
 const COOLDOWN = 60;
 
@@ -70,6 +71,7 @@ export function CodeForm({ email: known, sendFirst = false, onVerified }: { emai
       setBusy(false);
       return setErr(typeof r.json.error === "string" ? r.json.error : "We couldn't check the code just now. Please try again.");
     }
+    track("email_verified");
     await onVerified(session);
   };
 

@@ -6,6 +6,7 @@ import { NavMobile } from "./nav-mobile";
 import { MainCta } from "./main-cta";
 import { CONTACT_EMAIL, PRICING_ON } from "./site-config";
 import { SignInLink } from "@/app/sign-in-modal";
+import { CookieSettingsLink } from "./cookie-consent";
 
 const MENU: [string, string][] = [
   ["How it works", "/how-it-works"],
@@ -118,6 +119,7 @@ export function SiteFooter() {
           <span className="foot-legal">
             <Link href="/privacy">Privacy Policy</Link>
             <Link href="/terms">Terms of Service</Link>
+            <CookieSettingsLink />
           </span>
         </div>
       </div>
