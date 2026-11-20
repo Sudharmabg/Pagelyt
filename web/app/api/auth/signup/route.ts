@@ -1,7 +1,7 @@
 import { clientIp, verifyTurnstile } from "@/lib/auth";
 import { isDisposable } from "@/lib/disposable";
 import { rootDomain } from "@/lib/domain";
-import { authConfigured, readJson, reply, signUp } from "@/lib/gotrue";
+import { authConfigured, readJson, reply, signUp, updateUserMeta } from "@/lib/gotrue";
 import { claimDomain, ownerOf } from "@/lib/owners";
 import { LIMITS, digest, guard } from "@/lib/ratelimit";
 import { ScanError, checkUrl } from "@/lib/scan";
@@ -60,6 +60,8 @@ export async function POST(req: Request) {
     return reply({ error: "Sign-up is temporarily unavailable. Please try again shortly." }, 503);
   }
   if (!r.created || !r.userId) return reply({ error: EXISTS, code: "exists" }, 409);
+  // A server-only copy of the chosen name, put back if a later Google sign-in replaces it (api/auth/oauth).
+  await updateUserMeta(r.userId, { app_metadata: { name: v.lead.name } }).catch(() => false);
 
   if (domain && !(await claimDomain(domain, r.userId, !!r.session).catch(() => true))) {
     return reply({ error: `${domain} was just registered to another account.`, code: "known" }, 409);

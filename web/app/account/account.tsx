@@ -2,7 +2,7 @@
 
 import { PageLoader } from "@/app/page-loader";
 import Link from "next/link";
-import { FileText, Globe, Link2, ShieldCheck, UserRound } from "lucide-react";
+import { FileText, Globe, Link2, Mail, ShieldCheck, UserRound } from "lucide-react";
 import { VerticalTabs } from "@/components/avara/VerticalTabs";
 import { PRICING_ON } from "../site-config";
 import { useRouter } from "next/navigation";
@@ -15,6 +15,8 @@ import { firstName, useSignedInUser } from "@/lib/use-signed-in";
 import { checkPassword, passwordsMatch } from "@/lib/validate";
 import { SignInLink } from "@/app/sign-in-modal";
 import { track } from "@/lib/analytics";
+import { PROVIDER_NAMES, enabledProviders } from "@/lib/oauth";
+import { ICONS as PROVIDER_ICONS } from "@/app/oauth-buttons";
 
 type Cadence = "none" | "daily" | "weekly" | "monthly";
 type SiteRow = { id: string; host: string; url: string; cadence: Cadence; uptime: boolean; alerts: boolean; last_scan_id: string | null };
@@ -302,7 +304,7 @@ export function Account() {
             ),
           },
           { id: "google", label: "Google", hint: "Connected Google account", icon: Link2, content: <div className="acct-pane"><GoogleAccount /></div> },
-          { id: "security", label: "Security", hint: "Password and sign out", icon: ShieldCheck, content: <div className="acct-pane"><Security email={email} onSignOut={() => void sb.auth.signOut()} /></div> },
+          { id: "security", label: "Security", hint: "Sign-in methods, password and sign out", icon: ShieldCheck, content: <div className="acct-pane"><Security email={email} onSignOut={() => void sb.auth.signOut()} /></div> },
         ]}
       />
     </div>
@@ -315,18 +317,31 @@ const scoreBand = (v: string | null) => {
   return n >= 80 ? "good" : n >= 50 ? "warn" : "bad";
 };
 
-/* Security: change password (current one checked on the server), forgot-password link and sign out. */
+/* Security: how this account signs in (email and password, Google, GitHub), change password (current one checked on
+   the server) or, for an account that signed up with Google or GitHub, add a first password; and sign out. */
 function Security({ email, onSignOut }: { email: string; onSignOut: () => void }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<"change" | "set" | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<"change" | "set" | null>(null);
+  const [linked, setLinked] = useState<string[] | null>(null); // providers on this account; null while loading
+  const [hasPassword, setHasPassword] = useState(true);
+  useEffect(() => {
+    void supabaseBrowser()?.auth.getUser().then(({ data }) => {
+      const u = data.user;
+      if (!u) return;
+      const ids = (u.identities ?? []).map((i) => i.provider);
+      setLinked(ids);
+      setHasPassword(ids.includes("email") || u.app_metadata?.password_set === true);
+    });
+  }, []);
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
     const f = new FormData(form);
+    const first = open === "set";
     const current = String(f.get("current") ?? "");
-    if (!current) return setErr("Please enter your current password.");
+    if (!first && !current) return setErr("Please enter your current password.");
     const pw = checkPassword(f.get("password"), email);
     if (!pw.ok) return setErr(pw.error);
     const mismatch = passwordsMatch(String(f.get("password")), String(f.get("confirm") ?? ""));
@@ -335,48 +350,88 @@ function Security({ email, onSignOut }: { email: string; onSignOut: () => void }
     setBusy(true);
     try {
       const t = (await supabaseBrowser()?.auth.getSession())?.data.session?.access_token;
-      const r = await fetch("/api/auth/password", { method: "POST", headers: { authorization: `Bearer ${t}`, "content-type": "application/json" }, body: JSON.stringify({ current, password: pw.value }) });
-      const j = (await r.json().catch(() => ({}))) as { error?: string };
-      if (!r.ok) return setErr(j.error ?? "We couldn't change your password just now. Please try again.");
+      const r = await fetch("/api/auth/password", { method: "POST", headers: { authorization: `Bearer ${t}`, "content-type": "application/json" }, body: JSON.stringify(first ? { set: true, password: pw.value } : { current, password: pw.value }) });
+      const j = (await r.json().catch(() => ({}))) as { error?: string; code?: string };
+      if (!r.ok) {
+        if (j.code === "has_password") setHasPassword(true);
+        return setErr(j.error ?? "We couldn't save your password just now. Please try again.");
+      }
       form.reset();
-      setDone(true);
-      setOpen(false);
+      if (first) setHasPassword(true);
+      setDone(first ? "set" : "change");
+      setOpen(null);
     } catch {
-      setErr("We couldn't change your password just now. Please try again.");
+      setErr("We couldn't save your password just now. Please try again.");
     } finally {
       setBusy(false);
     }
   };
+  const shown = enabledProviders();
+  const methods: { key: string; label: string; icon?: React.ReactNode; on: boolean }[] = [
+    { key: "email", label: "Email and password", icon: <Mail aria-hidden="true" />, on: hasPassword },
+    ...(["google", "github"] as const)
+      .filter((p) => shown.includes(p) || linked?.includes(p))
+      .map((p) => ({ key: p, label: PROVIDER_NAMES[p], icon: PROVIDER_ICONS[p], on: !!linked?.includes(p) })),
+  ];
   return (
     <section className="panel" aria-labelledby="acct-sec-h">
       <h2 id="acct-sec-h">Security</h2>
-      {done && <p className="acct-ok" role="status">Password changed. Other browsers and devices were signed out, and we emailed you a notice.</p>}
+      {done === "change" && <p className="acct-ok" role="status">Password changed. Other browsers and devices were signed out, and we emailed you a notice.</p>}
+      {done === "set" && <p className="acct-ok" role="status">Password added. You can now also sign in with {email} and this password.</p>}
       {open ? (
         <form className="acct-pw" onSubmit={submit} noValidate>
+          {open === "change" && (
+            <div className="tf">
+              <label htmlFor="cp-cur">Current password</label>
+              <input id="cp-cur" name="current" type="password" autoComplete="current-password" maxLength={200} required autoFocus />
+            </div>
+          )}
+          {/* Lets the password manager save the new password against the right email. */}
+          <input type="email" name="username" autoComplete="username" value={email} readOnly hidden />
           <div className="tf">
-            <label htmlFor="cp-cur">Current password</label>
-            <input id="cp-cur" name="current" type="password" autoComplete="current-password" maxLength={200} required autoFocus />
+            <label htmlFor="cp-new">{open === "set" ? "Password" : "New password"}</label>
+            <input id="cp-new" name="password" type="password" autoComplete="new-password" minLength={8} maxLength={72} required autoFocus={open === "set"} />
           </div>
           <div className="tf">
-            <label htmlFor="cp-new">New password</label>
-            <input id="cp-new" name="password" type="password" autoComplete="new-password" minLength={8} maxLength={72} required />
-          </div>
-          <div className="tf">
-            <label htmlFor="cp-cf">Confirm new password</label>
+            <label htmlFor="cp-cf">{open === "set" ? "Confirm password" : "Confirm new password"}</label>
             <input id="cp-cf" name="confirm" type="password" autoComplete="new-password" minLength={8} maxLength={72} required />
           </div>
-          <p className="lm-fine">At least 8 characters. Forgotten the current one? <SignInLink forgot stay email={email}>Reset it with an email code</SignInLink>.</p>
+          {open === "change" ? (
+            <p className="lm-fine">At least 8 characters. Forgotten the current one? <SignInLink forgot stay email={email}>Reset it with an email code</SignInLink>.</p>
+          ) : (
+            <p className="lm-fine">At least 8 characters. You&rsquo;ll still be able to sign in with Google or GitHub too.</p>
+          )}
           {err && <p className="lm-err" role="alert">{err}</p>}
           <div className="acct-links">
-            <button type="submit" className="dash-btn primary" disabled={busy}>{busy ? "Saving…" : "Update password"}</button>
-            <button type="button" className="dash-btn ghost" onClick={() => { setOpen(false); setErr(""); }}>Cancel</button>
+            <button type="submit" className="dash-btn primary" disabled={busy}>{busy ? "Saving…" : open === "set" ? "Add password" : "Update password"}</button>
+            <button type="button" className="dash-btn ghost" onClick={() => { setOpen(null); setErr(""); }}>Cancel</button>
           </div>
         </form>
       ) : (
         <>
           <p className="panel-note">Signed in as <b>{email}</b>. Sessions end 7 days after sign-in.</p>
+          {linked && (
+            <>
+              <ul className="acct-methods" aria-label="Ways to sign in">
+                {methods.map((m) => (
+                  <li key={m.key} className={m.on ? "on" : ""}>
+                    {m.icon}
+                    {m.label}
+                    <span>{m.on ? "Linked" : "Not linked"}</span>
+                  </li>
+                ))}
+              </ul>
+              {methods.some((m) => m.key !== "email" && !m.on) && (
+                <p className="lm-fine">To link Google or GitHub, sign out and choose it on the sign-in page with the same address, {email}. It joins this account.</p>
+              )}
+            </>
+          )}
           <div className="acct-links">
-            <button type="button" className="dash-btn" onClick={() => { setOpen(true); setDone(false); }}>Change password</button>
+            {hasPassword ? (
+              <button type="button" className="dash-btn" onClick={() => { setOpen("change"); setDone(null); }}>Change password</button>
+            ) : (
+              <button type="button" className="dash-btn" onClick={() => { setOpen("set"); setDone(null); }}>Set a password</button>
+            )}
             <button type="button" className="dash-btn ghost" onClick={onSignOut}>Sign out</button>
           </div>
         </>

@@ -21,6 +21,8 @@ const env = {
   GOOGLE_CLIENT_ID: "mock-client.apps.googleusercontent.com",
   GOOGLE_CLIENT_SECRET: "mock-client-secret",
   GOOGLE_TOKEN_KEY: "mock-google-token-key-not-secret-0123456789",
+  // "Continue with Google / GitHub" buttons, against the mock's fake consent page.
+  NEXT_PUBLIC_OAUTH_PROVIDERS: process.env.NEXT_PUBLIC_OAUTH_PROVIDERS ?? "google,github",
   // Without a real OPENAI_API_KEY, the "Analyse with AI" buttons (Analytics and Ads) use the mock's fake OpenAI.
   ...(process.env.OPENAI_API_KEY ? {} : { OPENAI_MOCK_URL: `http://localhost:${MOCK_PORT}` }),
 };

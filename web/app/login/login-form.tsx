@@ -9,6 +9,7 @@ import { supabaseBrowser } from "@/lib/supabase-browser";
 import { checkCode, checkEmail, checkPassword, passwordsMatch } from "@/lib/validate";
 import { useTurnstile } from "../use-turnstile";
 import { track } from "@/lib/analytics";
+import { OAuthButtons } from "../oauth-buttons";
 
 async function post(path: string, body: Record<string, unknown>): Promise<{ status: number; json: Record<string, unknown> }> {
   try {
@@ -218,6 +219,8 @@ export function LoginForm({ next, startForgot, onSignedIn, title, bare = false, 
   return (
     <form className={card} onSubmit={signIn} noValidate>
       {title && <h2>{title}</h2>}
+      {/* In the sign-in modal (onSignedIn) the person comes back to the page they were on. */}
+      <OAuthButtons next={onSignedIn ? undefined : next} intent="signup" source={onSignedIn ? "signin_modal" : "login_page"} />
       <div className="tf">
         <label htmlFor="login-email">Email</label>
         <input id="login-email" name="email" type="email" autoComplete="email" inputMode="email" maxLength={254} required />

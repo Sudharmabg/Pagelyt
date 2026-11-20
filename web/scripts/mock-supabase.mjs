@@ -6,7 +6,9 @@
    MOCK_CONFIRM=on             like real Supabase with "Confirm email" on: sign-up waits for the 6-digit email code.
                                Read the code with  http://localhost:54321/__code?email=you@example.com
                                (or confirm by hand with  /__confirm?email=you@example.com).
-   MOCK_SESSION_AGE_DAYS=8     tokens claim the sign-in happened that many days ago (tries the 7-day limit). */
+   MOCK_SESSION_AGE_DAYS=8     tokens claim the sign-in happened that many days ago (tries the 7-day limit).
+   "Continue with Google / GitHub" opens a fake consent page here (/auth/v1/authorize): type any email (and a name,
+   or leave it empty to try the "what should we call you?" step). The same email joins an existing account. */
 import http from "node:http";
 import crypto from "node:crypto";
 
@@ -14,7 +16,9 @@ const PORT = Number(process.env.MOCK_PORT || 54321);
 const SERVICE_KEY = process.env.MOCK_SERVICE_KEY || "service-test-secret";
 const CONFIRM_EMAIL = process.env.MOCK_CONFIRM === "on";
 
-const users = new Map(); // email -> { id, email, password, confirmed, meta }
+const users = new Map(); // email -> { id, email, password, confirmed, meta, app, providers }
+const oauthCodes = new Map(); // one-time code -> { email, challenge, provider }
+const refreshes = new Map(); // refresh token -> { email, method }
 const sessions = new Map(); // access token -> email
 const tables = { site_owners: [], site_claims: [], scans: [], leads: [], sites: [], profiles: [], comparisons: [], scan_shots: [], brands: [], shared_reports: [], ai_prompts: [], ai_runs: [], uptime_checks: [], admins: [], requests: [], google_connections: [], google_links: [], google_cache: [], booking_settings: [], booking_blocks: [], bookings: [], chat_threads: [], chat_messages: [] };
 // MOCK_ADMIN_EMAILS=a@x.test,b@x.test seeds the admins table, so those accounts can open /admin once signed up.
@@ -31,14 +35,18 @@ const KEYS = { site_owners: ["domain"], site_claims: ["domain", "user_id"] };
 const canon = (e) => { const [l, d] = String(e).toLowerCase().split("@"); const base = l.split("+")[0]; return ["gmail.com", "googlemail.com"].includes(d) ? `${base.replaceAll(".", "")}@gmail.com` : `${base}@${d}`; };
 
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
-function tokensFor(u) {
+function tokensFor(u, method = "password") {
   const exp = Math.floor(Date.now() / 1000) + 3600;
   const signedIn = Math.floor(Date.now() / 1000) - AGE_DAYS * 86400;
-  const access = `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: u.id, email: u.email, role: "authenticated", aud: "authenticated", exp, iat: exp - 3600, amr: [{ method: "password", timestamp: signedIn }] })}.sig`;
+  const access = `${b64({ alg: "HS256", typ: "JWT" })}.${b64({ sub: u.id, email: u.email, role: "authenticated", aud: "authenticated", exp, iat: exp - 3600, amr: [{ method, timestamp: signedIn }] })}.sig`;
   sessions.set(access, u.email);
-  return { access_token: access, refresh_token: crypto.randomUUID(), token_type: "bearer", expires_in: 3600, expires_at: exp, user: userJson(u) };
+  const refresh = crypto.randomUUID();
+  refreshes.set(refresh, { email: u.email, method });
+  return { access_token: access, refresh_token: refresh, token_type: "bearer", expires_in: 3600, expires_at: exp, user: userJson(u) };
 }
-const userJson = (u) => ({ id: u.id, email: u.email, created_at: u.created_at, last_sign_in_at: u.last_sign_in_at ?? null, email_confirmed_at: u.confirmed ? new Date().toISOString() : null, user_metadata: u.meta, identities: [{ id: u.id }] });
+const userJson = (u) => ({ id: u.id, email: u.email, created_at: u.created_at, last_sign_in_at: u.last_sign_in_at ?? null, email_confirmed_at: u.confirmed ? new Date().toISOString() : null, user_metadata: u.meta, app_metadata: u.app ?? {}, identities: (u.providers ?? ["email"]).map((provider) => ({ id: `${u.id}-${provider}`, provider })) });
+const userById = (id) => [...users.values()].find((u) => u.id === id);
+const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /* PostgREST column selection: "*", "col", "alias:col", "col->key" (JSON) and "col->>key" (JSON as text). */
 function project(rows, select) {
@@ -104,6 +112,43 @@ http
 
     // ---- GoTrue ----
     // Admin API (service key only): the admin panel lists accounts for owner emails and analytics.
+    const adminOne = p.match(/^\/auth\/v1\/admin\/users\/([\w-]+)$/);
+    if (adminOne) {
+      if ((req.headers.authorization || "") !== `Bearer ${SERVICE_KEY}`) return send(res, 401, { msg: "service key required" });
+      const u = userById(adminOne[1]);
+      if (!u) return send(res, 404, { msg: "User not found" });
+      if (req.method === "DELETE") { users.delete(u.email); log.deleted = (log.deleted || []).concat(u.email); return send(res, 200, {}); }
+      if (body.user_metadata) u.meta = { ...u.meta, ...body.user_metadata };
+      if (body.app_metadata) u.app = { ...(u.app ?? {}), ...body.app_metadata };
+      return send(res, 200, userJson(u));
+    }
+    // ---- fake Google / GitHub consent (PKCE): authorize -> this page -> back to redirect_to?code= ----
+    if (p === "/auth/v1/authorize") {
+      const q = url.searchParams;
+      const prov = q.get("provider") === "github" ? "GitHub" : "Google";
+      res.writeHead(200, { "content-type": "text/html; charset=utf-8" });
+      return res.end(`<!doctype html><meta name="viewport" content="width=device-width"><title>Mock ${prov} sign-in</title>
+<body style="font:16px system-ui;max-width:360px;margin:3rem auto;padding:0 16px"><h1>Mock ${prov} sign-in</h1><p>Local test only. Any email works.</p>
+<form action="/auth/v1/__oauth" method="get" style="display:grid;gap:.6rem">
+<input type="hidden" name="provider" value="${esc(q.get("provider"))}"><input type="hidden" name="redirect_to" value="${esc(q.get("redirect_to"))}"><input type="hidden" name="challenge" value="${esc(q.get("code_challenge"))}">
+<label>Email <input name="email" type="email" required style="width:100%"></label><label>Name (leave empty to test the name step) <input name="name" style="width:100%"></label>
+<label><input type="checkbox" name="unverified"> No verified email</label>
+<button>Continue</button> <a href="${esc(q.get("redirect_to"))}?error=access_denied&error_description=The+user+denied+access">Cancel</a></form></body>`);
+    }
+    if (p === "/auth/v1/__oauth") {
+      const q = url.searchParams;
+      const email = String(q.get("email") || "").toLowerCase();
+      const provider = q.get("provider") || "google";
+      let u = users.get(email);
+      if (!u) { u = { id: crypto.randomUUID(), email, password: null, confirmed: false, meta: {}, app: {}, providers: [], created_at: new Date().toISOString() }; users.set(email, u); }
+      if (!(u.providers ?? ["email"]).includes(provider)) u.providers = [...(u.providers ?? ["email"]), provider];
+      if (!q.get("unverified")) u.confirmed = true;
+      if (q.get("name")) u.meta = { ...u.meta, full_name: q.get("name"), ...(provider === "google" ? { name: q.get("name") } : {}) };
+      const code = crypto.randomUUID();
+      oauthCodes.set(code, { email, challenge: q.get("challenge"), provider });
+      res.writeHead(302, { location: `${q.get("redirect_to")}?code=${code}` });
+      return res.end();
+    }
     if (p === "/auth/v1/admin/users") {
       if ((req.headers.authorization || "") !== `Bearer ${SERVICE_KEY}`) return send(res, 401, { msg: "service key required" });
       return send(res, 200, { users: [...users.values()].map(userJson) });
@@ -116,10 +161,25 @@ http
         // Real Supabase: with confirmation on it answers with a look-alike user; with it off it returns an error.
         return CONFIRM_EMAIL ? send(res, 200, { id: crypto.randomUUID(), email, identities: [], user_metadata: {} }) : send(res, 422, { error_code: "user_already_exists", msg: "User already registered" });
       }
-      const u = { id: crypto.randomUUID(), email, password, confirmed: !CONFIRM_EMAIL, meta: data ?? {}, created_at: new Date().toISOString() };
+      const u = { id: crypto.randomUUID(), email, password, confirmed: !CONFIRM_EMAIL, meta: data ?? {}, app: {}, providers: ["email"], created_at: new Date().toISOString() };
       users.set(email, u);
       if (CONFIRM_EMAIL) newCode(email);
       return CONFIRM_EMAIL ? send(res, 200, { ...userJson(u), email_confirmed_at: null }) : send(res, 200, tokensFor(u)); // a session straight away
+    }
+    if (p === "/auth/v1/token" && url.searchParams.get("grant_type") === "refresh_token") {
+      const r = refreshes.get(body.refresh_token);
+      const u = r && users.get(r.email);
+      if (!u) return send(res, 400, { error_code: "refresh_token_not_found", msg: "Invalid Refresh Token" });
+      return send(res, 200, tokensFor(u, r.method));
+    }
+    if (p === "/auth/v1/token" && url.searchParams.get("grant_type") === "pkce") {
+      const c = oauthCodes.get(body.auth_code);
+      oauthCodes.delete(body.auth_code);
+      const challenge = body.code_verifier ? crypto.createHash("sha256").update(body.code_verifier).digest("base64url") : "";
+      const u = c && users.get(c.email);
+      if (!c || !u || c.challenge !== challenge) return send(res, 400, { error_code: "flow_state_not_found", msg: "invalid flow state" });
+      u.last_sign_in_at = new Date().toISOString();
+      return send(res, 200, tokensFor(u, "oauth"));
     }
     if (p === "/auth/v1/token") {
       log.logins++;
@@ -144,6 +204,7 @@ http
       const u = email && users.get(email);
       if (!u) return send(res, 401, { msg: "bad jwt" });
       if (body.password) u.password = body.password;
+      if (body.data) u.meta = { ...u.meta, ...body.data };
       return send(res, 200, userJson(u));
     }
     if (p === "/auth/v1/user") {
@@ -155,6 +216,7 @@ http
     // ---- PostgREST ----
     if (p === "/rest/v1/rpc/email_confirmed") return send(res, 200, [...users.values()].some((u) => u.id === body.p_user && u.confirmed));
     if (p === "/rest/v1/rpc/inbox_has_account") return send(res, 200, [...users.values()].some((u) => canon(u.email) === canon(body.p_email)));
+    if (p === "/rest/v1/rpc/inbox_has_other_account") return send(res, 200, [...users.values()].some((u) => u.id !== body.p_user && canon(u.email) === canon(body.p_email)));
     if (p === "/rest/v1/rpc/account_exists") return send(res, 200, users.has(String(body.p_email).toLowerCase()));
     if (p === "/rest/v1/rpc/rate_limit_hit") {
       const now = Date.now();

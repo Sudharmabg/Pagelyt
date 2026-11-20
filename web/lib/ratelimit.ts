@@ -57,6 +57,8 @@ export const LIMITS = {
     { key: `verify:ip:${ip}`, limit: 30, windowSec: 900 },
   ],
   claim: (ip: string): Rule[] => [{ key: `claim:ip:${ip}`, limit: 20, windowSec: 3600 }],
+  /** Finishing a Google or GitHub sign-in (each code works once, so this only slows down scripted sign-ups). */
+  oauth: (ip: string): Rule[] => [{ key: `oauth:ip:${ip}`, limit: 20, windowSec: 900 }],
   /** Free tools that fetch other sites from our server (AI bot checker, hreflang, domain age…). */
   tool: (ip: string, user: string): Rule[] => [
     { key: `tool:u:${user}`, limit: 40, windowSec: 900 },

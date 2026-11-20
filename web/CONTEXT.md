@@ -113,7 +113,8 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 |---|---|---|
 | `analytics.ts` | `track`, `trackPageView`, `readConsent`, `saveConsent`, `openCookieSettings`, `GA_ID` | GA4 for our own site behind Consent Mode v2 (`NEXT_PUBLIC_GA_ID`, `pl_consent` cookie); no-op on /admin and /print |
 | `auth.ts` | `userFromRequest`, `adminFromRequest`, `isAdmin`, `verifyTurnstile`, `clientIp`, `AuthUser` | Server-side auth helpers (Bearer token) |
-| `gotrue.ts` | `signUp`, `signInWithPassword`, `verifyEmailCode`, `verifyRecoveryCode`, `setPassword`, `resendConfirmation`, `recover`, `reply`, `NO_STORE` | Supabase Auth calls. `recover` returns `"sent" \| "limited" \| "failed"` and logs Supabase's status and error code |
+| `gotrue.ts` | `signUp`, `signInWithPassword`, `verifyEmailCode`, `verifyRecoveryCode`, `setPassword`, `resendConfirmation`, `recover`, `exchangeCode`, `userWithIdentities`, `deleteUser`, `updateUserMeta`, `OAuthUser`, `reply`, `NO_STORE` | Supabase Auth calls. `recover` returns `"sent" \| "limited" \| "failed"` and logs Supabase's status and error code. `exchangeCode` swaps a Google/GitHub PKCE code for a session; `deleteUser` / `updateUserMeta` use the admin API (service key) |
+| `oauth.ts` | `startOAuth`, `takePending`, `enabledProviders`, `PROVIDER_NAMES`, `Provider`, `OAuthPending` | Browser: "Continue with Google / GitHub" with hand-made PKCE (the shared client stays on the implicit flow the email links use). Keeps the verifier and what the person was doing (`next`, `scanUrl`, `intent`) in sessionStorage. Buttons show only for providers in `NEXT_PUBLIC_OAUTH_PROVIDERS` |
 | `session-age.ts` | `SESSION_DAYS` (7), `sessionFresh`, `signedInAt` | Hard 7-day session limit |
 | `supabase-browser.ts` | `supabaseBrowser` | Browser client (anon key) |
 | `use-signed-in.ts` | `useSignedInUser`, `useSignedIn`, `firstName` | Client hook for the signed-in user |
@@ -143,7 +144,9 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 | `scan/[id]/invite` POST | An admin’s shared scan: marks the link as opened, and gives the report (and the website, if free) to the first signed-in person who is not an admin. Answers `state`: signin, admin, yours, taken, wait, unverified |
 | `auth/signup`, `auth/login`, `auth/verify`, `auth/resend` | Sign-up, password sign-in, 6-digit code check, resend the code |
 | `auth/forgot`, `auth/reset` | Forgot password: email a 6-digit reset code, then code + new password (signs out other sessions, signs this browser in, emails a notice). `auth/forgot` answers 429 when Supabase rate-limits the email and 503 when it can't send (SMTP not set up), without saying whether the account exists |
-| `auth/password` POST | Change password from the account page (current password checked first) |
+| `auth/password` POST | Change password from the account page (current password checked first). With `set: true`, a Google/GitHub-only account adds its first password (allowed once: no email identity and no `app_metadata.password_set`) |
+| `auth/oauth` POST | Finishes Google/GitHub sign-in: code + PKCE verifier → session. A brand-new account is deleted when it has a throwaway inbox, its inbox already has an account under another spelling (`inbox_has_other_account`, migration 0018), or it came from the log-in form of a site registered to someone else (`code: "known"`). No verified email → `no_email`. Puts back the chosen name (`app_metadata.name`) if the provider overwrote it; `needsName` when there is none |
+| `auth/name` POST | Saves the name from the "What should we call you?" step (user_metadata and app_metadata) |
 | `auth/site` POST | Asks whether a site is already registered (a known site forces login) |
 | `sites/claim` POST | Ownership proof for a site registered to another account |
 | `account/claim` | Save a report to the account and make it the saved site's latest scan. Changes the schedule, uptime and email alerts only when `cadence` / `uptime` / `alerts` are sent; a brand-new site starts on weekly rescans |
@@ -182,6 +185,8 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 - `sign-in-modal.tsx`: `SignInHost` (rendered once in `layout.tsx`: the sign-in and forgot-password modal, `.si-modal`), `openSignIn(opts)` (fires `pagelyt:signin`) and `SignInLink` (a Link to `/login?next=` that opens the modal instead; `stay` reloads the page after signing in, used by page gates; without it the header and footer go to `next` or the dashboard; `forgot` opens the reset step; `email` prefills it). Every Sign in button uses `SignInLink`.
 - `check-email/`: entering the code later.
 - `auth/verified`, `auth/reset`: landing pages for email links.
+- `auth/callback`: where Google/GitHub send the person back. Posts to `/api/auth/oauth`, signs in, asks for a name if needed, then starts the scan from the scan modal (`beginScan`) or opens `next`.
+- `oauth-buttons.tsx`: `OAuthButtons` (`next`, `scanUrl`, `intent`, `source`; without `next` it comes back to the current page) and `ICONS`. Used in `LoginForm` (login page and sign-in modal) and `LeadModal` (scan, claim, tool and invite modes). Styles `.oa*`.
 - `claim/`: ownership-proof UI (meta tag or DNS record).
 - `auth-link.tsx`: account control in the header.
 
@@ -330,8 +335,9 @@ Copied from avaraui.com (shadcn-style registry) and trimmed. They use Tailwind c
 | 0014 | `scans.invite`, `invited_by`, `opened_at`, `claimed_at` (admin scans to share) |
 | 0015 | `chat_threads`, `chat_messages` (saved Ask Pagelyt chats, feedback) |
 | 0016 | Switches saved sites with no schedule to weekly rescans (first run spread over 7 days) |
+| 0018 | `inbox_has_other_account()` for Google/GitHub sign-ups |
 
 ## Dev mocks (`scripts/`)
 
-- `dev-mock.mjs`: starts Next against the mock and sets the environment, including `RESEND_API_URL` and the `GOOGLE_*` values for the fake Google (plus `OPENAI_MOCK_URL` when there's no `OPENAI_API_KEY`). Setting `EMAILS_ON=1` switches mock emails on.
-- `mock-supabase.mjs`: fake Auth, PostgREST, `POST /emails` and a fake Google under `/google/<host>/…` (consent with incremental scopes, tokens, Search Console, GA4 Admin and Data APIs, Google Ads with a manager account; `MOCK_GOOGLE=deny|noscope|empty|adstoken`) and a fake OpenAI `POST /v1/responses` for the Analytics and Ads AI insights. `GET /__state` shows the data, including `log.emails`.
+- `dev-mock.mjs`: starts Next against the mock and sets the environment, including `NEXT_PUBLIC_OAUTH_PROVIDERS=google,github`, `RESEND_API_URL` and the `GOOGLE_*` values for the fake Google (plus `OPENAI_MOCK_URL` when there's no `OPENAI_API_KEY`). Setting `EMAILS_ON=1` switches mock emails on.
+- `mock-supabase.mjs`: fake Auth, PostgREST, `POST /emails` and a fake Google under `/google/<host>/…` (consent with incremental scopes, tokens, Search Console, GA4 Admin and Data APIs, Google Ads with a manager account; `MOCK_GOOGLE=deny|noscope|empty|adstoken`) and a fake OpenAI `POST /v1/responses` for the Analytics and Ads AI insights. `GET /__state` shows the data, including `log.emails`. "Continue with Google / GitHub" opens a fake consent page (`/auth/v1/authorize`: any email, optional name, "no verified email" box); PKCE and refresh-token grants and the admin user PUT/DELETE are mocked.

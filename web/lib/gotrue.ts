@@ -135,6 +135,81 @@ export async function signOutOthers(accessToken: string): Promise<void> {
   await fetch(`${base()}/auth/v1/logout?scope=others`, { method: "POST", headers: { apikey: anon()!, authorization: `Bearer ${accessToken}` } }).catch(() => {});
 }
 
+/* ---- Google and GitHub sign-in ---- */
+
+export type OAuthUser = {
+  id: string;
+  email: string | null;
+  verified: boolean;
+  createdAt: number;
+  lastSignInAt: number;
+  providers: string[];
+  meta: Record<string, unknown>;
+  app: Record<string, unknown>;
+};
+
+function toOAuthUser(u: Record<string, unknown>): OAuthUser | null {
+  if (typeof u.id !== "string") return null;
+  const ids = Array.isArray(u.identities) ? (u.identities as { provider?: unknown }[]) : [];
+  return {
+    id: u.id,
+    email: typeof u.email === "string" && u.email ? u.email.toLowerCase() : null,
+    verified: !!u.email_confirmed_at,
+    createdAt: Date.parse(String(u.created_at ?? "")) || 0,
+    lastSignInAt: Date.parse(String(u.last_sign_in_at ?? "")) || 0,
+    providers: ids.map((i) => String(i.provider ?? "")).filter(Boolean),
+    meta: u.user_metadata && typeof u.user_metadata === "object" ? (u.user_metadata as Record<string, unknown>) : {},
+    app: u.app_metadata && typeof u.app_metadata === "object" ? (u.app_metadata as Record<string, unknown>) : {},
+  };
+}
+
+export type ExchangeResult = { ok: true; session: Tokens; user: OAuthUser } | { ok: false; reason: "invalid" | "unavailable" };
+
+/** Swaps the one-time code Supabase sent back from Google or GitHub (PKCE) for a session. */
+export async function exchangeCode(code: string, verifier: string): Promise<ExchangeResult> {
+  const { status, json } = await call("token?grant_type=pkce", { auth_code: code, code_verifier: verifier });
+  if (status === 200 && isTokens(json)) {
+    const user = toOAuthUser((json.user ?? {}) as Record<string, unknown>);
+    if (user) return { ok: true, user, session: { access_token: json.access_token, refresh_token: json.refresh_token, expires_in: Number(json.expires_in) || undefined } };
+  }
+  if (status >= 400 && status < 500 && status !== 429) return { ok: false, reason: "invalid" };
+  console.error(`oauth: Supabase answered ${status} ${codeOf(json) || "(no code)"}`);
+  return { ok: false, reason: "unavailable" };
+}
+
+/** The account behind an access token, with its sign-in methods. */
+export async function userWithIdentities(accessToken: string): Promise<OAuthUser | null> {
+  try {
+    const r = await fetch(`${base()}/auth/v1/user`, { headers: { apikey: anon()!, authorization: `Bearer ${accessToken}` } });
+    return r.ok ? toOAuthUser((await r.json()) as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
+const service = () => process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+async function admin(method: "PUT" | "DELETE", userId: string, body?: unknown): Promise<boolean> {
+  const key = service();
+  if (!key) return false;
+  try {
+    const r = await fetch(`${base()}/auth/v1/admin/users/${encodeURIComponent(userId)}`, {
+      method,
+      headers: { apikey: key, authorization: `Bearer ${key}`, "content-type": "application/json" },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+    if (!r.ok) console.error(`auth admin ${method}: Supabase answered ${r.status}`);
+    return r.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Removes an account that a Google or GitHub sign-in just created but our sign-up rules don't allow. */
+export const deleteUser = (userId: string) => admin("DELETE", userId);
+/** Merges keys into the account's user_metadata (which the person can also change) and app_metadata (only we can). */
+export const updateUserMeta = (userId: string, patch: { user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> }) => admin("PUT", userId, patch);
+
 /** Reads a small JSON body. Returns null for anything oversized, malformed or not an object. */
 export async function readJson(req: Request, maxBytes = 4096): Promise<Record<string, unknown> | null> {
   const len = Number(req.headers.get("content-length") ?? 0);

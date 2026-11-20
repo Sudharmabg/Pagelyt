@@ -10951,3 +10951,23 @@ html:has(.hn-modal[open]) { overflow: hidden; }
   .ck-acts .btn { flex: 1; }
   .ck-link { order: 3; width: 100%; }
 }
+
+/* ---- Continue with Google / GitHub (app/oauth-buttons.tsx), above the email forms ---- */
+.oa { display: grid; gap: .75rem; }
+.oa-row { display: grid; gap: .55rem; }
+.oa-btn { display: flex; align-items: center; justify-content: center; gap: .6rem; width: 100%; min-height: 46px; padding: .65rem 1rem; font: inherit; font-weight: 600; font-size: .95rem; color: inherit; background: transparent; border: 1.5px solid color-mix(in srgb, currentColor 22%, transparent); border-radius: 10px; cursor: pointer; transition: background-color .15s ease, border-color .15s ease, transform .1s ease; }
+.oa-btn svg { width: 18px; height: 18px; flex: none; }
+.oa-btn:hover:not(:disabled) { background: color-mix(in srgb, currentColor 6%, transparent); border-color: color-mix(in srgb, currentColor 35%, transparent); }
+.oa-btn:active:not(:disabled) { transform: scale(.985); }
+.oa-btn:focus-visible { outline: 2px solid #7c5cd6; outline-offset: 2px; }
+.oa-btn:disabled { opacity: .6; cursor: progress; }
+.oa-or { display: flex; align-items: center; gap: .75rem; margin: .1rem 0 0; font-size: .78rem; opacity: .65; }
+.oa-or::before, .oa-or::after { content: ""; flex: 1; height: 1px; background: currentColor; opacity: .25; }
+@media (prefers-reduced-motion: reduce) { .oa-btn { transition: none; } .oa-btn:active:not(:disabled) { transform: none; } }
+
+/* Account > Security: how this account signs in */
+.acct-methods { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.acct-methods li { display: flex; align-items: center; gap: .6rem; padding: .55rem .75rem; border: 1px solid var(--border); border-radius: 10px; font-weight: 600; font-size: .9rem; }
+.acct-methods li svg { width: 18px; height: 18px; flex: none; }
+.acct-methods li span { margin-left: auto; font-weight: 500; font-size: .8rem; color: var(--muted-foreground); }
+.acct-methods li.on span { color: var(--good); }

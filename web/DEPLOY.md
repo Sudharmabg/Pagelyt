@@ -39,7 +39,7 @@ Cloudflare now recommends Workers with static assets for Next.js. Connect the re
    as "<Brand> via Pagelyt" and replies go to the brand's contact email, else the account email). Client
    emails: one address per send, 20 a day per account, 3 a day to the same address.
 6. **Build-time public variables** (Workers Builds > Settings > Variables, or `.env.local` locally):
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `NEXT_PUBLIC_OAUTH_PROVIDERS`
    (the other `NEXT_PUBLIC_*` values are in `wrangler.jsonc`).
 
 ## Domain (`pagelyt.dev`)
@@ -128,6 +128,8 @@ Do these once, in this order:
 8. **Turnstile**: set `NEXT_PUBLIC_TURNSTILE_SITE_KEY` and `TURNSTILE_SECRET_KEY`. Without them the human check is skipped,
    which leaves sign-up and sign-in open to bots (the rate limits below still apply).
 
+9. **Google and GitHub sign-in** (optional; see "Google and GitHub sign-in" below).
+
 Security behaviour worth knowing:
 
 - Every field is validated twice (browser and server) from one shared set of rules in `lib/validate.ts`
@@ -143,6 +145,32 @@ Security behaviour worth knowing:
   the current-password check happens in `/api/auth/password`.
 - A static Content-Security-Policy is sent in production (`next.config.ts`). It allows inline scripts because Next.js needs them;
   a nonce-based policy would force every page to render per request and lose caching.
+
+## Google and GitHub sign-in
+
+"Continue with Google" and "Continue with GitHub" sit above the email form on `/login`, in the sign-in modal and in the
+scan modal. Supabase does the provider sign-in; `/api/auth/oauth` then runs the sign-up rules (throwaway inboxes,
+one account per inbox, known sites are log-in only) and deletes a new account that breaks them. A Google or GitHub
+sign-in with the same email as an existing account joins that account. The buttons stay hidden until step 4.
+
+1. **Run `supabase/migrations/0018_oauth.sql`** in the SQL editor.
+2. **Google**: Google Cloud console > the Pagelyt project > *APIs & Services > Credentials* > *Create credentials >
+   OAuth client ID* > *Web application*. Authorised redirect URI: `https://<project-ref>.supabase.co/auth/v1/callback`
+   (Supabase shows it on the Google provider page). Sign-in only asks for name and email, which needs no Google review.
+   Then **Supabase > Authentication > Sign In / Providers > Google**: enable, paste the client ID and secret.
+3. **GitHub**: github.com > *Settings > Developer settings > OAuth Apps > New OAuth App*. Homepage URL = your site,
+   Authorization callback URL = the same `https://<project-ref>.supabase.co/auth/v1/callback`. Generate a client
+   secret. Then **Supabase > Authentication > Sign In / Providers > GitHub**: enable, paste the client ID and secret.
+4. **Supabase > Authentication > URL Configuration > Redirect URLs**: add `https://YOUR-DOMAIN/auth/callback`
+   (`http://localhost:3000/**` already covers local testing). Then set the build variable
+   `NEXT_PUBLIC_OAUTH_PROVIDERS=google,github` (or just one of them) and redeploy.
+5. Leave **Manual linking** off and the default automatic linking on: that is what joins a Google sign-in to an
+   existing account with the same email. `SUPABASE_SERVICE_ROLE_KEY` must be set (it deletes refused accounts and
+   saves names).
+
+Notes: Turnstile and the 6-digit email code are skipped for these sign-ins (the provider already confirmed the person
+and the email). A GitHub account with no verified email is refused. Accounts made this way can add a password under
+*Account > Security*. Locally, `npm run dev:mock` shows the buttons with a fake consent page.
 
 ## Consultation booking (`/consultation`)
 

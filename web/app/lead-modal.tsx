@@ -11,6 +11,7 @@ import { CodeForm } from "./code-form";
 import { ModalX, onBackdrop } from "./modal-close";
 import { SignInLink } from "@/app/sign-in-modal";
 import { track } from "@/lib/analytics";
+import { OAuthButtons } from "./oauth-buttons";
 
 export type LeadInput = { name: string; email: string };
 
@@ -472,6 +473,13 @@ export function LeadModal({
         <h2 id="lead-h">{title}</h2>
         <p className="lm-sub">{sub}</p>
         {noteBox}
+        {/* Google / GitHub leave the page; /auth/callback picks up from here: the scan (home), the claim, or this page (tools). */}
+        <OAuthButtons
+          next={mode === "claim" ? `/claim?domain=${encodeURIComponent(domain)}` : tool ? undefined : "/dashboard"}
+          scanUrl={mode === "claim" || tool ? undefined : url}
+          intent={isLogin && known ? "login" : "signup"}
+          source={tool ? (unlock ? "invite_modal" : "tool_modal") : "scan_modal"}
+        />
         {!isLogin && (
           <label>
             Full name

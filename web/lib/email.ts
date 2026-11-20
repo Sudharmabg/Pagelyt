@@ -34,12 +34,16 @@ export function escapeHtml(s: string): string {
 }
 
 /** Tells the account holder their password was changed, so an unexpected change gets noticed. Best effort. */
-export async function notifyPasswordChanged(to: string, how: "reset" | "changed"): Promise<void> {
+export async function notifyPasswordChanged(to: string, how: "reset" | "changed" | "set"): Promise<void> {
   const when = new Date().toUTCString();
   const text = [
     "Hello,",
     "",
-    how === "reset" ? `The password for your Pagelyt account was reset with an email code on ${when}.` : `The password for your Pagelyt account was changed from your account page on ${when}.`,
+    how === "reset"
+      ? `The password for your Pagelyt account was reset with an email code on ${when}.`
+      : how === "set"
+        ? `A password was added to your Pagelyt account from your account page on ${when}. You can now also sign in with your email and this password.`
+        : `The password for your Pagelyt account was changed from your account page on ${when}.`,
     "Other browsers and devices were signed out.",
     "",
     "If this was you, there is nothing more to do.",
@@ -47,7 +51,7 @@ export async function notifyPasswordChanged(to: string, how: "reset" | "changed"
     "",
     "Pagelyt",
   ].join("\n");
-  await sendEmail({ from: process.env.ALERT_FROM ?? "Pagelyt <alerts@pagelyt.dev>", to, subject: "Your Pagelyt password was changed", text, replyTo: process.env.CONTACT_EMAIL ?? "customer_care@pagelyt.dev" });
+  await sendEmail({ from: process.env.ALERT_FROM ?? "Pagelyt <alerts@pagelyt.dev>", to, subject: how === "set" ? "A password was added to your Pagelyt account" : "Your Pagelyt password was changed", text, replyTo: process.env.CONTACT_EMAIL ?? "customer_care@pagelyt.dev" });
 }
 
 /* ---------- Consultation bookings ---------- */
