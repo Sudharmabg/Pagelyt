@@ -39,6 +39,11 @@ The social agent reads this before suggesting ideas or writing a caption. Keep i
 - **Alternative:** the dark launch carousel style (`assets/instagram/carousel.html`).
 - Use real product screenshots (from `npm run dev:mock` in `web/`, or pagelyt.dev). Never use made-up UI.
 
+## Voiceover
+
+- Every reel uses **en-IN-NeerjaExpressiveNeural** (Indian English, female, expressive), made with edge-tts at `--rate=+4%`. This is the user's chosen voice, so don't switch it unless asked.
+- With music under the voice, keep the music at about 10–15%.
+
 ## Formats and sizes
 
 | Platform | Format | Size | Notes |
