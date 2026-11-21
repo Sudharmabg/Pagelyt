@@ -67,9 +67,12 @@ For each approved idea, make `marketing/posts/<YYYY-MM-DD>-<slug>/` containing:
 - **Carousel or slides:** start from `assets/instagram/post3-ai-search.html` (peach) or `carousel.html` (dark). Render with `node shoot.mjs <jobs.json>` (see `tools/post3.json`). Make the LinkedIn PDF with `python3 assets/linkedin/tools/make-pdf.py` (read it for its arguments).
 - **Screenshots:** must be real product UI. Run the mock site (`npm run dev:mock` in `web/`, port 3100; see `.claude/launch.json`) and capture with `shoot.mjs`, or reuse `assets/instagram/shots/`.
 - **Voice:**
-  - Every reel gets an Indian English voiceover by default: `edge-tts --voice en-IN-NeerjaExpressiveNeural --rate=+4% --text "…" --write-media vN.mp3` (male option: `en-IN-PrabhatNeural`). Then update the clip lengths in the reel's `VLEN`.
-  - In cloud sessions add `--proxy "$HTTPS_PROXY"` (edge-tts ignores the proxy env vars) and use the **Pagelyt** cloud environment, which allows `speech.platform.bing.com` and installs edge-tts. If that host is refused, make a silent version with on-screen captions and say so.
+  - Write one line per scene in `<post>/voice.txt`. Spell names the way they should sound ("Page-light", "page light dot dev").
+  - Run `python3 marketing/tools/tts.py <post>` to make `voice/v1…vN.mp3` (Neerja Expressive, +4%, trimmed to the speech) and `voice/words.js`, which holds clip lengths and word timings. Captions map phonetic spellings back (Pagelyt, pagelyt.dev, 61%); add new ones with `--show "spoken=shown"`. Use `--only 3` to redo one line.
+  - The reel loads `voice/words.js` and takes its clip lengths from `VOICE_DATA` (no hand-typed lengths).
+  - The Pagelyt cloud environment allows Microsoft's speech server (`speech.platform.bing.com`). If that host is refused, make a silent version with on-screen text and say so.
   - If the user has dropped their own voice or face clips in `marketing/media/`, use those instead.
+- **Captions:** every voice cut for LinkedIn gets word-by-word captions. Include `<script src="../../tools/captions.js">`, `Captions.mount(stage, { top: 1610 })` and `cap.update(t, VOICE)` in `setT`, behind a `?captions` query. See `marketing/posts/2026-11-21-black-friday/reel.html` for the pattern.
 - Always make a **silent** Instagram cut (for trending audio). LinkedIn videos need burned-in captions.
 
 **post.json format:**
@@ -86,6 +89,11 @@ For each approved idea, make `marketing/posts/<YYYY-MM-DD>-<slug>/` containing:
 - LinkedIn `type`: `video`, `document` (PDF), `images` or `text`.
 - Media paths are relative to the post folder.
 - Captions follow `brand.md`: emoji and 1️⃣ lists on Instagram; → arrows, a closing question and links in `firstComment` on LinkedIn; UTM-tagged links.
+
+**Critic pass (required before the user sees anything):**
+1. `node marketing/tools/check-reel.mjs <post>/*.mp4 --sheet <scratch>/sheet.png`: fix every ✗; keep a ! only with a reason.
+2. Read the contact sheet and a mid-scene frame for each scene, and go through `marketing/critic.md` (hook, pacing, readability, safe zone, captions, brand, truth, CTA, sound).
+3. Fix, re-render and re-check. Write the result under "Critic pass" in `notes.md`.
 
 Then send the media to the user (SendUserFile, `display: "render"`) with both captions, and ask **"Post it?"** Make any requested changes and show it again. Commit the post folder.
 

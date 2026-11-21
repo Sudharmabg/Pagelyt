@@ -1,9 +1,9 @@
 # Black Friday reel (idea 1, 2026-11-21)
 
 **Files:**
-- `reel-voice.mp4` (36 s): Neerja voiceover. Instagram default; `post.json` uses it, since API posts can't add Instagram music.
+- `reel-voice.mp4` (34 s): Neerja voiceover. Instagram default; `post.json` uses it, since API posts can't add Instagram music.
 - `reel-silent.mp4` (20 s): no voice. Post by hand and add a trending song in the app.
-- `reel-linkedin.mp4` (36 s): voiceover plus burned-in subtitles, for LinkedIn.
+- `reel-linkedin.mp4` (34 s): voiceover plus word-by-word captions, for LinkedIn.
 - `cover.png`: cover frame for all three.
 
 **Post by:** Wednesday 25 Nov at the latest. The hook says "next Friday" and the date chip says Fri 27 Nov.
@@ -35,9 +35,21 @@ Pin the first comment straight after posting (the API can't pin).
 61% and 50% figures: Network Solutions survey of 507 online store owners, reported by TechRadar:
 https://www.techradar.com/pro/your-small-business-could-lose-out-on-black-friday-business-if-your-website-isnt-resilient-enough-heres-what-you-need-to-know
 
+## Critic pass (2026-11-21)
+
+`check-reel.mjs`: all ✓ on all three cuts. Voice cuts are 34.4 s at −14.2 LUFS with true peak −1.5 dBTP; the silent cut is 20 s.
+- Hook: pass. The first frame is the cover: "Will your website survive it?" plus the date chip.
+- Pacing: was 37 s. Shortened voice line 2 and the gaps between lines to get to 34 s. Something moves every 1–2 s.
+- Readability: pass. Zoomed the Top fixes screenshot (1500 px wide) so the highlighted fix is readable on a phone. Key text stays between y = 250 and 1500.
+- Captions: fixed. Outline text looked muddy over the ribbons, so phrases now sit on a dark panel. A word left on its own ("minute,") is merged into its phrase. At most 2 lines.
+- Brand: pass (peach, ribbons, logo at start and end, real Top fixes UI and homepage).
+- Truth: pass. The 61% figure is on screen with its source; the voice line matches the survey wording. Goes stale after 26 Nov.
+- CTA: pass. "Comment SALE" appears on screen, in the caption, in the pinned comment and in the DM template.
+- Sound: pass (normalised, 0.2 s or more between lines, no music on the voice cut).
+
 ## Editing and re-rendering
 
-Edit `reel.html` (open with `?play`, `?captions&play` or `?silent&play`). If you change a voice line, regenerate it with edge-tts (Neerja Expressive, `--rate=+4%`), trim the silence and update `VLEN`. From `assets/instagram/tools` with `CHROME` set:
+Edit `reel.html` (open with `?play`, `?captions&play` or `?silent&play`). To change a voice line, edit `voice.txt` and run `python3 marketing/tools/tts.py marketing/posts/2026-11-21-black-friday --only <n>` (lengths and word timings update automatically). From `assets/instagram/tools` with `CHROME` set:
 
 - `node record.mjs ../../../marketing/posts/2026-11-21-black-friday/reel.html ../../../marketing/posts/2026-11-21-black-friday/reel-voice.mp4 --width 1080 --height 1920 --scale 1`
 - Same command with `--query "?captions"` → `reel-linkedin.mp4`

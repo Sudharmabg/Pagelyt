@@ -5,6 +5,7 @@
    Encoding uses ffmpeg when it's on PATH (or FFMPEG=<path>): exact frame timing, H.264 + AAC, faststart. Extra options then:
      --music <file> [--music-volume 0.12]  loop a music bed under the voice, faded out at the end
      --crf 18                               quality (lower = better/bigger)
+     --no-loudnorm                          skip loudness normalisation (default: -14 LUFS, true peak -1.5 dB)
    Without ffmpeg, or with --browser-encode, it falls back to Chrome's MediaRecorder (real-time, no music option). */
 import { spawn, spawnSync } from "node:child_process";
 import { writeFileSync, mkdtempSync, mkdirSync, rmSync, readdirSync, copyFileSync, statSync } from "node:fs";
@@ -35,7 +36,7 @@ function encodeWithFfmpeg(dir, voice, dur) {
     filters.push(`[${voice.length + 1}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=${vol},afade=t=out:st=${(dur - fade).toFixed(2)}:d=${fade}[mus]`); mix.push("[mus]");
   }
   const audio = mix.length
-    ? ["-filter_complex", [...filters, `${mix.join("")}amix=inputs=${mix.length}:duration=longest:normalize=0[aout]`].join(";"), "-map", "0:v", "-map", "[aout]", "-c:a", "aac", "-b:a", "192k"]
+    ? ["-filter_complex", [...filters, `${mix.join("")}amix=inputs=${mix.length}:duration=longest:normalize=0` + (args.includes("--no-loudnorm") ? "[aout]" : "[mx];[mx]loudnorm=I=-14:TP=-1.5:LRA=11,aresample=48000[aout]")].join(";"), "-map", "0:v", "-map", "[aout]", "-c:a", "aac", "-b:a", "192k"]
     : ["-map", "0:v"];
   const cmd = ["-y", "-hide_banner", "-loglevel", "error", ...inputs, ...audio,
     "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", "-c:v", "libx264", "-preset", "slow", "-crf", opt("crf", "18"), "-profile:v", "high",
