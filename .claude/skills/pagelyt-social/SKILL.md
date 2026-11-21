@@ -48,8 +48,8 @@ For each approved idea, make `marketing/posts/<YYYY-MM-DD>-<slug>/` containing:
 - **Carousel or slides:** start from `assets/instagram/post3-ai-search.html` (peach) or `carousel.html` (dark). Render with `node shoot.mjs <jobs.json>` (see `tools/post3.json`). Make the LinkedIn PDF with `python3 assets/linkedin/tools/make-pdf.py` (read it for its arguments).
 - **Screenshots:** must be real product UI. Run the mock site (`npm run dev:mock` in `web/`, port 3100; see `.claude/launch.json`) and capture with `shoot.mjs`, or reuse `assets/instagram/shots/`.
 - **Voice:**
-  - `edge-tts --voice en-IN-NeerjaExpressiveNeural --rate=+4%`, then update the clip lengths in the reel's `VLEN`.
-  - In cloud sessions `speech.platform.bing.com` is blocked by the network policy, so make a silent version with on-screen captions and say so.
+  - Every reel gets an Indian English voiceover by default: `edge-tts --voice en-IN-NeerjaExpressiveNeural --rate=+4% --text "…" --write-media vN.mp3` (male option: `en-IN-PrabhatNeural`). Then update the clip lengths in the reel's `VLEN`.
+  - In cloud sessions add `--proxy "$HTTPS_PROXY"` (edge-tts ignores the proxy env vars) and use the **Pagelyt** cloud environment, which allows `speech.platform.bing.com` and installs edge-tts. If that host is refused, make a silent version with on-screen captions and say so.
   - If the user has dropped their own voice or face clips in `marketing/media/`, use those instead.
 - Always make a **silent** Instagram cut (for trending audio). LinkedIn videos need burned-in captions.
 
