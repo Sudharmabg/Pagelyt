@@ -1,0 +1,21 @@
+{
+  "slug": "2026-11-21-black-friday",
+  "instagram": {
+    "type": "reel",
+    "media": [
+      "reel-voice.mp4"
+    ],
+    "cover": "cover.png",
+    "caption": "Black Friday is next Friday (27 Nov). Will your website survive the rush? 🛒⚡\n\nIn one survey, 61% of online store owners said their site crashed during a sale or traffic spike in the past year (Network Solutions, via TechRadar).\n\nThe usual culprits:\n1️⃣ Heavy images: photos over 300 KB slow every page\n2️⃣ Render-blocking scripts: code that makes the page wait to appear\n3️⃣ Too many apps: review, chat and upsell widgets loading from other servers\n\nPaste your URL into Pagelyt and in under a minute you'll see what's slowing your store down, with every fix ranked by impact.\n\n💬 Comment SALE and we'll DM you our free guide: Why is my website slow? 10 causes and fixes.\n\n🔗 Free audit at the link in bio\n\n#blackfriday #ecommerce #websitespeed #pagespeed #onlinestore #shopify #smallbusinesstips #websiteaudit #websitetips #seo #digitalmarketing",
+    "firstComment": "Comment SALE below 👇 and we'll DM you our free guide: Why is my website slow? 10 causes and fixes."
+  },
+  "linkedin": {
+    "type": "video",
+    "media": [
+      "reel-linkedin.mp4"
+    ],
+    "title": "Will your website survive Black Friday?",
+    "caption": "Black Friday is next Friday. A lot of store owners will find out how fast their site really is the hard way.\n\nIn a Network Solutions survey of 507 online store owners, 61% said their site crashed during a sale or traffic spike in the past year, and half said it loaded too slowly.\n\nThe slowdowns usually come from three places:\n\n→ Heavy images. Product photos over 300 KB, sometimes several MB, on every page.\n→ Render-blocking scripts. Code in the page head that makes the browser wait before showing anything.\n→ Too many third-party apps. Review, chat and upsell widgets that load from someone else's server. If theirs is slow, so is yours.\n\nThere's still time to fix most of this before the rush, if you know where to look.\n\nFree audit and our speed guide are in the first comment 👇\n\nWhich app on your store would you never remove, even if it slowed things down?\n\n#Ecommerce #BlackFriday #PageSpeed #SmallBusiness #WebDevelopment",
+    "firstComment": "Check your store's speed for free: https://pagelyt.dev/?utm_source=linkedin&utm_medium=social&utm_campaign=black-friday\n\nWhy is my website slow? 10 common causes and how to fix them: https://pagelyt.dev/blog/why-is-my-website-slow?utm_source=linkedin&utm_medium=social&utm_campaign=black-friday\n\nSurvey source (TechRadar): https://www.techradar.com/pro/your-small-business-could-lose-out-on-black-friday-business-if-your-website-isnt-resilient-enough-heres-what-you-need-to-know"
+  }
+}
