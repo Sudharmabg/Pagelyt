@@ -13,7 +13,25 @@ Three stages, each with a human gate. **Never publish anything the user has not 
 3. PUBLISH dry run → publish with --yes → log in marketing/log.md → commit
 ```
 
-Arguments: `ideas` (stage 1, the default), `create <idea ids>`, `publish <slug>`, `results` (update the log with numbers the user gives).
+Arguments: `ideas` (stage 1, the default), `create <idea ids>`, `publish <slug>`, `results` (update the log with numbers the user gives), `daily-ideas` and `daily-reel` (the scheduled runs below).
+
+## Daily schedule (IST)
+
+Two scheduled tasks fire into the same ongoing session:
+
+- **~1 pm, `daily-ideas`:**
+  1. Run `git fetch` and merge the working branch first.
+  2. Run Stage 1 over the **last 7 days**, with **3–5 ideas**, ranked best first, and at least one reel.
+  3. Write `marketing/ideas/<date>.md`, commit and push.
+  4. Send a PushNotification ("3 reel ideas for today: 1) … Reply to pick, or I'll make #1 at 7 pm").
+  5. Wait. If the user picks one before the evening run, build it right away (Stage 2). "Do it early" or "make it now" means build immediately.
+- **~6:30 pm, `daily-reel`** (finishes by 7 pm):
+  1. Fetch first.
+  2. If today's reel is already built, only remind the user it's waiting for "post it".
+  3. Otherwise build the idea the user approved today, or, if they didn't answer, the top-ranked `proposed` reel idea from today's file. Mark it `made (default pick)`.
+  4. Make the voice (Neerja) and silent cuts, `post.json` and `notes.md`. Commit, push, send the preview, then PushNotification "Today's reel is ready. Post it?".
+  5. **Never publish without the user's explicit OK**, even on a default pick.
+- No research results worth posting today? Say so in the notification and suggest an evergreen idea from `brand.md` (a free tool demo) instead.
 
 Always read `marketing/brand.md` (product, audiences, voice, formats, CTAs) and `marketing/log.md` (what's been posted) first.
 
