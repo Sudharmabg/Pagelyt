@@ -1,9 +1,13 @@
 /* Frame-by-frame capture of an HTML animation that exposes window.setT(seconds), then encode to MP4 with Chrome's MediaRecorder.
    node record.mjs <page.html> <out.mp4> [--fps 30] [--scale 1.2] [--width 1600 --height 900] [--times 1.5,6,9 --dir <folder>]
    If the page sets window.VOICE = [{src, at}] (paths relative to the page), those clips are mixed in as the audio track.
-   With --times it only saves those frames as PNGs into --dir (for checking). No ffmpeg needed. */
-import { spawn } from "node:child_process";
-import { writeFileSync, mkdtempSync, mkdirSync, rmSync, readdirSync, copyFileSync } from "node:fs";
+   With --times it only saves those frames as PNGs into --dir (for checking).
+   Encoding uses ffmpeg when it's on PATH (or FFMPEG=<path>): exact frame timing, H.264 + AAC, faststart. Extra options then:
+     --music <file> [--music-volume 0.12]  loop a music bed under the voice, faded out at the end
+     --crf 18                               quality (lower = better/bigger)
+   Without ffmpeg, or with --browser-encode, it falls back to Chrome's MediaRecorder (real-time, no music option). */
+import { spawn, spawnSync } from "node:child_process";
+import { writeFileSync, mkdtempSync, mkdirSync, rmSync, readdirSync, copyFileSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve, dirname } from "node:path";
 
@@ -12,6 +16,34 @@ const opt = (k, d) => { const i = args.indexOf("--" + k); return i >= 0 ? args[i
 const page = resolve(args[0]), outFile = resolve(args[1] || "out.mp4");
 const FPS = +opt("fps", 30), SCALE = +opt("scale", 1.2), W = +opt("width", 1600), H = +opt("height", 900);
 const times = opt("times") ? opt("times").split(",").map(Number) : null;
+const FFMPEG = process.env.FFMPEG || "ffmpeg";
+const useFfmpeg = !args.includes("--browser-encode") && spawnSync(FFMPEG, ["-version"], { stdio: "ignore" }).status === 0;
+
+/** Encode the captured JPEG frames (+ voice clips at their start times, + optional music bed) with ffmpeg. */
+function encodeWithFfmpeg(dir, voice, dur) {
+  const inputs = ["-framerate", String(FPS), "-i", join(dir, "f%05d.jpg")];
+  const filters = [], mix = [];
+  voice.forEach((v, i) => {
+    inputs.push("-i", resolve(dirname(page), v.src));
+    const ms = Math.round(v.at * 1000);
+    filters.push(`[${i + 1}:a]aformat=sample_rates=48000:channel_layouts=stereo,adelay=${ms}|${ms}[v${i}]`); mix.push(`[v${i}]`);
+  });
+  const music = opt("music");
+  if (music) {
+    inputs.push("-stream_loop", "-1", "-i", resolve(music));
+    const vol = +opt("music-volume", voice.length ? 0.12 : 0.8), fade = Math.min(1.5, dur / 4);
+    filters.push(`[${voice.length + 1}:a]aformat=sample_rates=48000:channel_layouts=stereo,volume=${vol},afade=t=out:st=${(dur - fade).toFixed(2)}:d=${fade}[mus]`); mix.push("[mus]");
+  }
+  const audio = mix.length
+    ? ["-filter_complex", [...filters, `${mix.join("")}amix=inputs=${mix.length}:duration=longest:normalize=0[aout]`].join(";"), "-map", "0:v", "-map", "[aout]", "-c:a", "aac", "-b:a", "192k"]
+    : ["-map", "0:v"];
+  const cmd = ["-y", "-hide_banner", "-loglevel", "error", ...inputs, ...audio,
+    "-vf", "scale=trunc(iw/2)*2:trunc(ih/2)*2", "-c:v", "libx264", "-preset", "slow", "-crf", opt("crf", "18"), "-profile:v", "high",
+    "-pix_fmt", "yuv420p", "-r", String(FPS), "-t", dur.toFixed(3), "-movflags", "+faststart", outFile];
+  console.log(`encoding with ffmpeg${voice.length ? `, ${voice.length} voice clips` : ""}${music ? ", music bed" : ""}`);
+  const r = spawnSync(FFMPEG, cmd, { stdio: "inherit" });
+  if (r.status !== 0) throw new Error("ffmpeg failed");
+}
 
 const CHROME = process.env.CHROME || "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const PORT = 9333 + Math.floor(Math.random() * 500);
@@ -53,6 +85,12 @@ try {
   }
   if (times) { console.log("saved", list.length, "frames to", dir); }
   else {
+    if (useFfmpeg) {
+      encodeWithFfmpeg(dir, voice, dur);
+      console.log("saved", outFile, (statSync(outFile).size / 1e6).toFixed(1), "MB");
+      rmSync(dir, { recursive: true, force: true });
+    } else {
+    if (opt("music")) console.log("! --music needs ffmpeg; rendering without music");
     // encode: an encoder page draws each JPEG onto a canvas and MediaRecorder records it in real time
     voice.forEach((v, i) => copyFileSync(resolve(dirname(page), v.src), join(dir, `a${i}.mp3`)));
     const frames = readdirSync(dir).filter((f) => f.endsWith(".jpg")).sort();
@@ -99,6 +137,7 @@ try {
     console.log("encoder ran", (await evaluate("window.late") / 1000).toFixed(2), "s over");
     console.log("saved", file, (size / 1e6).toFixed(1), "MB");
     rmSync(dir, { recursive: true, force: true });
+    }
   }
 } catch (e) { console.error(e); process.exitCode = 1; }
 finally { finish(); }

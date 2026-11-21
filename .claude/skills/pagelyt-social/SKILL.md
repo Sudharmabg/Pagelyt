@@ -62,6 +62,7 @@ For each approved idea, make `marketing/posts/<YYYY-MM-DD>-<slug>/` containing:
   - Keep its contract: `window.setT(seconds)`, `window.DURATION`, optional `window.VOICE = [{src, at}]`, a 1080×1920 stage, key text between y=250 and y=1500.
   - Check frames before the full render: `node record.mjs <reel.html> x.mp4 --width 1080 --height 1920 --scale 1 --times 0.5,3,8 --dir <scratch>`, then Read the PNGs.
   - Full render: `node record.mjs <reel.html> <out.mp4> --width 1080 --height 1920 --scale 1`.
+  - Encoding uses ffmpeg automatically: exact frame timing, H.264 + AAC, about a quarter of the old file size. Add a music bed with `--music <file> --music-volume 0.12`; it loops, sits under the voice and fades out. For the Instagram silent cut, leave out `--music` so the user can add a trending song in the app.
   - For a LinkedIn cut, render again at `--width 1080 --height 1350` if the layout supports it, or post the 9:16 file.
 - **Carousel or slides:** start from `assets/instagram/post3-ai-search.html` (peach) or `carousel.html` (dark). Render with `node shoot.mjs <jobs.json>` (see `tools/post3.json`). Make the LinkedIn PDF with `python3 assets/linkedin/tools/make-pdf.py` (read it for its arguments).
 - **Screenshots:** must be real product UI. Run the mock site (`npm run dev:mock` in `web/`, port 3100; see `.claude/launch.json`) and capture with `shoot.mjs`, or reuse `assets/instagram/shots/`.
