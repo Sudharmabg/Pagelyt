@@ -1,11 +1,11 @@
 import type { CodeSummary, Finding } from "@/lib/scan/types";
 
-/** The Code check star feature shows "New" badges until this date (30 days from launch). */
+/** The Code security area shows "New" badges until this date (30 days from launch). */
 export const CODE_NEW_UNTIL = Date.UTC(2026, 11, 22);
 export const CODE_IS_NEW = Date.now() < CODE_NEW_UNTIL;
 export const CodeNewPill = () => (CODE_IS_NEW ? <span className="wc-new">New</span> : null);
 
-/** Counts for the star card, banner chips and Overview card: libraries from the summary, issues from the open findings
+/** Counts for the banner chip, Overview card and Code security page: libraries from the summary, issues from the open findings
     (so ticking a fix off updates them). */
 export function codeCounts(open: Finding[], code: CodeSummary | null | undefined) {
   const mine = open.filter((f) => f.module === "code");
@@ -20,45 +20,65 @@ export function codeCounts(open: Finding[], code: CodeSummary | null | undefined
 }
 export type CodeCounts = ReturnType<typeof codeCounts>;
 
-/* Body of the ★ star card on Overview: the headline count and three tiles. */
-export function CodeStarArt({ c }: { c: CodeCounts }) {
-  const bad = c.flawed > 0 || c.secrets;
-  return (
-    <span className="cs-sx">
-      <b className={`cs-sx-head ${bad ? "bad" : "ok"}`}>
-        {!c.known ? "Rescan to check your code" : c.secrets ? "A secret key is public" : c.flawed ? `${c.flawed} ${c.flawed === 1 ? "library" : "libraries"} with known flaws` : "No known flaws found"}
-      </b>
-      <span className="cs-sx-tiles" aria-hidden="true">
-        <span><b>{c.files}</b>files read</span>
-        <span><b>{c.libs}</b>{c.libs === 1 ? "library" : "libraries"}</span>
-        <span className={c.issues ? "f" : "p"}><b>{c.issues}</b>{c.issues === 1 ? "issue" : "issues"}</span>
-      </span>
-    </span>
-  );
-}
+/* Top of the Code security area: what the area is, why it matters, what the scan reads, and each check with its
+   result on this site (from the open findings, so ticking a fix off turns it green). */
+const CHECKS: { id: string; name: string; text: string }[] = [
+  { id: "code-vuln-lib", name: "Libraries with known flaws", text: "Versions of jQuery, Bootstrap, Angular and others with published security flaws." },
+  { id: "code-eol-lib", name: "Unsupported libraries", text: "Versions that no longer get security fixes, so new flaws stay open." },
+  { id: "code-secret", name: "Secret keys in public code", text: "API keys, tokens and passwords left in files anyone can open." },
+  { id: "code-source-map", name: "Public source maps", text: "Links that turn minified code back into your original source." },
+  { id: "code-no-sri", name: "CDN files without an integrity check", text: "Files from public CDNs loaded without SRI, so a changed file would still run." },
+  { id: "code-dom-xss", name: "Unsafe writes to the page", text: "Code that puts web address or user text straight into the page (XSS risk)." },
+  { id: "code-risky", name: "Risky code patterns", text: "eval(), new Function() and inline onclick= handlers that weaken protections." },
+  { id: "code-form-http", name: "Forms sent over plain HTTP", text: "Forms, including logins, that send what people type without encryption." },
+];
 
-/* Overview "From this scan" card body. */
-export function CodeCardBody({ c }: { c: CodeCounts }) {
+export function CodeAbout({ code, findings }: { code: CodeSummary | null | undefined; findings: Finding[] }) {
+  const found = new Set(findings.filter((f) => f.module === "code").map((f) => f.id));
+  const bad = CHECKS.filter((c) => found.has(c.id)).length;
   return (
-    <span className="dc-big">
-      <b>{c.issues}</b>
-      <span className="dc-n">{c.issues === 1 ? "code issue" : "code issues"} · {c.files} files read</span>
-    </span>
-  );
-}
-
-/* Code security area: a one-line pointer to the ★ Code check page. */
-export function CodeStrip({ c, onOpen }: { c: CodeCounts; onOpen: () => void }) {
-  const bad = c.flawed > 0 || c.secrets;
-  return (
-    <button type="button" className={`wc-strip cs-strip ${bad ? "bad" : "ok"}`} onClick={onOpen}>
-      <span className="cs-strip-ic" aria-hidden="true">{"{ }"}</span>
-      <span className="wc-strip-txt">
-        <b>{c.known ? `Read ${c.files} file${c.files === 1 ? "" : "s"}, found ${c.libs} ${c.libs === 1 ? "library" : "libraries"}` : "What we read from your site"}</b>
-        <small>{bad ? "Some of it gives too much away. See what we read." : "See every file and library we checked."}</small>
-      </span>
-      <span className="wc-strip-go">Open Code check <span aria-hidden="true">→</span></span>
-    </button>
+    <section className="cs-about" aria-labelledby="cs-about-h">
+      <div className="cs-about-head">
+        <p className="cs-about-k">About this area</p>
+        <h2 id="cs-about-h">What Code security checks</h2>
+      </div>
+      <div className="cs-about-grid">
+        <article className="cs-about-card">
+          <span className="cs-about-ic" aria-hidden="true">{"{ }"}</span>
+          <h3>What it is</h3>
+          <p>Every page sends JavaScript to your visitors&apos; browsers to make menus, forms and tracking work. Pagelyt opens those same files, the way a browser does, and checks what they give away.</p>
+        </article>
+        <article className="cs-about-card">
+          <span className="cs-about-ic" aria-hidden="true">!</span>
+          <h3>Why it matters</h3>
+          <p>Anyone can read these files, including attackers. Old libraries with published flaws and keys left in code are easy to find, and automated bots scan the web for exactly that.</p>
+        </article>
+        <article className="cs-about-card">
+          <span className="cs-about-ic" aria-hidden="true">&#8981;</span>
+          <h3>What we read</h3>
+          <p>Your homepage HTML, its inline scripts and up to 8 script files the page loaded in a real browser. We never log in, probe the server or download anything a browser wouldn&apos;t.</p>
+        </article>
+      </div>
+      <div className="cs-checks-top">
+        <h3>The {CHECKS.length} checks</h3>
+        {code && <span className={`cs-checks-sum ${bad ? "bad" : "ok"}`}>{bad ? `${bad} found on this site` : "All clear on this site"}</span>}
+      </div>
+      <ul className="cs-checks">
+        {CHECKS.map((c) => {
+          const st = !code ? "na" : found.has(c.id) ? "bad" : "ok";
+          return (
+            <li key={c.id} className={st}>
+              <span className="cs-check-dot" aria-hidden="true">{st === "bad" ? "!" : st === "ok" ? "✓" : "–"}</span>
+              <span className="cs-check-tx">
+                <b>{c.name}</b>
+                <small>{c.text}</small>
+              </span>
+              <span className="cs-check-st">{st === "bad" ? "Found" : st === "ok" ? "Clear" : "Rescan"}</span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }
 

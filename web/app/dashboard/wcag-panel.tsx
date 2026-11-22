@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { criterionUrl, wcagSummary, WCAG_NEW_UNTIL, WCAG_VERSION, type CriterionRow, type CriterionStatus, type LevelCount, type WcagLevel, type WcagSummary } from "@/lib/scan/wcag";
 import type { Finding, ScanResult } from "@/lib/scan/types";
+import { WCAG_ABOUT } from "@/lib/scan/wcag-about";
 
 /** Whether the "New" badges still show (read once per page load). */
 export const WCAG_IS_NEW = Date.now() < WCAG_NEW_UNTIL;
@@ -88,10 +89,10 @@ export function WcagStrip({ s, onOpen }: { s: WcagSummary; onOpen: () => void })
    so ticking a fix off moves its criterion out of "Failing" once nothing else fails it. Automated checks can only
    prove a failure, so a criterion with nothing found is "No issues found", never "conforms". */
 
-const TABS: { key: CriterionStatus; label: string; empty: string }[] = [
-  { key: "fail", label: "Failing", empty: "No criterion fails in the automated checks." },
-  { key: "manual", label: "Check by hand", empty: "Every criterion was covered by an automated check." },
-  { key: "pass", label: "No issues found", empty: "No criterion passed the automated checks yet." },
+const TABS: { key: CriterionStatus; label: string; hint: string; icon: string; empty: string }[] = [
+  { key: "fail", label: "Failing", hint: "Fix these first", icon: "!", empty: "No criterion fails in the automated checks." },
+  { key: "manual", label: "Check by hand", hint: "Need a person to test", icon: "?", empty: "Every criterion was covered by an automated check." },
+  { key: "pass", label: "No issues found", hint: "Passed our checks", icon: "✓", empty: "No criterion passed the automated checks yet." },
 ];
 
 function LevelTile({ level, c }: { level: WcagLevel; c: LevelCount }) {
@@ -116,16 +117,19 @@ function LevelTile({ level, c }: { level: WcagLevel; c: LevelCount }) {
   );
 }
 
+/* One criterion as a table row: its number, name (linked to the W3C explanation) with what it means, its level and
+   what our checks found. On phones each row becomes a card. */
 function Row({ r, onFinding }: { r: CriterionRow; onFinding?: (f: Finding) => void }) {
   return (
-    <li className={`wc-row ${r.status}`}>
-      <span className="wc-id">{r.id}</span>
-      <div className="wc-main">
-        <div className="wc-name">
-          <a href={criterionUrl(r)} target="_blank" rel="noopener noreferrer">{r.name}<span className="sr-only"> (W3C explanation, opens in a new tab)</span></a>
-          <span className={`wc-pill l-${r.level.toLowerCase()}`}>{r.level}</span>
-        </div>
-        {r.findings.length > 0 && (
+    <tr className={`wc-row ${r.status}`}>
+      <td className="wc-id" data-label="ID">{r.id}</td>
+      <td className="wc-main" data-label="Criterion">
+        <a className="wc-name" href={criterionUrl(r)} target="_blank" rel="noopener noreferrer">{r.name}<span className="sr-only"> (W3C explanation, opens in a new tab)</span></a>
+        {WCAG_ABOUT[r.id] && <p className="wc-about">{WCAG_ABOUT[r.id]}</p>}
+      </td>
+      <td className="wc-lv" data-label="Level"><span className={`wc-pill l-${r.level.toLowerCase()}`}>{r.level}</span></td>
+      <td className="wc-iss" data-label="Issues">
+        {r.findings.length > 0 ? (
           <ul className="wc-fs">
             {r.findings.map((f) => (
               <li key={f.id}>
@@ -133,9 +137,11 @@ function Row({ r, onFinding }: { r: CriterionRow; onFinding?: (f: Finding) => vo
               </li>
             ))}
           </ul>
+        ) : (
+          <span className="wc-none">{r.status === "manual" ? "Test by hand" : "None found"}</span>
         )}
-      </div>
-    </li>
+      </td>
+    </tr>
   );
 }
 
@@ -170,12 +176,34 @@ export function WcagPanel({ findings, wcag, onFinding }: { findings: Finding[]; 
       <div className="wc-tabs" role="group" aria-label="Show criteria">
         {TABS.map((t) => (
           <button key={t.key} type="button" aria-pressed={tab === t.key} aria-controls="wc-list" className={`${t.key}${tab === t.key ? " on" : ""}`} onClick={() => setTab(t.key)}>
-            {t.label} <b>{count(t.key)}</b>
+            <span className="wc-tab-ic" aria-hidden="true">{t.icon}</span>
+            <span className="wc-tab-tx">
+              <b className="wc-tab-n">{count(t.key)}</b>
+              <span className="wc-tab-l">{t.label}</span>
+              <small>{t.hint}</small>
+            </span>
           </button>
         ))}
       </div>
       <div id="wc-list">
-        {list.length ? <ul className="wc-list">{list.map((r) => <Row key={r.id} r={r} onFinding={onFinding} />)}</ul> : <p className="panel-note">{TABS.find((t) => t.key === tab)!.empty}</p>}
+        {list.length ? (
+          <div className="wc-table-wrap">
+            <table className="wc-table">
+              <caption className="sr-only">{TABS.find((t) => t.key === tab)!.label} criteria</caption>
+              <thead>
+                <tr>
+                  <th scope="col">ID</th>
+                  <th scope="col">Criterion and what it means</th>
+                  <th scope="col">Level</th>
+                  <th scope="col">Issues found</th>
+                </tr>
+              </thead>
+              <tbody>{list.map((r) => <Row key={r.id} r={r} onFinding={onFinding} />)}</tbody>
+            </table>
+          </div>
+        ) : (
+          <p className="panel-note">{TABS.find((t) => t.key === tab)!.empty}</p>
+        )}
         {tab === "manual" && <p className="wc-fine">No automated tool can decide these: they need someone to try the site with a keyboard, a screen reader and real content.</p>}
         {tab === "pass" && <p className="wc-fine">Our checks tested these and found nothing. That is a good sign, not proof of conformance.</p>}
       </div>

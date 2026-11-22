@@ -10,7 +10,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { Findings } from "../findings";
 import { Ring, tone } from "../ui";
 import { findingKey, overallScore, scoreModules } from "@/lib/scan/score";
-import { CodeCardBody, CodeNewPill, CodeRead, CodeStarArt, CodeStrip, codeCounts } from "./code-panel";
+import { CodeAbout, CodeRead, codeCounts } from "./code-panel";
 import { MODULE_NAMES, type Finding, type ModuleKey } from "@/lib/scan/types";
 import { AreaIcon, type IconKey } from "./icons";
 import { WhyItMatters } from "./why-modal";
@@ -78,7 +78,6 @@ const WHY: Record<ModuleKey | Extra, string> = {
   tech: "Your domain and email records keep you reachable and stop others sending mail in your name, and an expired domain can take everything offline at once. Knowing the technology behind a site also shows what can be updated or switched on.",
   changes: "Tracking scores over time shows whether fixes are working and catches new problems early. An unexpected change to the homepage can also be the first sign that a site has been hacked.",
   wcag: "WCAG is the accessibility standard that laws such as the European Accessibility Act and the ADA point to, and clients increasingly ask for it in contracts. Knowing which criteria fail, and which still need a person to check, turns \"is the site accessible?\" into a list of concrete fixes.",
-  codecheck: "Every visitor downloads your JavaScript, and anyone can open it in a browser. An old library with a published flaw or a key left in a file is easy to find, and attackers scan for exactly that. These are basic checks of what the browser receives, not a full code audit.",
   assistant: "Reports list what is wrong; knowing what to do next is the hard part. Asking in plain words gets you steps for your own site, drawn from the same guides our checks are built on.",
   google: "A report says what is wrong; your Google data says how your traffic is really doing. See where visitors come from, what is growing or dropping, and AI steps to grow it. Fixing the issues on the pages Google already sends people to pays off first, and the searches just off page one are the cheapest traffic to win.",
   monitor: "Websites break without warning: a plugin update, an expired certificate or a host outage. Regular rescans and uptime checks tell you within minutes instead of when a customer complains.",
@@ -223,7 +222,7 @@ function useLocalFixed(scanId: string) {
 /* The dashboard's sections beyond the areas: the star features, the tools, and details from the scan (opened from
    their Overview cards, not the sidebar).
    Each tool is a view of its own (?view=<tool slug>); "tools" is the grid of all of them. */
-type Extra = "speed" | "pages" | "images" | "tech" | "changes" | "assistant" | "wcag" | "codecheck" | "monitor" | "google" | "ai" | "compare" | "share" | "tools";
+type Extra = "speed" | "pages" | "images" | "tech" | "changes" | "assistant" | "wcag" | "monitor" | "google" | "ai" | "compare" | "share" | "tools";
 type View = "overview" | "all" | ModuleKey | Extra | ToolSlug;
 const isTool = (v: string): v is ToolSlug => TOOLS_BY_SLUG.has(v as ToolSlug);
 type Section = { id: Extra; label: string; icon: IconKey; text: string };
@@ -240,7 +239,6 @@ const INSIGHTS: Section[] = [
 const STAR: Section[] = [
   { id: "assistant", label: "Ask Pagelyt", icon: "chat", text: "Ask anything about improving this site. Answers come from this report, our fix guides and our blog." },
   { id: "wcag", label: "WCAG checklist", icon: "accessibility", text: "Every WCAG 2.2 Level A and AA success criterion for this site: which fail, which our checks found no issues with, and which need a person to check." },
-  { id: "codecheck", label: "Code check", icon: "code", text: "See what your JavaScript gives away: the script files browsers download from this site, the libraries in them and whether any have known flaws, leaked keys or public source maps." },
   { id: "monitor", label: "Save & monitor", icon: "monitor", text: "Keep this report in your account, rescan on a schedule and get uptime checks and email alerts." },
   { id: "google", label: "Google data", icon: "google", text: "Connect Search Console, Analytics and Google Ads for an overall view of your traffic: what's growing or dropping and why, AI steps to grow it, and the real clicks, visitors and ad spend behind each issue." },
   { id: "ai", label: "AI visibility", icon: "ai", text: "See whether ChatGPT mentions and cites this site when people ask about its field." },
@@ -251,7 +249,6 @@ const STAR: Section[] = [
 const STAR_ART: Partial<Record<string, { color: string; cta: string; tag: string; ring: IconKey[] }>> = {
   assistant: { color: "#7b3fe0", cta: "Ask a question", tag: "AI chat", ring: ["chat", "list", "search", "check"] },
   wcag: { color: "#4b44c9", cta: "Open the checklist", tag: "Free", ring: ["keyboard", "device", "check", "search"] },
-  codecheck: { color: "#3f3cbb", cta: "See what we read", tag: "Free", ring: ["security", "search", "link", "check"] },
   monitor: { color: "#0e8f7e", cta: "Save and set alerts", tag: "Alerts", ring: ["mail", "history", "check", "performance"] },
   google: { color: "#2a78d6", cta: "Connect Google", tag: "Live data", ring: ["search", "table", "seo", "performance"] },
   ai: { color: "#b8358e", cta: "Check AI answers", tag: "ChatGPT", ring: ["chat", "geo", "link", "search"] },
@@ -300,12 +297,6 @@ function pitchFor(id: Extra, r: { open: Finding[]; high: number; overall: number
       return r.wcagFail
         ? { hook: `${plural(r.wcagFail, "WCAG criterion", "WCAG criteria")} failing`, text: "See what blocks Level AA, rule by rule.", cta: "Open the checklist", weight: 3 }
         : { hook: "No automated WCAG failures", text: `${r.wcagManual} criteria still need a person to check.`, cta: "Open the checklist", weight: 2 };
-    case "codecheck":
-      return r.code.secrets
-        ? { hook: "A secret key is public", text: "Anyone can read it in your JavaScript.", cta: "See what we read", weight: 4 }
-        : r.code.flawed
-          ? { hook: `${plural(r.code.flawed, "library", "libraries")} with known flaws`, text: "See what your JavaScript gives away.", cta: "See what we read", weight: 3 }
-          : { hook: `${plural(r.code.files, "file")} read, no known flaws`, text: "See what your JavaScript gives away.", cta: "See what we read", weight: 1.5 };
     case "monitor":
       if (r.saved) return { hook: "This site is saved", text: "Pick a rescan schedule and alerts.", cta: "Set alerts", weight: 1 };
       if (r.high) return { hook: `${plural(r.high, "important issue")} to fix`, text: "Rescan weekly to confirm each fix lands.", cta: "Save & monitor", weight: 4 };
@@ -455,7 +446,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const wcag = useMemo(() => wcagSummary(remaining, scan.wcag?.tested), [remaining, scan.wcag]);
   const wcagFail = wcag.levels.A.fail + wcag.levels.AA.fail;
   const wcagManual = wcag.levels.A.manual + wcag.levels.AA.manual;
-  // Code check counts from the open findings (ticking a fix off updates them).
+  // Code security counts from the open findings (ticking a fix off updates them).
   const code = useMemo(() => codeCounts(remaining, scan.code), [remaining, scan.code]);
   const codeBad = code.flawed > 0 || code.secrets;
 
@@ -475,7 +466,9 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   // The open section lives in the address (?view=seo), so Back, refresh and shared links all land on it.
   // Older links opened a tool with ?view=tools&tool=<slug>.
   const legacyTool = params.get("view") === "tools" ? params.get("tool") : null;
-  const asked = legacyTool && isTool(legacyTool) ? legacyTool : (params.get("view") ?? "overview");
+  // The old ★ Code check page (?view=codecheck) is now part of the Code security area.
+  const rawView = params.get("view") === "codecheck" ? "code" : params.get("view");
+  const asked = legacyTool && isTool(legacyTool) ? legacyTool : (rawView ?? "overview");
   const view: View = order.includes(asked as View) ? (asked as View) : "overview";
   // On phones the chat widget is a sheet over the page: hold the page still behind it so only the chat scrolls.
   const chatSheet = chat && access === "owner" && view !== "assistant";
@@ -542,7 +535,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     { id: "a-new", label: "Scan another site", group: "Actions", run: () => router.push("/") },
     ...remaining.slice(0, 40).map((f): Cmd => ({ id: "f-" + findingKey(f), label: f.title, hint: MODULE_NAMES[f.module], group: "Findings", icon: f.module, run: () => setView(f.module) })),
     ...wcag.rows.filter((r) => r.status === "fail").map((r): Cmd => ({ id: "w-" + r.id, label: `WCAG ${r.id} ${r.name}`, hint: `Level ${r.level} · failing`, group: "Findings", icon: "accessibility", run: () => setView("wcag") })),
-    ...(scan.code?.libraries ?? []).map((l): Cmd => ({ id: "l-" + l.name, label: `${l.name} ${l.version}`, hint: l.vulnerable ? "Known flaws" : l.eol ? "No longer supported" : "Library found", group: "Findings", icon: "code", run: () => setView("codecheck") })),
+    ...(scan.code?.libraries ?? []).map((l): Cmd => ({ id: "l-" + l.name, label: `${l.name} ${l.version}`, hint: l.vulnerable ? "Known flaws" : l.eol ? "No longer supported" : "Library found", group: "Findings", icon: "code", run: () => setView("code") })),
   ];
   const when = new Date(scan.scannedAt).toLocaleString("en-GB", { dateStyle: "long", timeStyle: "short", timeZone: "UTC" });
   const countOf = (k: ModuleKey) => remaining.filter((f) => f.module === k).length;
@@ -669,7 +662,6 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
     switch (id) {
       case "assistant": return [{ text: <><b>{open}</b> open finding{open === 1 ? "" : "s"} to ask about</>, tone: open ? "hot" : "ok" }, { text: "Knows this report" }, { text: "Fix guides and blog built in" }];
       case "wcag": return [{ text: <><b>{wcagFail || "✓"}</b> {wcagFail ? (wcagFail === 1 ? "criterion failing" : "criteria failing") : "No failures found"}</>, tone: wcagFail ? "hot" : "ok" }, { text: <><b>{wcagManual}</b> to check by hand</> }, { text: <><b>{wcag.levels.A.pass + wcag.levels.AA.pass}</b> with no issues found</>, tone: "ok" }];
-      case "codecheck": return [code.secrets ? { text: <><b>!</b> Secret key found</>, tone: "hot" } : { text: <><b>{code.flawed || "✓"}</b> {code.flawed ? (code.flawed === 1 ? "library with known flaws" : "libraries with known flaws") : "No known flaws"}</>, tone: code.flawed ? "hot" : "ok" }, { text: <><b>{code.files}</b> files read</> }, { text: <><b>{code.libs}</b> {code.libs === 1 ? "library" : "libraries"} found</> }];
       case "monitor": return [siteId ? { text: <><b>✓</b> Saved to your account</>, tone: "ok" } : { text: "Not saved yet", tone: "hot" }, { text: "Scheduled rescans" }, { text: "Uptime checks and email alerts" }];
       case "google": return [{ text: "Search Console" }, { text: "Analytics" }, { text: "Google Ads" }];
       case "ai": return [{ text: "Checks ChatGPT answers" }, { text: "Mentions and citations" }, siteId ? { text: <><b>✓</b> Ready for {scan.host}</>, tone: "ok" } : { text: "Save the site first", tone: "hot" }];
@@ -779,7 +771,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
               </li>
               {code.known && (
                 <li className={`bn-chip-btn ${codeBad ? "bn-chip-hot" : "bn-chip-ok"}`}>
-                  <button type="button" onClick={() => setView("codecheck")}>{code.secrets ? <><b>!</b> Secret key in your code</> : code.flawed ? <><b>{code.flawed}</b> old {code.flawed === 1 ? "library" : "libraries"} with flaws</> : <><b>✓</b> No known code flaws</>} <span aria-hidden="true">→</span></button>
+                  <button type="button" onClick={() => setView("code")}>{code.secrets ? <><b>!</b> Secret key in your code</> : code.flawed ? <><b>{code.flawed}</b> old {code.flawed === 1 ? "library" : "libraries"} with flaws</> : <><b>✓</b> No known code flaws</>} <span aria-hidden="true">→</span></button>
                 </li>
               )}
               {access === "owner" && (
@@ -810,7 +802,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
                   </span>
                   <Heat list={remaining.filter((f) => f.module === m.key)} />
                   <span className="dc-foot">
-                    <span className="dc-n">{open === 0 ? "No open issues" : `${open} open issue${open === 1 ? "" : "s"}`}{m.key === "accessibility" && wcagFail > 0 && <b className="dc-wcag"> · {wcagFail} WCAG failing</b>}</span>
+                    <span className="dc-n">{open === 0 ? "No open issues" : `${open} open issue${open === 1 ? "" : "s"}`}{m.key === "accessibility" && wcagFail > 0 && <b className="dc-wcag"> · {wcagFail} WCAG failing</b>}{m.key === "code" && code.known && <> · {code.files} files read</>}</span>
                     <span className="dc-go" aria-hidden="true">→</span>
                   </span>
                 </button>
@@ -849,20 +841,6 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
               <WcagCardBody s={wcag} />
               <span className="dc-foot">
                 <span className="dc-sub">{wcagManual} by hand</span>
-                <span className="dc-go" aria-hidden="true">→</span>
-              </span>
-            </button>
-          </li>
-          <li className="dc-ins-li" style={{ ["--i" as string]: modules.length + INSIGHTS.length + 1 }}>
-            <button type="button" className={`dc-ins dc-${!code.known ? "none" : codeBad ? "bad" : code.issues ? "warn" : "good"} dca-codecheck`} onClick={() => setView("codecheck")}>
-              <span className="dc-head">
-                <span className="dc-ico" aria-hidden="true"><AreaIcon k="code" size={18} /></span>
-                <span className="dc-title"><span className="dc-name">Code check</span></span>
-                <CodeNewPill />
-              </span>
-              <CodeCardBody c={code} />
-              <span className="dc-foot">
-                <span className="dc-sub">{code.libs} {code.libs === 1 ? "library" : "libraries"} found</span>
                 <span className="dc-go" aria-hidden="true">→</span>
               </span>
             </button>
@@ -906,8 +884,8 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
               {pitches.map(({ g, p }, i) => {
                 const art = STAR_ART[g.id];
                 return (
-                  <li key={g.id} className={g.id === "wcag" ? "sx-li-wcag" : g.id === "codecheck" ? "sx-li-code" : undefined} style={{ ["--i" as string]: i }}>
-                    <button type="button" className={`sx${g.id === "wcag" ? " sx-wcag" : g.id === "codecheck" ? " sx-code" : ""}`} style={art ? { ["--xc" as string]: art.color } : undefined} onClick={() => setView(g.id)}>
+                  <li key={g.id} className={g.id === "wcag" ? "sx-li-wcag" : undefined} style={{ ["--i" as string]: i }}>
+                    <button type="button" className={`sx${g.id === "wcag" ? " sx-wcag" : ""}`} style={art ? { ["--xc" as string]: art.color } : undefined} onClick={() => setView(g.id)}>
                       <span className="sx-art" aria-hidden="true">
                         <OrbitArt icon={g.icon} ring={art?.ring ?? ["check", "search", "list", "link"]} />
                       </span>
@@ -917,10 +895,9 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
                           <span className="sx-tags">
                             <span className={`sx-tag${needsPlan(g.id) ? " sx-paid" : ""}`}>{needsPlan(g.id) ? "Paid plans" : art?.tag ?? "Star"}</span>
                             {g.id === "wcag" && <NewPill />}
-                            {g.id === "codecheck" && <CodeNewPill />}
                           </span>
                         </span>
-                        {g.id === "wcag" ? <WcagStarArt s={wcag} /> : g.id === "codecheck" ? <CodeStarArt c={code} /> : <b className="sx-hook">{p.hook}</b>}
+                        {g.id === "wcag" ? <WcagStarArt s={wcag} /> : <b className="sx-hook">{p.hook}</b>}
                         <span className="sx-text">{p.text}</span>
                         <span className="sx-cta">{p.cta}<span className="sx-arrow" aria-hidden="true">→</span></span>
                       </span>
@@ -945,6 +922,8 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
           const high = remaining.filter((f) => f.module === area && f.severity === "high").length;
           const done = inModule.length - open;
           const color = AREA_COLOR[area];
+          // Code security always has a page body (what we read and the checks), even with nothing to fix.
+          const cta = inModule.length ? "See the fixes" : area === "code" ? "See what we checked" : null;
           const facts = [
             { value: String(mod.score), label: "score out of 100", tone: (mod.score >= 80 ? "good" : mod.score >= 50 ? "ok" : "bad") as "good" | "ok" | "bad" },
             { value: String(open), label: open === 1 ? "open issue" : "open issues", tone: (open ? "bad" : "good") as "good" | "bad" },
@@ -976,16 +955,25 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
                   )}
                 </ul>
                 <div className="bn-star-row">
-                  {inModule.length > 0 && <button type="button" className="bn-cta" onClick={() => goBody(false)}>See the fixes <span aria-hidden="true">↓</span></button>}
-                  <WhyItMatters title={`Why ${MODULE_NAMES[area]} matters`} text={WHY[area]} icon={area} color={color} facts={facts} action={inModule.length ? { label: "See the fixes", onClick: () => goBody(false) } : undefined} />
+                  {cta && <button type="button" className="bn-cta" onClick={() => goBody(false)}>{cta} <span aria-hidden="true">↓</span></button>}
+                  <WhyItMatters title={`Why ${MODULE_NAMES[area]} matters`} text={WHY[area]} icon={area} color={color} facts={facts} action={cta ? { label: cta, onClick: () => goBody(false) } : undefined} />
                 </div>
               </div>
             </section>
           );
         })()}
         {area === "accessibility" && <WcagStrip s={wcag} onOpen={() => setView("wcag")} />}
-        {area === "code" && <CodeStrip c={code} onOpen={() => setView("codecheck")} />}
-        {inModule.length > 0 && <div id="star-body" className="star-body"><Findings findings={inModule} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} visits={visits} spend={spend} grouped /></div>}
+        {area === "code" ? (
+          <div id="star-body" className="star-body">
+            <CodeAbout code={scan.code} findings={remaining} />
+            <CodeRead code={scan.code} />
+            {inModule.length > 0 ? (
+              <Findings findings={inModule} title="What to fix" fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} visits={visits} spend={spend} grouped />
+            ) : scan.code ? (
+              <p className="panel-note">Nothing in the files we read gives too much away: no libraries with known flaws in our list, no leaked keys and no public source maps.</p>
+            ) : null}
+          </div>
+        ) : inModule.length > 0 && <div id="star-body" className="star-body"><Findings findings={inModule} fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} visits={visits} spend={spend} grouped /></div>}
       </>
     );
   } else if (tool && toolCtx) {
@@ -1040,19 +1028,6 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
       );
     else if (s.id === "tools") content = <DashToolGrid findings={remaining} onOpen={setView} />;
     else if (s.id === "wcag") content = <WcagPanel findings={remaining} wcag={scan.wcag} onFinding={openFinding} />;
-    else if (s.id === "codecheck") {
-      const codeFs = scan.findings.filter((f) => f.module === "code");
-      content = (
-        <>
-          <CodeRead code={scan.code} />
-          {codeFs.length > 0 ? (
-            <Findings findings={codeFs} title="What it gives away" fixed={fixed} onToggleFixed={canEdit ? onToggle : undefined} gains={gains} traffic={traffic} visits={visits} spend={spend} />
-          ) : scan.code ? (
-            <p className="panel-note">Nothing in the files we read gives too much away: no libraries with known flaws in our list, no leaked keys and no public source maps.</p>
-          ) : null}
-        </>
-      );
-    }
     else if (!owner) content = signInNote;
     else if (s.id === "assistant") content = access === "owner" ? <Assistant key={scan.id} scan={scan} paid={!!acct?.paid} /> : empty("The assistant needs accounts, which aren't switched on here.");
     else if (s.id === "google")
@@ -1326,7 +1301,7 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
 
       <div className="dash-body">
         <nav className="dash-nav" aria-label="Report sections">
-          {star.length > 0 && navGroup("star", <><span aria-hidden="true">★</span> Star features</>, star.map((s) => navBtn(s.id, s.icon, s.label, needsPlan(s.id) ? <span className="plan-dot" data-tip="Part of the paid plans">Paid</span> : s.id === "wcag" ? <NewPill /> : s.id === "codecheck" ? <CodeNewPill /> : undefined)), star.some((s) => s.id === view), "nav-star")}
+          {star.length > 0 && navGroup("star", <><span aria-hidden="true">★</span> Star features</>, star.map((s) => navBtn(s.id, s.icon, s.label, needsPlan(s.id) ? <span className="plan-dot" data-tip="Part of the paid plans">Paid</span> : s.id === "wcag" ? <NewPill /> : undefined)), star.some((s) => s.id === view), "nav-star")}
           {navBtn("overview", "overview", "Overview", <b>{remaining.length}</b>)}
           {navBtn("all", "list", "All findings", <b>{scan.findings.length}</b>)}
           {navGroup("scan", "From this scan", INSIGHTS.map((s) => navBtn(s.id, s.icon, s.label)), INSIGHTS.some((s) => s.id === view))}

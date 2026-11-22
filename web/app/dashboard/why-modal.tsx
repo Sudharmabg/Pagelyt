@@ -70,8 +70,11 @@ export function WhyItMatters({ title, text, icon, facts = [], color, action }: {
                     type="button"
                     className="dash-btn primary"
                     onClick={() => {
+                      // Close first: the dialog hands focus back to "Why it matters", which would scroll the page
+                      // back up if the action had already scrolled it down.
+                      ref.current?.close();
                       setOpen(false);
-                      action.onClick();
+                      requestAnimationFrame(() => action.onClick());
                     }}
                   >
                     {action.label} <span aria-hidden="true">↓</span>
