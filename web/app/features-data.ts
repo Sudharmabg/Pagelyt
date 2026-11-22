@@ -724,8 +724,8 @@ export const HOW_DETAIL = [
     k: "Improve",
     h: "Rescan and watch the score climb.",
     p: [
-      "Upgrade to unlock scheduled scans, uptime monitoring, historical comparisons, alerts and monthly intelligence reports.",
-      "Every scan is compared with the last, so you can prove progress and catch regressions early.",
+      "Save your site and Pagelyt rescans it daily, weekly or monthly, checks uptime and emails you if your score drops. It's free with an account.",
+      "Every scan is compared with the last, so you can prove progress and catch regressions early. Connect Google Search Console, Analytics and Ads to see your traffic next to your fixes.",
     ],
   },
 ];

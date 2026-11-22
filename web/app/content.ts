@@ -1,5 +1,5 @@
 import { TOOL_LIST } from "./tools/catalog";
-import { AREA_COUNT } from "./counts";
+import { AREA_COUNT, AREA_LIST } from "./counts";
 
 export const NAV = ["Product", "Features", "How It Works", "Pricing", "Resources", "About"];
 
@@ -419,15 +419,15 @@ export const PLANS = [
 export const FAQS: [string, string][] = [
   [
     "What is Pagelyt?",
-    "Pagelyt is a website intelligence and optimisation platform that analyses website health, performance, SEO, GEO readiness, security and accessibility. It helps website owners understand issues, discover opportunities and improve their websites through actionable recommendations.",
+    `Pagelyt is a website intelligence and optimisation platform that checks ${AREA_LIST}. It helps website owners understand issues, discover opportunities and improve their websites through actionable recommendations.`,
   ],
   [
     "How does website analysis work?",
-    "Simply enter your website URL. Pagelyt performs automated checks on publicly accessible website information and generates an intelligence report.",
+    `Enter your website address. Pagelyt checks ${AREA_COUNT} areas of your public pages in one pass, scores each one and turns every issue into a plain-English fix, ranked by impact. Nothing to install.`,
   ],
   [
     "What does the analysis check?",
-    "Website health, performance and Core Web Vitals, technical SEO, GEO (AI search) readiness, security, accessibility, domain and email setup, and privacy. Each finding shows the evidence and how to fix it.",
+    `Every scan checks ${AREA_LIST}. Each finding shows the evidence and how to fix it.`,
   ],
   [
     "How is Pagelyt different from other SEO tools?",

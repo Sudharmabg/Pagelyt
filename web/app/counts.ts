@@ -13,7 +13,8 @@ export const AREA_NAMES: string[] = Object.values(MODULE_NAMES);
 export const AREA_COUNT = AREA_NAMES.length;
 /** "health, speed, …, privacy and code security": every area in a sentence. */
 export const AREA_LIST = (() => {
-  const n = AREA_NAMES.map((a) => (a === "SEO" ? a : a.charAt(0).toLowerCase() + a.slice(1)));
+  // Keep acronyms (SEO, GEO) as they are; lower-case the first letter of the rest.
+  const n = AREA_NAMES.map((a) => (/^[A-Z]{2}/.test(a) ? a : a.charAt(0).toLowerCase() + a.slice(1)));
   return `${n.slice(0, -1).join(", ")} and ${n[n.length - 1]}`;
 })();
 

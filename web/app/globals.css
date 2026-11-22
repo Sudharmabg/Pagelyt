@@ -3839,7 +3839,8 @@ a.gt:hover {
 .rep-more {
   margin-top: 22px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  /* One row for however many extras there are (from FEATURES), wrapping on narrower screens. */
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 14px;
 }
 .rep-x {
@@ -3859,7 +3860,11 @@ a.gt:hover {
   text-decoration: underline;
 }
 @media (max-width: 960px) {
-  .rep-grid,
+  .rep-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (max-width: 560px) {
   .rep-more {
     grid-template-columns: minmax(0, 1fr);
   }

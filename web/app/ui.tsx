@@ -501,7 +501,7 @@ export function AnalyseMock() {
 export function HistMock() {
   return (
     <div data-ui className="mock">
-      <Top title="Score history" sub="Last two monthly scans" pill={["good", "+11"]} />
+      <Top title="Score history" sub="Last two scans" pill={["good", "+11"]} />
       <Spark data={[64, 66, 65, 70, 71, 76, 82]} height={120} />
       <div className="mk-grid c2" style={{ marginTop: 6 }}>
         <div className="tile"><div className="k">Previous scan</div><div className="v">71</div></div>

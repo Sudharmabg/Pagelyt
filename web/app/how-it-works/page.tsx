@@ -3,16 +3,16 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Funnel } from "../art";
 import { FAQS } from "../content";
-import { HOW_DETAIL } from "../features-data";
+import { FEATURES, HOW_DETAIL } from "../features-data";
 import { JsonLd, crumbLd, faqLd } from "../json-ld";
 import { CtaBand, PageHero } from "../page-shell";
 import { SITE_URL } from "../site-config";
 import { SiteFooter, SiteNav } from "../site-chrome";
 import { AiMock, AnalyseMock, DiscoverMock, HistMock } from "../ui";
-import { AREA_COUNT, capWords } from "../counts";
+import { AREA_COUNT, capWords, fitTitle, inWords } from "../counts";
 
 export const metadata: Metadata = {
-  title: "How Website Analysis Works: From URL to Improvement",
+  title: fitTitle("How Website Analysis Works: From URL to Improvement"),
   description:
     `Enter a URL, run ${AREA_COUNT} checks at once, get AI-ranked recommendations and track your score over time. See how a Pagelyt website analysis works.`,
   alternates: { canonical: "/how-it-works" },
@@ -104,11 +104,8 @@ const REPORT = [
   },
 ];
 
-const EXTRAS = [
-  { slug: "ai-recommendations", name: "AI recommendations", text: "Every finding ranked by impact and effort." },
-  { slug: "competitor-intelligence", name: "Competitor analysis", text: "See how you compare in your market." },
-  { slug: "monitoring-reports", name: "Monitoring and reports", text: "Rescans and alerts that show progress." },
-];
+// Every feature page that isn't a scan area (WCAG checklist, competitors, AI recommendations, monitoring, Google data).
+const EXTRAS = FEATURES.filter((f) => !f.area).map((f) => ({ slug: f.slug, name: f.name, text: f.short }));
 
 const FAQ = [FAQS[1], FAQS[2], FAQS[3]] as [string, string][];
 
@@ -212,7 +209,7 @@ export default function HowItWorksPage() {
                 </Link>
               ))}
             </div>
-            <h3 className="rep-more-h">And three things that keep it useful.</h3>
+            <h3 className="rep-more-h">And {inWords(EXTRAS.length)} things that keep it useful.</h3>
             <div className="rep-more">
               {EXTRAS.map((e) => (
                 <Link className="rep-x" href={`/features/${e.slug}`} key={e.slug}>
