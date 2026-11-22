@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import { GUIDES } from "@/lib/scan/guides";
 import { findingKey } from "@/lib/scan/score";
 import { EFFORT_LABEL, effortOf } from "@/lib/scan/effort";
+import { criteriaOf, criterionUrl, wcagTag } from "@/lib/scan/wcag";
 import { evidenceText, MODULE_NAMES, type Finding, type PageTable, type Severity } from "@/lib/scan/types";
 import type { Traffic } from "@/lib/google/gsc-insights";
 import type { Visits } from "@/lib/google/ga4-insights";
@@ -131,6 +132,24 @@ function FindingDrawer({
           <h3>How to fix</h3>
           <p>{f.fix}</p>
         </section>
+        {f.module === "accessibility" && (
+          <section className="fdr-sec">
+            <h3>WCAG 2.2</h3>
+            {criteriaOf(f).length ? (
+              <ul className="fdr-wcag">
+                {criteriaOf(f).map((c) => (
+                  <li key={c.id}>
+                    <span className="wc-id">{c.id}</span>
+                    <a href={criterionUrl(c)} target="_blank" rel="noopener noreferrer">{c.name}<span className="sr-only"> (W3C explanation, opens in a new tab)</span></a>
+                    <span className={`wc-pill l-${c.level.toLowerCase()}`}>Level {c.level}</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p>Not a WCAG requirement, but a best practice that makes the page easier to use with a screen reader or keyboard.</p>
+            )}
+          </section>
+        )}
         {f.pages?.rows.length ? (
           <section className="fdr-sec">
             <h3>Pages affected ({f.pages.rows.length})</h3>
@@ -187,7 +206,8 @@ function Item({
   const [open, setOpen] = useState(false);
   const k = findingKey(f);
 
-  const fixText = `${f.title}\nWhy it matters: ${f.why}\nHow to fix: ${f.fix}${evidenceText(f) ? `\nEvidence:${f.pages?.rows.length ? "\n" : " "}${evidenceText(f)}` : ""}`;
+  const wc = criteriaOf(f);
+  const fixText = `${f.title}${wc.length ? `\nWCAG 2.2: ${wc.map((c) => `${c.id} ${c.name} (Level ${c.level})`).join("; ")}` : ""}\nWhy it matters: ${f.why}\nHow to fix: ${f.fix}${evidenceText(f) ? `\nEvidence:${f.pages?.rows.length ? "\n" : " "}${evidenceText(f)}` : ""}`;
 
   return (
     <li data-k={k} className={`fnd sev-${f.severity}${fixed ? " is-fixed" : ""}`} style={{ ["--i" as string]: index }}>
@@ -203,6 +223,7 @@ function Item({
             <span className="sev" data-tip={SEV_TIP[f.severity]}>{LABEL[f.severity]}</span>
             {gain ? <span className="gain" data-tip="Points this adds to your overall score once fixed">+{gain} pt{gain === 1 ? "" : "s"}</span> : null}
             <span className={`eff eff-${effortOf(f)}`} data-tip="Rough effort to fix">{EFFORT_LABEL[effortOf(f)]}</span>
+            {wcagTag(f) && <span className={`wcag-tag${wc.length ? "" : " bp"}`} data-tip={wc.length ? wc.map((c) => `${c.id} ${c.name} (${c.level})`).join(" · ") : "Best practice, not a WCAG requirement"}>{wcagTag(f)}</span>}
             {showModule && <span className="fm">{MODULE_NAMES[f.module]}</span>}
             {traffic && traffic.impressions > 0 && (
               <span className="trf" data-tip={`Google Search, last 28 days, on ${traffic.scope === "site" ? "the whole site" : traffic.scope === "homepage" ? "the homepage" : `the ${traffic.pages} affected page${traffic.pages === 1 ? "" : "s"}`}: ${traffic.clicks.toLocaleString("en-GB")} clicks, ${traffic.impressions.toLocaleString("en-GB")} impressions`}>

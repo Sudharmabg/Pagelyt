@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { RollNum } from "./roll-num";
+import { AREA_COUNT, capWords } from "./counts";
 
 /* ---------- "Inside every report": a bento of small live demos ---------- */
 const AREAS: [string, number][] = [
@@ -14,6 +15,9 @@ const AREAS: [string, number][] = [
   ["AI search", 69],
   ["Security", 96],
   ["Access", 83],
+  ["Email", 72],
+  ["Privacy", 79],
+  ["Code", 86],
 ];
 
 function BentoHead({ title, tag, icon }: { title: string; tag: string; icon: React.ReactNode }) {
@@ -154,7 +158,7 @@ export function ReportBento() {
             </li>
           ))}
         </ul>
-        <p className="bt-note">Eight areas, one number, updated on every scan.</p>
+        <p className="bt-note">{capWords(AREA_COUNT)} areas, one number, updated on every scan.</p>
       </li>
 
       <li className="bt bt-folder" tabIndex={0}>

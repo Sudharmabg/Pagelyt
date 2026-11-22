@@ -12,8 +12,11 @@ import { Compare, HeroTitle, ProcessDraw, StatsBar, StickyCta, Stories, ToolGrid
 import { SiteFooter, SiteNav } from "./site-chrome";
 import { GoogleSection } from "./home-google";
 import { MonitorSection } from "./home-monitor";
+import { WcagSection } from "./home-wcag";
+import { CodeSection } from "./home-code";
 import { WelcomeBack } from "./welcome-back";
 import { ReportBento } from "./home-motion";
+import { AREA_COUNT, inWords } from "./counts";
 import { GuidesCarousel, WorksWith, type GuideCard } from "./home-media";
 import { ScanPreview, type ModScore } from "./ui";
 import { LeadModal, type ScanProblem, type ScanStart } from "./lead-modal";
@@ -33,11 +36,11 @@ const BASE: ModScore[] = [
 
 const AUDIENCE = {
   biz: {
-    sub: "One clear score across eight areas, with every fix explained in plain English and ranked by impact. Nothing to install.",
+    sub: `One clear score across ${inWords(AREA_COUNT)} areas, with every fix explained in plain English and ranked by impact. Nothing to install.`,
     cta: "Analyse My Website",
     adv: [
       "Free to start, nothing to install",
-      "8 areas, 1 clear score",
+      `${AREA_COUNT} areas, 1 clear score`,
       "Fixes ranked by impact",
       "Plain English, no jargon",
       "Rescanned every week, free",
@@ -260,6 +263,10 @@ export default function Home({ guides = [] }: { guides?: GuideCard[] }) {
           </div>
         </div>
       </section>
+
+      {/* 2c. WCAG 2.2 CHECKLIST: new in every report */}
+      <WcagSection onGo={goAnalyse} />
+      <CodeSection onGo={goAnalyse} />
 
       {/* 3. THE BOTTLE PANEL */}
       <section className="sec tight" aria-label="From numbers to answers">

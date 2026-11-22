@@ -7,7 +7,7 @@ export const MORE_POSTS: Post[] = [
     tag: "SEO",
     title: "Why Is My Website Not Showing on Google? Causes and Fixes",
     description:
-      "Website not showing up on Google? Learn how to check if your site is indexed, what 'Crawled, currently not indexed' means, and how to fix the most common causes.",
+      "Why is my website not showing on Google? Check indexing, noindex tags, robots.txt, sitemaps and duplicate content, with a fix for each common cause.",
     h1: "Why isn't my website showing up on Google?",
     lead: "You search for your business and your site isn't there. The cause is almost always one of a handful of fixable problems. Here's how to find which one.",
     keywords: [
@@ -121,7 +121,7 @@ export const MORE_POSTS: Post[] = [
     tag: "GEO",
     title: "How to Appear in Google AI Overviews and AI Mode",
     description:
-      "How do Google AI Overviews choose their sources? Learn what makes a page eligible, how to structure content so it gets cited, and how to track your AI Overview visibility.",
+      "How to appear in Google AI Overviews and AI Mode: what cited pages have in common, how to write answers AI can quote and the role of structured data.",
     h1: "How to get your website cited in Google AI Overviews.",
     lead: "AI Overviews and AI Mode answer the question at the top of Google and link to a handful of sources. Here's what decides which pages earn those links.",
     keywords: [
@@ -229,9 +229,9 @@ export const MORE_POSTS: Post[] = [
   {
     slug: "robots-txt-for-ai-crawlers",
     tag: "GEO",
-    title: "Robots.txt for AI Crawlers: Allow or Block GPTBot, ClaudeBot and More",
+    title: "Robots.txt for AI Crawlers: Allow or Block GPTBot and More",
     description:
-      "Which AI crawlers should you allow in robots.txt? A plain-English guide to GPTBot, OAI-SearchBot, ClaudeBot, PerplexityBot and Google-Extended, with copy-paste examples.",
+      "Which AI crawlers visit your site and what they do, from GPTBot and ClaudeBot to PerplexityBot, plus robots.txt rules to allow or block each one.",
     h1: "Robots.txt for AI crawlers: what to allow and what to block.",
     lead: "AI companies send different bots to train models and to answer questions. Block the wrong one and you can disappear from AI search without meaning to.",
     keywords: [
@@ -338,14 +338,13 @@ export const MORE_POSTS: Post[] = [
     tag: "GEO",
     title: "What Is llms.txt? Example, Format and Whether You Need One",
     description:
-      "What is an llms.txt file, what does it look like and does it actually help with AI search? An honest guide with an example, a step-by-step setup and what Google has said.",
+      "What is llms.txt? The proposed file that summarises your site for AI assistants: the format, a full example, who reads it today and whether you need one.",
     h1: "What is llms.txt, and does your website need one?",
     lead: "llms.txt is a short Markdown file that points AI tools to your most useful pages. Here's how it works, how to write one and what it can and can't do.",
     keywords: [
       "what is llms.txt",
       "llms.txt example",
       "how to create llms.txt",
-      "llms.txt generator",
       "llms-full.txt",
       "does Google use llms.txt",
       "llms.txt SEO",
@@ -435,16 +434,15 @@ export const MORE_POSTS: Post[] = [
   {
     slug: "schema-markup-guide",
     tag: "SEO",
-    title: "Schema Markup Explained: A Beginner's Guide to Structured Data",
+    title: "Schema Markup Explained: A Beginner's Guide to JSON-LD",
     description:
-      "What is schema markup and how do you add it? A beginner's guide to structured data and JSON-LD, which schema types to use, what happened to FAQ rich results and how to test it.",
+      "What is schema markup? A beginner's guide to structured data: how JSON-LD works, which types most sites need, rich results and how to test your markup.",
     h1: "Schema markup explained: a beginner's guide to structured data.",
     lead: "Schema markup is a small block of code that tells search engines and AI tools exactly what your page is about. Here's what to add and how.",
     keywords: [
       "what is schema markup",
       "structured data SEO",
       "JSON-LD",
-      "schema markup generator",
       "local business schema",
       "FAQ schema",
       "rich results",
@@ -544,9 +542,9 @@ export const MORE_POSTS: Post[] = [
   {
     slug: "pagespeed-insights-score-explained",
     tag: "Speed",
-    title: "PageSpeed Insights Score Explained: What Is Good and Why It Changes",
+    title: "PageSpeed Insights Score Explained: What Is a Good Score?",
     description:
-      "What is a good PageSpeed Insights score, why does it change every time you test, and why is mobile so much lower than desktop? Lab vs field data explained in plain English.",
+      "What a PageSpeed Insights score means, what counts as good, why it changes between runs, and how lab data differs from the field data Google ranks on.",
     h1: "PageSpeed Insights explained: what is a good score, and why does it keep changing?",
     lead: "You run PageSpeed Insights twice and get two different scores, and mobile is always worse. Here's what the numbers actually mean and which ones matter.",
     keywords: [
@@ -556,7 +554,6 @@ export const MORE_POSTS: Post[] = [
       "lab data vs field data",
       "Lighthouse performance score",
       "improve PageSpeed score mobile",
-      "Core Web Vitals assessment failed",
     ],
     body: [
       { h2: "What is PageSpeed Insights?" },
@@ -658,9 +655,9 @@ export const MORE_POSTS: Post[] = [
   {
     slug: "spf-dkim-dmarc-explained",
     tag: "Security",
-    title: "SPF, DKIM and DMARC Explained: Stop Your Emails Going to Spam",
+    title: "SPF, DKIM and DMARC Explained: Stop Emails Going to Spam",
     description:
-      "Emails going to spam? Learn what SPF, DKIM and DMARC are, see example records, and follow a safe step-by-step plan to set up DMARC for Gmail, Yahoo and Outlook.",
+      "SPF, DKIM and DMARC explained: what each email record does, example records, Gmail's sender rules and how to move DMARC from p=none to reject safely.",
     h1: "SPF, DKIM and DMARC explained: stop your emails going to spam.",
     lead: "Three DNS records decide whether Gmail and Outlook trust email from your domain. Here's what each one does and how to set them up without breaking anything.",
     keywords: [
@@ -759,9 +756,9 @@ export const MORE_POSTS: Post[] = [
   {
     slug: "image-optimisation-for-website-speed",
     tag: "Speed",
-    title: "How to Optimise Images for the Web: Formats, Sizes and Lazy Loading",
+    title: "Image Optimisation for the Web: Formats, Sizes, Lazy Loading",
     description:
-      "Learn how to optimise images for your website: WebP vs AVIF, the right image sizes, how to compress images, lazy loading, and how to speed up your LCP image.",
+      "How to optimise images for the web: WebP vs AVIF, the right sizes, compression, responsive images, lazy loading and the LCP image. The biggest speed win.",
     h1: "How to optimise images for a faster website.",
     lead: "Images are usually the heaviest part of a web page and often the slowest thing to appear. Get them right and most speed problems shrink with them.",
     keywords: [
@@ -872,9 +869,9 @@ export const MORE_POSTS: Post[] = [
   {
     slug: "meta-title-and-description-guide",
     tag: "SEO",
-    title: "How to Write Title Tags and Meta Descriptions That Get Clicks",
+    title: "How to Write Title Tags and Meta Descriptions for Clicks",
     description:
-      "How long should a title tag be? What's the ideal meta description length? Learn how to write titles and descriptions that get clicks, and why Google rewrites them.",
+      "How to write a meta description and title tag that get clicks: ideal lengths, examples, what to include and why Google sometimes rewrites them.",
     h1: "How to write title tags and meta descriptions that get clicks.",
     lead: "Your title and description are your advert in Google's results. Here's how long they should be, what to put in them, and why Google sometimes ignores them.",
     keywords: [

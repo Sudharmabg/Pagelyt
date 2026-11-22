@@ -53,8 +53,9 @@ export const TOOL_LIST: ToolInfo[] = [
     category: "AI visibility",
     kind: "checker",
     blurb: "See whether GPTBot, ClaudeBot, PerplexityBot and 11 other AI crawlers can reach your site.",
-    title: "AI Bot Access Checker: Can ChatGPT, Claude and Perplexity Read Your Site?",
-    description: "Free checker for 14 AI crawlers including GPTBot, ClaudeBot and PerplexityBot. See what your robots.txt allows and whether your server or firewall actually lets each bot in.",
+    title: "AI Bot Checker: Can ChatGPT and Claude Read Your Site?",
+    description:
+      "Free checker for 14 AI crawlers, including GPTBot, ClaudeBot and PerplexityBot. See what robots.txt allows and whether your server lets each bot in.",
     h1: "Can AI assistants read your website?",
     lead: "Check 14 AI crawlers at once: what your robots.txt tells each one, and how your server really answers when it visits.",
     about: [
@@ -72,7 +73,7 @@ export const TOOL_LIST: ToolInfo[] = [
     category: "AI visibility",
     kind: "generator",
     blurb: "A short guide that helps AI assistants understand your site.",
-    title: "llms.txt Generator: Create an llms.txt File for AI Assistants",
+    title: "llms.txt Generator: Create llms.txt for AI Assistants",
     description: "Free llms.txt generator. Describe your site and key pages in plain language and download a ready-to-upload llms.txt file. Runs in your browser.",
     h1: "llms.txt generator",
     lead: "Write a plain-language guide to your site that AI assistants can read in one go, then upload it to /llms.txt.",
@@ -91,8 +92,9 @@ export const TOOL_LIST: ToolInfo[] = [
     category: "Crawling & indexing",
     kind: "checker",
     blurb: "Test whether a URL is allowed or blocked for Googlebot, Bingbot or any AI crawler.",
-    title: "robots.txt Tester: Check if a URL Is Blocked for Googlebot or AI Bots",
-    description: "Free robots.txt tester. Load your live robots.txt, edit it, and test any URL against Googlebot, Bingbot, GPTBot or any user agent using the official RFC 9309 rules.",
+    title: "robots.txt Tester: Is a URL Blocked for Google or AI Bots?",
+    description:
+      "Free robots.txt tester. Load your live robots.txt, edit it and test any URL against Googlebot, Bingbot, GPTBot or any user agent, using RFC 9309 rules.",
     h1: "robots.txt tester",
     lead: "Load your live robots.txt, test any URL against any crawler, and try edits safely before you publish them.",
     about: [
@@ -109,10 +111,10 @@ export const TOOL_LIST: ToolInfo[] = [
     name: "Raw vs rendered HTML",
     category: "Crawling & indexing",
     kind: "checker",
-    paid: true,
     blurb: "Compare what crawlers that skip JavaScript see with what a browser shows.",
-    title: "Raw vs Rendered HTML: See What Crawlers Without JavaScript Miss",
-    description: "Compare a page's raw HTML with the version a browser renders. See which titles, headings, links, canonicals and structured data only appear after JavaScript runs.",
+    title: "Raw vs Rendered HTML: What Crawlers Without JavaScript Miss",
+    description:
+      "Compare a page's raw HTML with what a browser renders. See which titles, headings, links and structured data only appear after JavaScript runs.",
     h1: "Raw vs rendered HTML",
     lead: "See what changes when JavaScript runs: titles, headings, links, structured data and text that crawlers without a browser never see.",
     about: [
@@ -123,7 +125,7 @@ export const TOOL_LIST: ToolInfo[] = [
     faq: [
       ["Do I need this tool?", "Only if your site is built with JavaScript. Open your page, choose View page source and search for a sentence from your main text. If it's there, crawlers can read it and you don't need this check. If it's missing, run the tool to see exactly what crawlers miss."],
       ["How long does it take?", "Usually 5 to 15 seconds. We open the page in a real browser in the cloud, so it takes longer than our other tools. We skip images, fonts, styles and trackers to keep it quick."],
-      ["Why is this on paid plans only?", "Each check opens the page in a real Chrome browser in the cloud, which costs far more than a normal fetch."],
+      ["Is it free?", "Yes. Like every Pagelyt tool, it is free with a Pagelyt account. Each check opens the page in a real Chrome browser in the cloud, so it is rate limited to keep it fast for everyone."],
       ["What should I do if a lot changes?", "Render the important content on the server: server-side rendering or static generation in frameworks such as Next.js, Nuxt or SvelteKit, or pre-rendering for single-page apps. At least the title, description, canonical, headings and main text should be in the raw HTML."],
     ],
   },
@@ -153,7 +155,8 @@ export const TOOL_LIST: ToolInfo[] = [
     kind: "checker",
     blurb: "Validate language tags and confirm every alternate links back.",
     title: "hreflang Checker: Validate Language Tags and Return Links",
-    description: "Free hreflang checker. Validate language and region codes, find missing self-references and x-default, and confirm each alternate page loads and links back.",
+    description:
+      "Free hreflang checker. Validate language and region codes, find missing self-references and x-default, and confirm each alternate links back.",
     h1: "hreflang checker",
     lead: "Check a page's language versions: valid codes, a self-reference, x-default, and that every alternate loads and links back.",
     about: [
@@ -171,8 +174,9 @@ export const TOOL_LIST: ToolInfo[] = [
     category: "Crawling & indexing",
     kind: "checker",
     blurb: "Crawl your site and download a clean sitemap.xml with only the pages that should be indexed.",
-    title: "XML Sitemap Generator: Crawl Your Site and Download sitemap.xml",
-    description: "Free XML sitemap generator. Crawls your site's links and current sitemap, leaves out redirects, errors, noindex and canonicalised pages, and gives you a valid sitemap.xml. Up to 100 pages free, 1,000 on paid plans.",
+    title: "XML Sitemap Generator: Crawl and Download sitemap.xml",
+    description:
+      "Free XML sitemap generator. Crawls your site, leaves out redirects, errors and noindex pages, and gives you a clean sitemap.xml. Up to 100 pages free.",
     h1: "XML sitemap generator",
     lead: "We crawl your site the way a search engine does and build a sitemap with only the pages that should be in Google.",
     about: [
@@ -191,7 +195,7 @@ export const TOOL_LIST: ToolInfo[] = [
     category: "Search appearance",
     kind: "generator",
     blurb: "See your title and description as Google shows them, on desktop and mobile.",
-    title: "SERP Preview Tool: See Your Title and Meta Description in Google",
+    title: "SERP Preview: See Your Title and Description in Google",
     description: "Free SERP preview. Type a page title and meta description and see how they look in Google's results on desktop and mobile, with length guides.",
     h1: "Search result preview",
     lead: "See how your title and description look in Google on desktop and mobile, and keep them within the length that shows in full.",
@@ -210,7 +214,7 @@ export const TOOL_LIST: ToolInfo[] = [
     category: "Search appearance",
     kind: "generator",
     blurb: "JSON-LD structured data for your organisation, local business or FAQ.",
-    title: "Schema Markup Generator: JSON-LD for Organization, LocalBusiness and FAQ",
+    title: "Schema Markup Generator: Free JSON-LD for Your Website",
     description: "Free schema markup generator. Create valid JSON-LD structured data for an Organization, LocalBusiness or FAQ page and paste it into your site.",
     h1: "Schema markup generator",
     lead: "Create JSON-LD structured data that tells search engines and AI assistants exactly who you are and what you offer.",
@@ -229,8 +233,9 @@ export const TOOL_LIST: ToolInfo[] = [
     category: "Search appearance",
     kind: "checker",
     blurb: "Check the structured data on many pages at once and see which required fields are missing.",
-    title: "Bulk Schema Checker: Validate JSON-LD Structured Data on Many Pages",
-    description: "Free bulk schema checker. Paste up to 10 URLs (100 on paid plans) or load them from your sitemap, and see each page's JSON-LD types, invalid blocks and missing required or recommended fields.",
+    title: "Bulk Schema Checker: Test JSON-LD on Many Pages at Once",
+    description:
+      "Free bulk schema checker. Paste up to 10 URLs or load your sitemap, and see each page's JSON-LD types, invalid blocks and missing required fields.",
     h1: "Bulk schema checker",
     lead: "Check the structured data on many pages in one go: which types each page has, broken JSON, and the fields Google needs.",
     about: [

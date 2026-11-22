@@ -6,6 +6,7 @@ import type { AdsAi, AdsData } from "@/lib/google/ads-insights";
 import type { GscData } from "@/lib/google/gsc-insights";
 import type { Ga4Ai, Ga4Data } from "@/lib/google/ga4-insights";
 import { MODULE_NAMES, type Finding, type ScanResult, type Severity } from "@/lib/scan/types";
+import { wcagSummary, wcagTag, WCAG_VERSION } from "@/lib/scan/wcag";
 
 /* Presentational white-label report. Used by the real shared link and by the public /r/demo sample. */
 
@@ -36,6 +37,7 @@ export function ReportView({ brand, res, ai, showDetails, pdfToken, analytics, a
       <div className="br-f-top">
         <span className="br-sev">{f.severity === "high" ? "Important" : f.severity === "medium" ? "Worth fixing" : "Minor"}</span>
         <span className="br-area">{MODULE_NAMES[f.module]}</span>
+        {wcagTag(f) && <span className="br-wcag">{wcagTag(f)}</span>}
       </div>
       <h3>{f.title}</h3>
       <p>{f.why}</p>
@@ -114,6 +116,8 @@ export function ReportView({ brand, res, ai, showDetails, pdfToken, analytics, a
         {analytics && <ReportAnalytics d={analytics.d} ai={analytics.ai} findings={res.findings} />}
         {ads && <ReportAds d={ads.d} ai={ads.ai} gsc={ads.gsc} findings={res.findings} />}
 
+        {showDetails && res.modules.some((m) => m.key === "accessibility") && <WcagSection res={res} />}
+
         {GROUPS.map((g) => {
           const list = res.findings.filter((f) => f.severity === g.sev);
           return list.length ? (
@@ -144,6 +148,54 @@ export function ReportView({ brand, res, ai, showDetails, pdfToken, analytics, a
       </tbody>
       </table>
     </div>
+  );
+}
+
+/* WCAG 2.2 A/AA summary for the PDF: counts per level, every failing criterion with the issues behind it, and
+   the criteria that need a person to check. */
+function WcagSection({ res }: { res: ScanResult }) {
+  const s = wcagSummary(res.findings, res.wcag?.tested);
+  const fails = s.rows.filter((r) => r.status === "fail");
+  const manual = s.rows.filter((r) => r.status === "manual");
+  return (
+    <section className="br-wcag-sec" aria-labelledby="br-wcag-h">
+      <h2 id="br-wcag-h" className="br-h2">WCAG {res.wcag?.version ?? WCAG_VERSION} accessibility checklist</h2>
+      <p className="br-note">
+        {fails.length
+          ? `${fails.length} Level A or AA success criteri${fails.length === 1 ? "on fails" : "a fail"} in the automated checks, so the site does not yet meet WCAG ${WCAG_VERSION} AA.`
+          : "No Level A or AA success criterion failed the automated checks."}{" "}
+        {manual.length} criteria cannot be judged automatically and need a person to check them.
+      </p>
+      <div className="br-wcag-lv">
+        {(["A", "AA"] as const).map((l) => (
+          <div key={l}>
+            <b>Level {l}</b>
+            <span><i className="f">{s.levels[l].fail}</i> failing</span>
+            <span><i className="p">{s.levels[l].pass}</i> no issues found</span>
+            <span><i className="m">{s.levels[l].manual}</i> check by hand</span>
+          </div>
+        ))}
+      </div>
+      {fails.length > 0 && (
+        <>
+          <h3 className="br-h3">Failing criteria</h3>
+          <ul className="br-wcag-list">
+            {fails.map((r) => (
+              <li key={r.id}>
+                <strong>{r.id} {r.name}</strong> <em>Level {r.level}</em>
+                <span>{r.findings.map((f) => f.title).join(" · ")}</span>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+      {manual.length > 0 && (
+        <>
+          <h3 className="br-h3">Check by hand</h3>
+          <p className="br-wcag-man">{manual.map((r) => `${r.id} ${r.name} (${r.level})`).join(" · ")}</p>
+        </>
+      )}
+    </section>
   );
 }
 

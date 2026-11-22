@@ -32,7 +32,7 @@ export const POSTS: Post[] = [
     tag: "GEO",
     title: "What Is GEO? Generative Engine Optimisation Explained",
     description:
-      "What is GEO (generative engine optimisation) and how is it different from SEO? Learn how to get your website cited by ChatGPT, Google AI Overviews, Perplexity and other AI search tools.",
+      "What is GEO? Generative engine optimisation explained in plain English: how AI search picks sources, how it differs from SEO and the first steps to take.",
     h1: "What is GEO, and how do you get found in AI search?",
     lead: "Generative engine optimisation is how you make your website easy for AI assistants to read, trust and cite. Here's what it means and where to start.",
     keywords: [
@@ -41,8 +41,6 @@ export const POSTS: Post[] = [
       "GEO vs SEO",
       "AI search optimisation",
       "how to rank in ChatGPT",
-      "Google AI Overviews",
-      "llms.txt",
     ],
     body: [
       { h2: "What is GEO?" },
@@ -135,7 +133,7 @@ export const POSTS: Post[] = [
     tag: "Performance",
     title: "Core Web Vitals Explained: LCP, INP and CLS in Plain English",
     description:
-      "What are Core Web Vitals? A plain-English guide to LCP, INP and CLS, what good scores look like, how they affect Google rankings, and how to improve each one.",
+      "Core Web Vitals explained in plain English: what LCP, INP and CLS measure, the scores to aim for, why they matter for rankings and how to improve them.",
     h1: "Core Web Vitals explained in plain English.",
     lead: "LCP, INP and CLS are Google's three measures of how a page feels to a real visitor. Here's what each one means, what a good score is and how to fix a poor one.",
     keywords: [
@@ -145,7 +143,6 @@ export const POSTS: Post[] = [
       "what is CLS",
       "improve core web vitals",
       "page experience ranking factor",
-      "PageSpeed Insights",
     ],
     body: [
       { h2: "What are Core Web Vitals?" },
@@ -251,7 +248,7 @@ export const POSTS: Post[] = [
     tag: "Performance",
     title: "Why Is My Website Slow? 10 Common Causes and How to Fix Them",
     description:
-      "Why is my website so slow? Find the 10 most common causes of a slow website, from oversized images to slow hosting, and learn how to speed up your site step by step.",
+      "Why is my website slow? Ten common causes, from large images and heavy JavaScript to slow hosting, how to tell which affect you and how to fix each.",
     h1: "Why is my website slow? 10 common causes and fixes.",
     lead: "Slow websites lose visitors, sales and rankings. These are the problems we see most often, roughly in order of how much they cost, and what to do about each one.",
     keywords: [
@@ -349,18 +346,16 @@ export const POSTS: Post[] = [
     tag: "SEO",
     title: "Technical SEO Checklist: 15 Checks for Every Website",
     description:
-      "A practical technical SEO checklist for small businesses and agencies: title tags, meta descriptions, sitemaps, robots.txt, canonical tags, structured data, broken links, HTTPS and more.",
+      "A technical SEO checklist of 15 checks every website should pass: HTTPS, crawlability, sitemaps, canonicals, indexing, links, redirects and speed.",
     h1: "The technical SEO checklist every website needs.",
     lead: "Great content can't rank if search engines can't crawl, understand and trust your pages. Work through these 15 checks to fix the foundations.",
     keywords: [
       "technical SEO checklist",
       "SEO audit",
       "how to do an SEO audit",
-      "title tag length",
-      "meta description",
       "XML sitemap",
       "canonical tag",
-      "robots.txt",
+      "crawlability",
     ],
     body: [
       { h2: "What is technical SEO?" },
@@ -437,9 +432,9 @@ export const POSTS: Post[] = [
   {
     slug: "website-security-checklist",
     tag: "Security",
-    title: "Website Security Checklist: SSL, Security Headers, SPF and DMARC",
+    title: "Website Security Checklist: SSL, Headers, Updates, Backups",
     description:
-      "Is my website secure? A plain-English website security checklist covering SSL certificates, HTTPS, security headers like HSTS and CSP, and email protection with SPF and DMARC.",
+      "Is my website secure? A plain-English checklist: SSL and HTTPS, security headers like HSTS and CSP, exposed files, updates, logins and backups.",
     h1: "Is my website secure? A practical security checklist.",
     lead: "You don't need to be a security expert to close the most common gaps. These checks cover what attackers and browsers look at first.",
     keywords: [
@@ -449,7 +444,6 @@ export const POSTS: Post[] = [
       "SSL certificate check",
       "HSTS",
       "content security policy",
-      "SPF and DMARC",
     ],
     body: [
       { h2: "How do I check if my website is secure?" },
@@ -486,19 +480,9 @@ export const POSTS: Post[] = [
       {
         p: "Headers like Server or X-Powered-By, and generator meta tags, can reveal exact CMS and server versions. That makes it easy for automated attacks to target known vulnerabilities. Hide version numbers and, more importantly, keep the software updated.",
       },
-      { h2: "4. Protect your email domain with SPF and DMARC" },
+      { h2: "4. Don't forget your email domain" },
       {
-        p: "Even if your website is secure, scammers can send email that appears to come from your domain unless you publish email authentication records in DNS.",
-      },
-      {
-        ul: [
-          "**SPF** lists the servers allowed to send email for your domain. See [setting up SPF](/fix/no-spf).",
-          "**DKIM** adds a cryptographic signature to outgoing mail.",
-          "**DMARC** tells receiving servers what to do with mail that fails SPF or DKIM, and sends you reports. Start with p=none and move to quarantine or reject. See [setting up DMARC](/fix/no-dmarc).",
-        ],
-      },
-      {
-        p: "Gmail and Yahoo now require SPF, DKIM and DMARC for bulk senders, so these records also help your legitimate email reach the inbox.",
+        p: "Even if your website is secure, scammers can send email that appears to come from your domain unless you publish email authentication records in DNS. That is a topic of its own: see [SPF, DKIM and DMARC explained](/blog/spf-dkim-dmarc-explained) for what each record does and how to set them up.",
       },
       { h2: "5. Keep the basics in order" },
       {
@@ -514,13 +498,13 @@ export const POSTS: Post[] = [
         p: "Yes. HTTPS is a confirmed Google ranking signal, browsers warn visitors away from insecure or expired-certificate sites, and a hacked site can be flagged or removed from search results entirely. Security is also a trust signal for customers and AI search tools alike.",
       },
       {
-        tip: "Pagelyt's Security Intelligence check tests your certificate, TLS versions, security headers, exposed version information, SPF and DMARC in one scan, with a fix guide for each gap.",
+        tip: "Pagelyt's [security check](/features/security) tests your certificate, TLS versions, security headers, exposed files and version information in one scan, with a fix guide for each gap. The [security headers generator](/tools/security-headers-generator) writes the config for your server.",
       },
     ],
     faq: [
       [
         "How can I tell if my website is secure?",
-        "Check that it has a valid SSL certificate, redirects all HTTP traffic to HTTPS, sends security headers such as HSTS and Content-Security-Policy, keeps software updated, and has SPF and DMARC records for its email domain. A website security scanner checks most of these automatically.",
+        "Check that it has a valid SSL certificate, redirects all HTTP traffic to HTTPS, sends security headers such as HSTS and Content-Security-Policy, keeps software updated and doesn't expose files such as .env or backups. A website security scanner checks most of these automatically.",
       ],
       [
         "What are security headers?",
@@ -529,10 +513,6 @@ export const POSTS: Post[] = [
       [
         "What happens when an SSL certificate expires?",
         "Browsers show a full-page security warning and most visitors leave. Forms, logins and payments may stop working. Use auto-renewal and monitor the expiry date.",
-      ],
-      [
-        "What is the difference between SPF, DKIM and DMARC?",
-        "SPF lists which servers may send email for your domain, DKIM signs messages so they can't be altered, and DMARC tells receiving mail servers what to do when a message fails those checks, and reports back to you.",
       ],
       [
         "Is a free SSL certificate good enough?",
@@ -545,13 +525,12 @@ export const POSTS: Post[] = [
   {
     slug: "website-accessibility-checklist",
     tag: "Accessibility",
-    title: "How to Check Website Accessibility: A WCAG Checklist for Beginners",
+    title: "How to Check Website Accessibility: A WCAG Checklist",
     description:
-      "How do I check if my website is accessible? A beginner-friendly WCAG checklist covering alt text, colour contrast, form labels, keyboard navigation and headings, plus the laws that apply.",
+      "How to check website accessibility step by step: alt text, contrast, labels, keyboard access and headings, using WCAG 2.2 AA, free tools and manual tests.",
     h1: "How to check if your website is accessible.",
     lead: "About one in six people worldwide lives with a significant disability. An accessible website serves all of them, reduces legal risk and usually ranks better too.",
     keywords: [
-      "website accessibility checker",
       "WCAG checklist",
       "how to make a website accessible",
       "WCAG 2.2",
@@ -652,16 +631,15 @@ export const POSTS: Post[] = [
   {
     slug: "free-website-audit-what-to-check",
     tag: "Guides",
-    title: "Free Website Audit: What to Check and How to Prioritise Fixes",
+    title: "Free Website Audit: What to Check and What to Fix First",
     description:
-      "How to audit a website for free: what a complete website audit covers (speed, SEO, AI search, security, accessibility, uptime) and how to decide which fixes to do first.",
+      "How to run a free website audit: what to check in each of nine areas, from speed and SEO to security and email, and how to rank the fixes by impact.",
     h1: "How to audit your website for free, and what to fix first.",
     lead: "A website audit is a health check-up for your site. Here's what a complete one covers, how long it takes and how to turn a long list of findings into a short plan.",
     keywords: [
       "free website audit",
       "website audit checklist",
       "how to audit a website",
-      "website health check",
       "website analysis tool",
       "check my website",
       "website checker",
@@ -673,7 +651,7 @@ export const POSTS: Post[] = [
       },
       { h2: "What should a website audit include?" },
       {
-        p: "Many tools only check one area. A complete audit covers six:",
+        p: "Many tools only check one area. A complete audit covers nine:",
       },
       {
         ol: [
@@ -683,6 +661,9 @@ export const POSTS: Post[] = [
           "**GEO (AI search readiness):** can AI crawlers access the site, is there an llms.txt file, and is content easy to quote? See [what is GEO](/blog/what-is-geo-generative-engine-optimisation).",
           "**Security:** HTTPS, security headers, exposed software versions, and SPF and DMARC for email. See the [website security checklist](/blog/website-security-checklist).",
           "**Accessibility:** alt text, colour contrast, form labels and keyboard access. See [how to check accessibility](/blog/website-accessibility-checklist).",
+          "**Domain and email:** domain expiry, nameservers, and the SPF, DKIM and DMARC records that stop spoofing. See [SPF, DKIM and DMARC explained](/blog/spf-dkim-dmarc-explained).",
+          "**Privacy:** a privacy policy, terms of use, cookie consent before trackers load, and how many outside scripts the page pulls in.",
+          "**Code security:** old JavaScript libraries with known flaws and secret keys left in public scripts.",
         ],
       },
       { h2: "How to prioritise website fixes" },

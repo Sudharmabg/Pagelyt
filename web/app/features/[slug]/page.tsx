@@ -7,6 +7,11 @@ import { CtaBand, PageHero } from "../../page-shell";
 import { MainCta } from "../../main-cta";
 import { SiteFooter, SiteNav } from "../../site-chrome";
 import { AllFeaturesBanner, FeatureCard, FeatureGains, MOCKS } from "../feature-card";
+import { FEATURE_ANSWERS } from "../../answers";
+import { QuickAnswer, TopicLinks } from "../../seo-bits";
+import { postsForFeature, toolsForFeature } from "../../topics";
+import { SITE_URL } from "../../site-config";
+import { fitTitle } from "../../counts";
 
 const WORDS: Record<number, string> = { 2: "Two", 3: "Three", 4: "Four", 5: "Five" };
 
@@ -19,7 +24,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const f = featureBySlug(slug);
   if (!f) return {};
   return {
-    title: f.title,
+    title: fitTitle(f.title),
     description: f.description,
     alternates: { canonical: `/features/${f.slug}` },
     openGraph: { title: f.title, description: f.description, url: `/features/${f.slug}` },
@@ -32,6 +37,9 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
   if (!f) notFound();
   const Mock = MOCKS[f.slug];
   const related = f.related.map((s) => featureBySlug(s)).filter((x): x is NonNullable<typeof x> => !!x);
+  const answer = FEATURE_ANSWERS[f.slug];
+  const posts = postsForFeature(f.slug);
+  const tools = toolsForFeature(f.slug);
 
   return (
     <>
@@ -43,12 +51,32 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
         ])}
       />
       <JsonLd data={faqLd(f.faq)} />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebPage",
+          name: f.title,
+          description: f.description,
+          url: `${SITE_URL}/features/${f.slug}`,
+          isPartOf: { "@type": "WebSite", name: "Pagelyt", url: SITE_URL },
+          mainEntity: {
+            "@type": "Service",
+            name: f.name,
+            description: answer ?? f.description,
+            serviceType: f.area ? "Website audit" : "Website analysis",
+            provider: { "@type": "Organization", name: "Pagelyt", url: SITE_URL },
+            areaServed: "Worldwide",
+          },
+          relatedLink: [...posts.map((p) => `${SITE_URL}/blog/${p}`), ...tools.map((t) => `${SITE_URL}/tools/${t}`)],
+        }}
+      />
       <SiteNav />
       <main>
         <PageHero
           h1={f.h1}
           lead={f.lead}
         >
+          <QuickAnswer text={answer} label={`What is ${f.name}?`} />
           <div className="btn-row" style={{ justifyContent: "center" }}>
             <MainCta arrow />
             <Link className="btn ghost" href="/features">
@@ -88,7 +116,7 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
         <section className="sec" aria-labelledby="about-h">
           <div className="container split">
             <div className="prose">
-              <h2 id="about-h">What is {f.name}?</h2>
+              <h2 id="about-h">How {f.name} works</h2>
               {f.intro.map((p) => (
                 <p key={p}>{p}</p>
               ))}
@@ -117,6 +145,13 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
             <FeatureGains f={f} />
           </div>
         </section>
+
+        <TopicLinks
+          posts={posts}
+          tools={tools}
+          title={`Guides and free tools for ${f.name.toLowerCase()}`}
+          lead="Read how it works in depth, or check one thing right now with a free tool."
+        />
 
         <section className="sec" aria-labelledby="q-h">
           <div className="container">

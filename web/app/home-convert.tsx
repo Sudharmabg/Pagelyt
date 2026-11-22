@@ -13,6 +13,7 @@ import { RollNum } from "./roll-num";
 import { COMPARE, COMPARE_COLS, PROCESS, ROTATOR, STATS, STORIES, type Mark } from "./home-data";
 import { CATEGORIES, TOOL_LIST, type ToolCategory } from "./tools/catalog";
 import { TONE } from "./tools/icons";
+import { AREA_COUNT } from "./counts";
 import { ToolCard } from "./tools/tool-card";
 
 /* ---------- hero headline: the full keyword list is real text for search engines and screen readers;
@@ -37,6 +38,7 @@ const STAT_ICONS = [
   <path key="tools" d="M14.7 6.3a4 4 0 0 0-5.2 5.2L4 17l3 3 5.5-5.5a4 4 0 0 0 5.2-5.2l-2.4 2.4-2.6-.8-.8-2.6z" />,
   <g key="url"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1" /><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" /></g>,
   <path key="google" d="M5 20V10h3v10H5zm5.5 0V4h3v16h-3zM16 20v-7h3v7h-3z" />,
+  <g key="wcag"><circle cx="12" cy="4.5" r="1.8" /><path d="M5 8.5l7 1.5 7-1.5M12 10v4.5M12 14.5 8.5 21M12 14.5l3.5 6.5" /></g>,
 ];
 
 export function StatsBar() {
@@ -133,7 +135,7 @@ const ROW_ICONS: LucideIcon[] = [Wallet, Clock, Bot, Layers, Plug, MessageSquare
 const WINS = COMPARE_COLS.map((_, i) => COMPARE.filter((r) => r.cells[i][0] === "yes").length);
 const PROOF: [LucideIcon, string, string][] = [
   [Timer, "Minutes", "to your first report"],
-  [Layers, "8 areas", "checked in one scan"],
+  [Layers, `${AREA_COUNT} areas`, "checked in one scan"],
   [Gift, "Free", "to start, with weekly rescans"],
 ];
 

@@ -98,7 +98,6 @@ export async function POST(req: Request) {
         return reply(await renderPages(urls, host));
       }
       case "rendered": {
-        if (!(await paid())) return reply({ error: "Raw vs rendered HTML comes with any paid plan.", upgrade: true }, 403);
         return reply({ report: await compareRendered(url()) });
       }
       default:

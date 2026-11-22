@@ -9,11 +9,12 @@ import { CtaBand, PageHero } from "../page-shell";
 import { SITE_URL } from "../site-config";
 import { SiteFooter, SiteNav } from "../site-chrome";
 import { AiMock, AnalyseMock, DiscoverMock, HistMock } from "../ui";
+import { AREA_COUNT, capWords } from "../counts";
 
 export const metadata: Metadata = {
   title: "How Website Analysis Works: From URL to Improvement",
   description:
-    "Enter a URL, run six checks at once, get AI-ranked recommendations and track your score over time. See how a Pagelyt website analysis works, step by step.",
+    `Enter a URL, run ${AREA_COUNT} checks at once, get AI-ranked recommendations and track your score over time. See how a Pagelyt website analysis works.`,
   alternates: { canonical: "/how-it-works" },
 };
 
@@ -40,7 +41,7 @@ const REPORT = [
   },
   {
     name: "SEO",
-    slug: "seo-geo",
+    slug: "seo",
     tone: 2,
     score: 82,
     q: "Can search engines find and read you?",
@@ -49,7 +50,7 @@ const REPORT = [
   },
   {
     name: "GEO readiness",
-    slug: "seo-geo",
+    slug: "geo",
     tone: 3,
     score: 68,
     q: "Are AI search tools able to use your content?",
@@ -58,7 +59,7 @@ const REPORT = [
   },
   {
     name: "Security",
-    slug: "security-accessibility",
+    slug: "security",
     tone: 0,
     score: 61,
     q: "Are the basic protections in place?",
@@ -67,12 +68,39 @@ const REPORT = [
   },
   {
     name: "Accessibility",
-    slug: "security-accessibility",
+    slug: "accessibility",
     tone: 1,
     score: 87,
     q: "Can everyone use your website?",
     checks: ["Colour contrast", "Alt text and labels", "Keyboard and structure basics"],
     find: "Nine images have no alt text. Describe them for screen readers.",
+  },
+  {
+    name: "Domain & email",
+    slug: "domain-email",
+    tone: 2,
+    score: 70,
+    q: "Can anyone send email pretending to be you?",
+    checks: ["Domain expiry and nameservers", "SPF, DKIM and DMARC", "DNSSEC and CAA"],
+    find: "Your DMARC policy is set to none, so spoofed mail still gets delivered.",
+  },
+  {
+    name: "Privacy & compliance",
+    slug: "privacy",
+    tone: 3,
+    score: 79,
+    q: "Do visitors know how you use their data?",
+    checks: ["Privacy policy and terms", "Cookie consent before trackers", "Third-party scripts"],
+    find: "Google Analytics loads with no cookie consent tool on the page.",
+  },
+  {
+    name: "Code security",
+    slug: "code-security",
+    tone: 0,
+    score: 86,
+    q: "What does your JavaScript give away?",
+    checks: ["Old libraries with known flaws", "Secret keys in public scripts", "Source maps and integrity checks"],
+    find: "jQuery 3.4.1 has known cross-site scripting flaws. Update to 3.7.",
   },
 ];
 
@@ -154,7 +182,7 @@ export default function HowItWorksPage() {
                 What is in your report.
               </h2>
               <p className="lead">
-                Six scored areas, each with plain-English findings. Sample scores are shown below; yours come from your
+                {capWords(AREA_COUNT)} scored areas, each with plain-English findings. Sample scores are shown below; yours come from your
                 own website.
               </p>
             </div>

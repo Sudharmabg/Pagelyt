@@ -1,23 +1,25 @@
 /* Homepage copy shared by the client sections (home-convert.tsx) and the server page (FAQ schema). Plain data. */
 import { TOOL_LIST } from "./tools/catalog";
+import { AREA_COUNT, capWords } from "./counts";
 
-/** Tools anyone with a free account can run (a few spend paid rendering time). */
-export const FREE_TOOLS = TOOL_LIST.filter((t) => !t.paid);
+/** Every tool is free with a Pagelyt account. */
+export const FREE_TOOLS = TOOL_LIST;
 
 /** Words the hero headline cycles through. The full list is also in the H1 as text for search engines. */
 export const ROTATOR = ["SEO", "Page Speed", "AI Search", "Google Search Console", "Security", "Google Analytics", "Accessibility", "Google Ads"];
 
 /** Product facts only: no usage counts. */
 export const STATS: { n: number; prefix?: string; suffix?: string; label: string }[] = [
-  { n: 8, label: "areas checked in every scan" },
+  { n: AREA_COUNT, label: "areas checked in every scan" },
   { n: FREE_TOOLS.length, label: "free SEO and AI tools" },
   { n: 1, suffix: " URL", label: "is all the setup you need" },
   { n: 3, label: "Google tools: Search Console, Analytics, Ads" },
+  { n: 55, label: "WCAG 2.2 A and AA rules mapped" },
 ];
 
 export const PROCESS = [
   { h: "Paste your URL", p: "No install, no code, no access to your hosting. Pagelyt reads your public pages." },
-  { h: "Get one clear score", p: "Eight areas, from speed and SEO to AI search and security, roll up into a single score." },
+  { h: "Get one clear score", p: `${capWords(AREA_COUNT)} areas, from speed and SEO to AI search and code security, roll up into a single score.` },
   { h: "Fix what matters first", p: "Every issue comes with evidence and a plain-English fix, ranked by impact." },
 ];
 
@@ -28,6 +30,8 @@ export const COMPARE: { row: string; cells: [Mark, string][] }[] = [
   { row: "Time to first report", cells: [["yes", "Minutes"], ["part", "Minutes, after setup"], ["no", "Days to weeks"]] },
   { row: "AI search (GEO) readiness", cells: [["yes", "Included"], ["part", "Rarely"], ["part", "Depends on the agency"]] },
   { row: "Speed, SEO, security and accessibility in one place", cells: [["yes", "One scan"], ["no", "Separate tools"], ["part", "Sometimes"]] },
+  { row: "WCAG 2.2 A and AA checklist, rule by rule", cells: [["yes", "In every report"], ["part", "Sometimes, as a score"], ["part", "Extra cost"]] },
+  { row: "Basic code security from your URL: old libraries, leaked keys", cells: [["yes", "In every report"], ["no", "Rarely"], ["part", "Extra cost"]] },
   { row: "Search Console, Analytics and Ads data on every fix", cells: [["yes", "Professional & Business"], ["part", "Separate dashboards"], ["part", "Manual exports"]] },
   { row: "Fixes in plain English, ranked by impact", cells: [["yes", "Yes"], ["no", "Raw data to interpret"], ["yes", "Yes"]] },
   { row: "Ongoing monitoring", cells: [["yes", "Weekly rescans, free"], ["yes", "Yes"], ["no", "One-off"]] },

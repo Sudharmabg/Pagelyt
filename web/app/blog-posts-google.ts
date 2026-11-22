@@ -9,9 +9,9 @@ export const GOOGLE_POSTS: Post[] = [
   {
     slug: "google-search-console-setup-guide",
     tag: GOOGLE_GUIDE_TAG,
-    title: "Google Search Console Setup Guide: Verify, Connect and Use It",
+    title: "Google Search Console Setup: Verify, Connect and Use It",
     description:
-      "How to set up Google Search Console step by step: add and verify your site, submit a sitemap, read the reports that matter, connect it to Pagelyt and get more clicks from Google.",
+      "How to set up Google Search Console: choose a domain or URL-prefix property, verify your site, submit your sitemap and read the reports that matter.",
     h1: "How to set up Google Search Console (and actually use it)",
     lead: "Search Console is Google telling you, for free, how your site does in Google Search. Here's how to set it up properly, connect it to Pagelyt and turn the numbers into fixes.",
     keywords: [
@@ -143,9 +143,9 @@ export const GOOGLE_POSTS: Post[] = [
   {
     slug: "google-analytics-4-setup-guide",
     tag: GOOGLE_GUIDE_TAG,
-    title: "Google Analytics 4 Setup Guide: Install, Configure and Use GA4",
+    title: "Google Analytics 4 Setup: Install, Configure and Use GA4",
     description:
-      "Set up Google Analytics 4 step by step: create a property and web stream, install the Google tag, the settings to change on day one, connecting GA4 to Pagelyt and tips for reading your data.",
+      "How to set up Google Analytics 4: create a property, install the tag, set data retention, mark key events and respect cookie consent. Step by step.",
     h1: "How to set up Google Analytics 4 the right way",
     lead: "GA4 tells you who visits your site, where they come from and whether they stay. Setting it up takes about fifteen minutes. Here's every step, the settings most people miss, and how to connect it to Pagelyt.",
     keywords: [
@@ -282,7 +282,7 @@ export const GOOGLE_POSTS: Post[] = [
     tag: GOOGLE_GUIDE_TAG,
     title: "Google Ads Setup Guide: First Campaign, Tracking and Tips",
     description:
-      "Set up Google Ads step by step: create the account in Expert mode, conversion tracking, your first Search campaign, connecting Google Ads to Pagelyt and tips to stop wasting ad spend.",
+      "How to set up Google Ads: your first campaign, conversion tracking, keywords and negative keywords, budgets and the settings to change before you spend.",
     h1: "How to set up Google Ads without wasting money",
     lead: "Google Ads can bring customers the same day, or burn through your budget on the wrong searches. Here's how to set it up properly, connect it to Pagelyt and spot the spend that isn't working.",
     keywords: [

@@ -12,7 +12,7 @@ export function scoreModules(findings: Finding[]) {
 }
 
 /* Areas that can take a site offline or put visitors at risk count for more in the overall score. */
-export const WEIGHTS: Record<ModuleKey, number> = { security: 1.5, health: 1.5, performance: 1.2, seo: 1, accessibility: 1, domain: 1, geo: 0.8, privacy: 0.8 };
+export const WEIGHTS: Record<ModuleKey, number> = { security: 1.5, health: 1.5, performance: 1.2, seo: 1, accessibility: 1, domain: 1, geo: 0.8, privacy: 0.8, code: 1.2 };
 
 /** Weighted average of the area scores (areas without a key, e.g. from old callers, weigh 1). */
 export function overallScore(modules: { key?: ModuleKey; score: number }[]) {

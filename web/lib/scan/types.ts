@@ -21,7 +21,7 @@ export function evidenceText(f: Finding): string {
   return f.pages.rows.map((r) => [r.url, ...r.cells].filter(Boolean).join(" — ")).join("\n");
 }
 
-export type ModuleKey = "health" | "performance" | "seo" | "geo" | "security" | "accessibility" | "domain" | "privacy";
+export type ModuleKey = "health" | "performance" | "seo" | "geo" | "security" | "accessibility" | "domain" | "privacy" | "code";
 
 export const MODULE_NAMES: Record<ModuleKey, string> = {
   health: "Website health",
@@ -32,6 +32,7 @@ export const MODULE_NAMES: Record<ModuleKey, string> = {
   accessibility: "Accessibility",
   domain: "Domain & email",
   privacy: "Privacy & compliance",
+  code: "Code security",
 };
 
 export type ScanResult = {
@@ -51,6 +52,19 @@ export type ScanResult = {
   /** Homepage fingerprint, and how it differs from the previous scan of the same site. */
   snapshot?: Snapshot | null;
   change?: ChangeInfo | null;
+  /** WCAG criteria (ids such as "1.4.3") our checks tested; `rendered`: Lighthouse's axe run took part. Older reports: missing. */
+  wcag?: { version: string; tested: string[]; rendered: boolean };
+  /** Code security: what the scan read (script files, inline scripts) and the libraries it recognised. Older reports: missing. */
+  code?: CodeSummary | null;
+};
+
+/** `rendered`: the file list came from the real browser (Lighthouse); `scripts`: script files the page loaded; `files`: the ones we read. */
+export type CodeSummary = {
+  rendered: boolean;
+  scripts: number;
+  inline: boolean;
+  files: { url: string; kb: number; own: boolean }[];
+  libraries: { name: string; version: string; vulnerable: boolean; eol: boolean }[];
 };
 
 /** `sig`: 16 × 32 brightness grid of the rendered page; `text`: MinHash of the visible text. */

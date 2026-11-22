@@ -2,14 +2,20 @@ import Link from "next/link";
 import { Arrow } from "../arrow";
 import { FEATURES, type Feature } from "../features-data";
 import { RevealList } from "../reveal";
-import { AiMock, AnalyticsMock, CompareMock, HealthMock, PerfMock, SecA11yMock, SeoGeoMock, TimelineMock } from "../ui";
+import { AiMock, AnalyticsMock, CompareMock, HealthMock, PerfMock, SeoMock, GeoMock, SecurityMock, A11yMock, DomainMock, PrivacyMock, TimelineMock, WcagMock, CodeMock } from "../ui";
 
 /** The dashboard mock that illustrates each feature. */
 export const MOCKS: Record<string, () => React.ReactElement> = {
   "website-health": HealthMock,
   performance: PerfMock,
-  "seo-geo": SeoGeoMock,
-  "security-accessibility": SecA11yMock,
+  seo: SeoMock,
+  geo: GeoMock,
+  security: SecurityMock,
+  accessibility: A11yMock,
+  "wcag-checklist": WcagMock,
+  "domain-email": DomainMock,
+  privacy: PrivacyMock,
+  "code-security": CodeMock,
   "competitor-intelligence": CompareMock,
   "ai-recommendations": AiMock,
   "monitoring-reports": TimelineMock,

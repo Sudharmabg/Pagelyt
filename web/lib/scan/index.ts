@@ -7,11 +7,13 @@ import { finishedAreas, overallScore, scoreModules } from "./score";
 import { alertAfterScan } from "./alerts";
 import { setSiteLastScan } from "./agency";
 import { getScanRow, previousResult, saveShot, updateScan, type ScanRow } from "./store";
-import type { ChangeInfo, CrawlPage, DomainInfo, Finding, ImageAudit, ModuleKey, ScanResult, Snapshot, TechItem, Vitals } from "./types";
+import type { ChangeInfo, CodeSummary, CrawlPage, DomainInfo, Finding, ImageAudit, ModuleKey, ScanResult, Snapshot, TechItem, Vitals } from "./types";
 import { fetchVitals, vitalsFindings } from "./vitals";
 import { FEW_IMAGES, IMAGE_SAMPLE, imageFindings, imageList, imagesInCode, mergeRendered, ownScripts, probeImages, spreadSample } from "./images";
 import { a11yFindings, coveredStaticIds } from "./a11y";
+import { WCAG_VERSION, testedCriteria } from "./wcag";
 import { compareSnapshots, textSignature, visualSignature } from "./visual";
+import { MAX_FILE_BYTES, codeFindings, codeInput, pickScripts, type CodeFile, type CodeInput } from "./code";
 import * as cheerio from "cheerio";
 
 /* A scan runs as a series of short stages, each its own request. Workers allow only ~50 outbound
@@ -52,6 +54,13 @@ type State = {
   crawlHomeLinks?: number;
   crawlMissed?: number;
   sitemapKind?: "none" | "index" | "list";
+  /** Lighthouse accessibility audits that applied to the rendered homepage (for the WCAG summary). */
+  a11yAudited?: string[];
+  /** Code security: the homepage HTML's side (stage 1), the script files the rendered page loaded (stage 6, from
+      Lighthouse; null when it didn't run) and the finished summary (stage 7). */
+  codeIn?: CodeInput;
+  codeRendered?: string[] | null;
+  code?: CodeSummary | null;
 };
 
 async function tryText(u: URL): Promise<{ ok: boolean; body: string }> {
@@ -112,6 +121,7 @@ async function stagePage(row: ScanRow): Promise<State> {
     imgs.count = imgs.all.length;
     imgs.sample = imgs.all.slice(0, IMAGE_SAMPLE);
   }
+  const codeIn = codeInput($, page.url, page.headers);
   const pageTitle = $("title").first().text().trim().replace(/\s+/g, " ");
   $("script,style,noscript,svg,template").remove();
   const snapshot: Snapshot = { title: pageTitle, sig: null, text: textSignature($("body").text()), shot: false };
@@ -144,6 +154,7 @@ async function stagePage(row: ScanRow): Promise<State> {
     sitemapKind: sitemapUrls.length ? "list" : sitemap.ok && /<sitemapindex/i.test(sitemap.body) ? "index" : "none",
     crawlPages: [crawlHome(page, host)],
     crawlLinked: homeLinks.slice(0, 600),
+    codeIn,
   };
 }
 
@@ -199,7 +210,7 @@ async function stageCrawl(st: State, part: 0 | 1): Promise<State> {
 async function stageSpeed(row: ScanRow, st: State): Promise<State> {
   const site = st.siteImages ?? [];
   const extra = spreadSample(site, new Set((st.images?.probed ?? []).map((p) => p.url)), EXTRA_PROBES);
-  const [{ vitals, shot, a11y, images: rendered }, extraProbed] = await Promise.all([fetchVitals(st.finalUrl!), probeImages(extra.map((i) => i.url))]);
+  const [{ vitals, shot, a11y, images: rendered, scripts }, extraProbed] = await Promise.all([fetchVitals(st.finalUrl!), probeImages(extra.map((i) => i.url))]);
   const pageOf = new Map(extra.map((i) => [i.url, i.page]));
   const checked = st.images ? { ...st.images, probed: [...st.images.probed, ...extraProbed.map((p) => ({ ...p, page: pageOf.get(p.url) }))] } : null;
   const images = checked || rendered.length ? mergeRendered(checked ?? { count: 0, probed: [] }, rendered, st.finalUrl!, new Set(site.map((i) => i.url))) : null;
@@ -215,7 +226,31 @@ async function stageSpeed(row: ScanRow, st: State): Promise<State> {
   // Rendered accessibility results replace the static checks Lighthouse re-ran on the real page.
   const covered = a11y ? coveredStaticIds(a11y) : new Set<string>();
   const base = st.findings!.filter((f) => !(f.module === "accessibility" && covered.has(f.id)));
-  return { ...st, vitals, snapshot, images: images ?? st.images, siteImages: undefined, findings: [...base, ...(vitals ? vitalsFindings(vitals) : []), ...img, ...(a11y ? a11yFindings(a11y) : [])] };
+  return { ...st, vitals, snapshot, images: images ?? st.images, siteImages: undefined, a11yAudited: a11y?.audited ?? [], codeRendered: vitals ? scripts : null, findings: [...base, ...(vitals ? vitalsFindings(vitals) : []), ...img, ...(a11y ? a11yFindings(a11y) : [])] };
+}
+
+/* Stage 7: Code security. Reads up to MAX_CODE_FILES of the script files the page loaded (one subrequest each) and
+   checks them with the homepage HTML. Scans that started before this stage existed have no codeIn and skip it. */
+async function stageCode(st: State): Promise<State> {
+  const input = st.codeIn;
+  if (!input) return { ...st, code: null };
+  const rendered = st.codeRendered ?? [];
+  const pick = pickScripts(input, rendered);
+  const got = await Promise.all(
+    pick.map(async (u): Promise<CodeFile | null> => {
+      try {
+        const r = await safeFetch(new URL(u), { accept: "*/*" });
+        const type = String(r.headers["content-type"] ?? "");
+        if (r.status >= 400 || /text\/html/i.test(type) || /^\s*<(!doctype|html)/i.test(r.body)) return null;
+        return { url: r.url, body: r.body.slice(0, MAX_FILE_BYTES), mapHeader: !!(r.headers["sourcemap"] || r.headers["x-sourcemap"]) };
+      } catch {
+        return null;
+      }
+    })
+  );
+  const files = got.filter((f): f is CodeFile => !!f);
+  const { findings, summary } = codeFindings(input, rendered, files, st.codeRendered != null);
+  return { ...st, findings: [...st.findings!, ...findings], code: summary, codeIn: undefined, codeRendered: undefined };
 }
 
 /** Difference from the previous scan of the same site; never fails the scan. */
@@ -248,6 +283,8 @@ async function build(row: ScanRow, st: State): Promise<ScanResult> {
     images: st.images ?? null,
     snapshot: st.snapshot ?? null,
     change: await changeSince(row, st.snapshot),
+    code: st.code ?? null,
+    wcag: { version: WCAG_VERSION, tested: testedCriteria(st.a11yAudited ?? []), rendered: (st.a11yAudited?.length ?? 0) > 0 },
     // Kept even when only the homepage was crawled, so the dashboard can say why no other pages were found.
     crawl: st.crawlPages?.length
       ? crawlSummary(st.crawlPages, st.sitemapUrls?.length ?? 0, st.crawlFound == null ? undefined : { found: st.crawlFound, homeLinks: st.crawlHomeLinks ?? 0, linked: st.crawlLinkedCount ?? 0, missed: st.crawlMissed ?? 0, sitemap: st.sitemapKind ?? "none" })
@@ -277,6 +314,7 @@ export async function advanceScan(id: string): Promise<Progress> {
       case 3: next = await stageCrawl(st, 0); break;
       case 4: next = await stageCrawl(st, 1); break;
       case 5: next = await stageSpeed(row, st); break;
+      case 6: next = await stageCode(st); break;
       default: {
         const result = await build(row, st);
         await updateScan(id, { status: "done", stage: total, result, state: {}, host: result.host });

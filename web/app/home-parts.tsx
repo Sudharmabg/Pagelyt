@@ -3,6 +3,8 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { BANDS } from "./art";
 import { AiMock, AnalyseMock, DiscoverMock } from "./ui";
+import { AREA_COUNT, AREA_LIST } from "./counts";
+import { FEATURES } from "./features-data";
 
 /* ---------- three numbered rows: a text card and a graphic card, alternating ---------- */
 const ROWS = [
@@ -17,8 +19,8 @@ const ROWS = [
   {
     n: "02",
     c: "#1a6b4c",
-    h: "Eight checks run at once.",
-    p: "Health, speed and Core Web Vitals, technical SEO, GEO, security, accessibility, domain and email, and privacy combine into one Website Intelligence Score.",
+    h: "Nine checks run at once.",
+    p: "Health, speed and Core Web Vitals, technical SEO, GEO, security, accessibility, domain and email, privacy and code security combine into one Website Intelligence Score.",
     link: ["/features", "Explore the checks"],
     vis: <AnalyseMock />,
   },
@@ -90,13 +92,13 @@ export function Glance() {
   return (
     <div className="glance">
       <div className="gt g1">
-        <span className="gnum">8 checks.</span>
+        <span className="gnum">{AREA_COUNT} areas.</span>
         <span className="gnum">1 score.</span>
-        <p>Health, speed, SEO, GEO, security and accessibility in every analysis.</p>
+        <p>{AREA_LIST.charAt(0).toUpperCase() + AREA_LIST.slice(1)} in every analysis.</p>
       </div>
       <Link className="gt g2" href="/features">
-        <span className="gnum">8</span>
-        <p>feature areas, each with evidence and a next step</p>
+        <span className="gnum">{FEATURES.length}</span>
+        <p>features, each with evidence and a next step</p>
       </Link>
       <div className="gt g3">
         <span className="gnum">₹0</span>

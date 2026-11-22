@@ -5,11 +5,14 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSignedInUser } from "@/lib/use-signed-in";
 import { SignInLink } from "@/app/sign-in-modal";
+import { FeatureIcon, type MenuFeature } from "./features-menu";
+import { NEW_FEATURES } from "./feature-icons";
 
 type Item = { name: string; href: string };
 
-export function NavMobile({ features, links }: { features: Item[]; links: Item[] }) {
+export function NavMobile({ features, tools, links }: { features: MenuFeature[]; tools: number; links: Item[] }) {
   const [open, setOpen] = useState(false);
+  const [feat, setFeat] = useState(false);
   const path = usePathname();
   const user = useSignedInUser();
 
@@ -61,12 +64,32 @@ export function NavMobile({ features, links }: { features: Item[]; links: Item[]
               Sign in
             </SignInLink>
           )}
-          <p className="nm-h">Features</p>
-          {features.map((f) => (
-            <Link key={f.href} href={f.href} className="nm-sub">
-              {f.name}
-            </Link>
-          ))}
+          <button type="button" className="nm-acc" aria-expanded={feat} aria-controls="nm-feat" onClick={() => setFeat((v) => !v)}>
+            Features
+            <svg width="12" height="12" viewBox="0 0 10 10" aria-hidden="true">
+              <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          {feat && (
+            <div className="nm-feat" id="nm-feat">
+              {features.map((f) => (
+                <Link key={f.slug} href={`/features/${f.slug}`} className="nm-fi">
+                  <FeatureIcon slug={f.slug} />
+                  <span>
+                    <b>
+                      {f.name}
+                      {NEW_FEATURES.has(f.slug) && <span className="dd-new">New</span>}
+                    </b>
+                    <small>{f.short}</small>
+                  </span>
+                </Link>
+              ))}
+              <div className="nm-feat-foot">
+                <Link href="/features">All features →</Link>
+                <Link href="/tools">{tools} free tools →</Link>
+              </div>
+            </div>
+          )}
           <hr />
           {links.map((l) => (
             <Link key={l.href} href={l.href}>

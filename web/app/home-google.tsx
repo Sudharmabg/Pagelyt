@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { Arrow } from "./arrow";
 
-/* Home page: "Your Google numbers, next to every fix." Three product cards, a sample finding with its Google badges,
-   and the plan line. Text names and our own icons only: no Google product logos on marketing pages. */
+/* Home page Google section: "Your traffic, explained. And how to grow it." An overall traffic card (28-day totals,
+   trend line, channels and AI steps to grow), then three product cards, a sample finding with its Google badges,
+   and the plan line. Sample numbers. Text names and our own icons only: no Google product logos on marketing pages. */
 
 const PRODUCTS = [
   {
@@ -28,13 +29,76 @@ const PRODUCTS = [
   },
 ];
 
+const TOTALS: { k: string; v: string; d: string; up: boolean }[] = [
+  { k: "Search clicks", v: "4,820", d: "+12%", up: true },
+  { k: "Visits", v: "9,340", d: "−4%", up: false },
+  { k: "Engaged visits", v: "61%", d: "+3 pts", up: true },
+];
+const CHANNELS: [string, number][] = [["Organic search", 58], ["Direct", 21], ["Social", 12], ["Paid search", 9]];
+const STEPS = [
+  "Fix the slow hero image on /pricing: it lost 31% of its clicks this month.",
+  "6 searches sit on page two. Add an FAQ to /services to reach page one.",
+  "Visits from social fell 18%. Your shared links have no preview image.",
+];
+const TREND = "M0 52 L30 48 L60 50 L90 40 L120 42 L150 32 L180 34 L210 24 L240 26 L270 14 L300 10";
+
+function OverallTraffic() {
+  return (
+    <figure className="hg-overall" aria-label="Example: overall traffic for the last 28 days, with AI steps to grow it">
+      <div className="hg-ov-head">
+        <figcaption><span className="hmon-live" aria-hidden="true" />Overall traffic · last 28 days</figcaption>
+        <span className="hg-ov-src">Search Console + Analytics</span>
+      </div>
+      <div className="hg-ov-body">
+        <div className="hg-ov-main">
+          <dl className="hg-ov-totals">
+            {TOTALS.map((t) => (
+              <div key={t.k}>
+                <dt>{t.k}</dt>
+                <dd><b>{t.v}</b><span className={t.up ? "up" : "down"}>{t.d}</span></dd>
+              </div>
+            ))}
+          </dl>
+          <svg className="hg-ov-trend" viewBox="0 0 300 60" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="hg-ov-fill" x1="0" x2="0" y1="0" y2="1">
+                <stop offset="0" stopColor="#1f6fe0" stopOpacity=".22" />
+                <stop offset="1" stopColor="#1f6fe0" stopOpacity="0" />
+              </linearGradient>
+            </defs>
+            <path d={`${TREND} L300 60 L0 60 Z`} fill="url(#hg-ov-fill)" />
+            <path className="hg-ov-line" d={TREND} />
+          </svg>
+          <ul className="hg-ov-ch" aria-label="Visits by channel">
+            {CHANNELS.map(([n, v], i) => (
+              <li key={n} style={{ ["--v" as string]: `${v}%`, ["--i" as string]: i }}>
+                <span>{n}</span><i aria-hidden="true" /><b>{v}%</b>
+              </li>
+            ))}
+          </ul>
+        </div>
+        <div className="hg-ov-ai">
+          <p className="hg-ov-ai-h"><span aria-hidden="true">✦</span> AI: how to grow your traffic</p>
+          <ol>
+            {STEPS.map((s, i) => <li key={s} style={{ ["--i" as string]: i }}>{s}</li>)}
+          </ol>
+        </div>
+      </div>
+    </figure>
+  );
+}
+
 export function GoogleSection() {
   return (
     <section className="sec hg" id="google" aria-labelledby="hg-h">
       <div className="container">
         <div className="head-center" data-r>
-          <h2 className="title" id="hg-h">Your Google numbers, next to every fix.</h2>
-          <p className="lead">Connect Search Console, Google Analytics and Google Ads, and every issue in your report shows the real searches, visitors and ad spend it touches. So you fix what costs you most, first.</p>
+          <h2 className="title" id="hg-h">Your traffic, explained. And how to grow it.</h2>
+          <p className="lead">Connect Search Console, Google Analytics and Google Ads for one overall view of your traffic: what&apos;s growing, what&apos;s dropping and why, with AI steps to improve it. Every issue in your report also shows the searches, visitors and ad spend it touches, so you fix what costs you most first.</p>
+        </div>
+
+        <div data-r style={{ ["--d" as string]: 1 }}>
+          <OverallTraffic />
         </div>
 
         <div className="hg-grid" data-r>

@@ -8,6 +8,7 @@ import { SiteFooter, SiteNav } from "../site-chrome";
 import { FREE_TOOLS } from "../tools-list";
 import { MainCta } from "../main-cta";
 import { MOCKS } from "./feature-card";
+import { capWords } from "../counts";
 
 const REPLACES: [string, string][] = [
   ["Speed tester", "Performance and Core Web Vitals scores"],
@@ -45,7 +46,7 @@ export default function FeaturesPage() {
           <div className="container">
             <div className="head-center">
               <h2 className="title" id="all-h">
-                Eight ways Pagelyt looks at your website.
+                {capWords(FEATURES.length)} ways Pagelyt looks at your website.
               </h2>
               <p className="lead">
                 Each area has its own score, its own checks and its own fixes. Together they give you one clear

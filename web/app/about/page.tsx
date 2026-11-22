@@ -4,6 +4,7 @@ import { PRICING_ON } from "../site-config";
 import { JsonLd, crumbLd } from "../json-ld";
 import { CtaBand, PageHero } from "../page-shell";
 import { SiteFooter, SiteNav } from "../site-chrome";
+import { AREA_COUNT } from "../counts";
 
 export const metadata: Metadata = {
   title: "About Pagelyt: Website Intelligence in Plain English",
@@ -40,7 +41,7 @@ export default function AboutPage() {
               <h2 id="what-h">What we build.</h2>
               <p>
                 Most website tools hand you dozens of charts and leave the interpretation to you. Pagelyt does the
-                reading. It checks your site across six areas, gives you one clear score, and lists the fixes in the
+                reading. It checks your site across {AREA_COUNT} areas, gives you one clear score, and lists the fixes in the
                 order that will help most.
               </p>
               <p>

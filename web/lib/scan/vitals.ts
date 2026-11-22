@@ -44,6 +44,16 @@ function imagesOf(a: Record<string, Audit>): RenderedImage[] {
   return out.sort((x, y) => (y.bytes ?? 0) - (x.bytes ?? 0)).slice(0, 60);
 }
 
+/** The script files the rendered page loaded (Lighthouse's network log), in load order, up to 40. Read by the Code
+    security checks, so code that JavaScript apps load after the first HTML is covered too. */
+function scriptsOf(a: Record<string, Audit>): string[] {
+  const out = new Set<string>();
+  for (const i of a["network-requests"]?.details?.items ?? []) {
+    if (i.resourceType === "Script" && i.url && /^https?:/.test(i.url) && (i.statusCode ?? 200) < 400) out.add(i.url);
+  }
+  return [...out].slice(0, 40);
+}
+
 function shotOf(a: Record<string, Audit>): Shot {
   const ok = (d: unknown) => (typeof d === "string" && d.startsWith("data:image/jpeg;base64,") && d.length < 400_000 ? d : null);
   const thumbs = a["screenshot-thumbnails"]?.details?.items ?? [];
@@ -54,8 +64,8 @@ type Psi = {
   loadingExperience?: { metrics?: Record<string, { percentile?: number }> };
 };
 
-type Run = { lab: VitalsRun | null; field: Vitals["field"]; weight: PageWeight | null; shot: Shot | null; a11y: A11yResult | null; images: RenderedImage[] };
-const EMPTY: Run = { lab: null, field: null, weight: null, shot: null, a11y: null, images: [] };
+type Run = { lab: VitalsRun | null; field: Vitals["field"]; weight: PageWeight | null; shot: Shot | null; a11y: A11yResult | null; images: RenderedImage[]; scripts: string[] };
+const EMPTY: Run = { lab: null, field: null, weight: null, shot: null, a11y: null, images: [], scripts: [] };
 
 async function run(url: string, strategy: "mobile" | "desktop"): Promise<Run> {
   const key = process.env.PAGESPEED_API_KEY;
@@ -93,6 +103,7 @@ async function run(url: string, strategy: "mobile" | "desktop"): Promise<Run> {
       shot: shotOf(a),
       a11y: parseA11y(j.lighthouseResult?.categories?.accessibility, a),
       images: imagesOf(a),
+      scripts: scriptsOf(a),
     };
   } catch {
     return EMPTY;
@@ -101,15 +112,16 @@ async function run(url: string, strategy: "mobile" | "desktop"): Promise<Run> {
   }
 }
 
-export async function fetchVitals(url: string): Promise<{ vitals: Vitals | null; shot: Shot | null; a11y: A11yResult | null; images: RenderedImage[] }> {
+export async function fetchVitals(url: string): Promise<{ vitals: Vitals | null; shot: Shot | null; a11y: A11yResult | null; images: RenderedImage[]; scripts: string[] }> {
   const [mobile, desktop] = await Promise.all([run(url, "mobile"), run(url, "desktop")]);
-  if (!mobile.lab && !desktop.lab) return { vitals: null, shot: null, a11y: null, images: [] };
+  if (!mobile.lab && !desktop.lab) return { vitals: null, shot: null, a11y: null, images: [], scripts: [] };
   return {
     vitals: { mobile: mobile.lab, desktop: desktop.lab, field: mobile.field ?? desktop.field, weight: mobile.weight ?? desktop.weight, a11y: mobile.a11y?.score ?? null },
     shot: mobile.shot ?? desktop.shot,
     a11y: mobile.a11y,
     // Desktop usually loads more (fewer lazy images held back on a wider screen).
     images: desktop.images.length > mobile.images.length ? desktop.images : mobile.images,
+    scripts: [...new Set([...desktop.scripts, ...mobile.scripts])].slice(0, 40),
   };
 }
 

@@ -10,6 +10,11 @@ import { TONE, ToolIcon } from "../icons";
 import { ToolView } from "../tool-view";
 import { ToolSample } from "../samples";
 import { ToolSteps } from "../tool-steps";
+import { TOOL_ANSWERS } from "../../answers";
+import { QuickAnswer, TopicLinks } from "../../seo-bits";
+import { featuresForTool, postsForTool } from "../../topics";
+import { SITE_URL } from "../../site-config";
+import { fitTitle } from "../../counts";
 
 const STEPS: Record<"checker" | "generator", [string, string][]> = {
   checker: [
@@ -51,7 +56,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const t = TOOLS_BY_SLUG.get((await params).slug as ToolSlug);
   if (!t) return {};
   return {
-    title: t.title,
+    title: fitTitle(t.title),
     description: t.description,
     alternates: { canonical: `/tools/${t.slug}` },
     openGraph: { title: t.title, description: t.description, url: `/tools/${t.slug}` },
@@ -62,10 +67,29 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
   const t = TOOLS_BY_SLUG.get((await params).slug as ToolSlug);
   if (!t) notFound();
   const tone = TONE[t.category];
+  const answer = TOOL_ANSWERS[t.slug];
+  const posts = postsForTool(t.slug);
+  const features = featuresForTool(t.slug);
   return (
     <>
       <JsonLd data={crumbLd([["Home", "/"], ["Free tools", "/tools"], [t.name, `/tools/${t.slug}`]])} />
       <JsonLd data={faqLd(t.faq)} />
+      <JsonLd
+        data={{
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          name: t.name,
+          description: answer ?? t.description,
+          url: `${SITE_URL}/tools/${t.slug}`,
+          applicationCategory: "BusinessApplication",
+          applicationSubCategory: t.category,
+          operatingSystem: "Any (web browser)",
+          browserRequirements: "Requires JavaScript",
+          isAccessibleForFree: true,
+          offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+          provider: { "@type": "Organization", name: "Pagelyt", url: SITE_URL },
+        }}
+      />
       <SiteNav />
       <main>
         <PageHero h1={t.h1} lead={t.lead}>
@@ -76,8 +100,9 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
             <span className="thero-ic"><ToolIcon slug={t.slug} size={28} /></span>
             <span className="thero-chip">{t.category}</span>
             <span className="thero-chip plain">{t.kind === "checker" ? "Checker" : "Generator"}</span>
-            <span className="thero-chip plain">{t.paid ? "Paid plans" : "Free"}</span>
+            <span className="thero-chip plain">Free</span>
           </div>
+          <QuickAnswer text={answer} label="What it does and how it helps" />
         </PageHero>
         <section className="sec tool-sec" aria-label={t.name}>
           <div className="container">
@@ -142,6 +167,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
           </div>
         </section>
         {hasGoogleNote(t.slug) && <GoogleStrip slug={t.slug} />}
+        <TopicLinks features={features} posts={posts} title="Learn more on this topic" lead="The full scan checks this and much more. The guides explain the topic step by step." />
         <CtaBand title="Want the full picture?" text="This tool checks one thing. A free Pagelyt scan checks speed, SEO, AI readiness, security and more, and tells you what to fix first." />
       </main>
       <SiteFooter />

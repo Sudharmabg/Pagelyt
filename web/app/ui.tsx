@@ -1,3 +1,4 @@
+import { AREA_COUNT, AREA_NAMES, capWords } from "./counts";
 export type Tone = "good" | "warn" | "bad";
 export const tone = (s: number): Tone => (s >= 80 ? "good" : s >= 50 ? "warn" : "bad");
 const toneVar = { good: "var(--good)", warn: "var(--warn)", bad: "var(--bad)" };
@@ -222,40 +223,153 @@ export function PerfMock() {
   );
 }
 
-export function SeoGeoMock() {
+export function SeoMock() {
   return (
     <div data-ui className="mock">
-      <Top title="SEO and GEO" sub="42 pages crawled" pill={["info", "2 scores"]} />
-      <div className="mk-grid c2">
+      <Top title="Technical SEO" sub="42 pages crawled" pill={["warn", "5 issues"]} />
+      <div className="mk-grid c3">
         <div className="tile"><div className="k">SEO score</div><div className="v good-t">82</div></div>
-        <div className="tile"><div className="k">GEO readiness</div><div className="v warn-t">68</div></div>
+        <div className="tile"><div className="k">Pages</div><div className="v">42</div></div>
+        <div className="tile"><div className="k">Broken links</div><div className="v bad-t">2</div></div>
       </div>
       <div style={{ marginTop: 12 }}>
+        <Row t="4 pages share the same title" p={["bad", "High"]} />
         <Row t="3 pages missing meta descriptions" p={["warn", "Medium"]} />
         <Row t="2 broken internal links" p={["bad", "High"]} />
         <Row t="Sitemap and robots.txt found" p={["good", "Pass"]} />
-        <Row t="AI crawlers can read your pages" p={["good", "Pass"]} />
+        <Row t="Canonical URLs set" p={["good", "Pass"]} />
+      </div>
+    </div>
+  );
+}
+
+export function GeoMock() {
+  return (
+    <div data-ui className="mock">
+      <Top title="GEO readiness" sub="AI search and assistants" pill={["warn", "68"]} />
+      <div className="mk-grid c2">
+        <div className="tile"><div className="k">AI crawlers allowed</div><div className="v good-t">4/5</div></div>
+        <div className="tile"><div className="k">Schema types</div><div className="v warn-t">2</div></div>
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <Row t="GPTBot and ClaudeBot can read your pages" p={["good", "Pass"]} />
+        <Row t="Google-Extended blocked in robots.txt" p={["warn", "Check"]} />
         <Row t="Structured data on 3 of 8 page types" p={["warn", "Partial"]} />
+        <Row t="No FAQ content to quote" p={["warn", "Medium"]} />
         <Row t="No llms.txt file" p={["mute", "Optional"]} />
       </div>
     </div>
   );
 }
 
-export function SecA11yMock() {
+export function SecurityMock() {
   return (
     <div data-ui className="mock">
-      <Top title="Security and accessibility" sub="Publicly observable checks" pill={["warn", "2 areas"]} />
-      <div className="mk-grid c2">
-        <div className="tile"><div className="k">Security</div><div className="v warn-t">61</div></div>
-        <div className="tile"><div className="k">Accessibility</div><div className="v good-t">87</div></div>
+      <Top title="Security" sub="Publicly observable checks" pill={["warn", "61"]} />
+      <div className="mk-grid c3">
+        <div className="tile"><div className="k">Headers</div><div className="v warn-t">3/7</div></div>
+        <div className="tile"><div className="k">TLS</div><div className="v good-t">1.3</div></div>
+        <div className="tile"><div className="k">Cert days</div><div className="v">62</div></div>
       </div>
       <div style={{ marginTop: 12 }}>
         <Row t="Content-Security-Policy missing" p={["bad", "High"]} />
         <Row t="Strict-Transport-Security set" p={["good", "Pass"]} />
-        <Row t="6 images without alt text" p={["warn", "Medium"]} />
-        <Row t="2 form fields missing labels" p={["bad", "High"]} />
-        <Row t="Text contrast meets AA" p={["good", "Pass"]} />
+        <Row t="/.git/config is public" p={["bad", "Critical"]} />
+        <Row t="No security.txt contact" p={["mute", "Low"]} />
+      </div>
+    </div>
+  );
+}
+
+export function A11yMock() {
+  return (
+    <div data-ui className="mock">
+      <Top title="Accessibility" sub="HTML and Lighthouse audits" pill={["good", "87"]} />
+      <div className="mk-grid c2">
+        <div className="tile"><div className="k">Accessibility</div><div className="v good-t">87</div></div>
+        <div className="tile"><div className="k">WCAG rules failing</div><div className="v bad-t">4</div></div>
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <Row t="6 images without alt text" p={["warn", "1.1.1 · A"]} />
+        <Row t="2 form fields missing labels" p={["bad", "3.3.2 · A"]} />
+        <Row t="Low contrast on footer links" p={["warn", "1.4.3 · AA"]} />
+        <Row t="Page language set" p={["good", "Pass"]} />
+      </div>
+    </div>
+  );
+}
+
+export function DomainMock() {
+  return (
+    <div data-ui className="mock">
+      <Top title="Domain & email" sub="DNS, SPF, DKIM, DMARC" pill={["warn", "70"]} />
+      <div className="mk-grid c3">
+        <div className="tile"><div className="k">Expires in</div><div className="v good-t">281 d</div></div>
+        <div className="tile"><div className="k">Nameservers</div><div className="v">2</div></div>
+        <div className="tile"><div className="k">DMARC</div><div className="v warn-t">none</div></div>
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <Row t="SPF record found" p={["good", "Pass"]} />
+        <Row t="DKIM key at google._domainkey" p={["good", "Pass"]} />
+        <Row t="DMARC policy is p=none" p={["warn", "Medium"]} />
+        <Row t="No CAA record" p={["mute", "Low"]} />
+      </div>
+    </div>
+  );
+}
+
+export function PrivacyMock() {
+  return (
+    <div data-ui className="mock">
+      <Top title="Privacy & compliance" sub="Homepage checks" pill={["warn", "79"]} />
+      <div className="mk-grid c2">
+        <div className="tile"><div className="k">Trackers</div><div className="v warn-t">3</div></div>
+        <div className="tile"><div className="k">Script hosts</div><div className="v">9</div></div>
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <Row t="Privacy policy linked" p={["good", "Pass"]} />
+        <Row t="No terms of use link" p={["warn", "Medium"]} />
+        <Row t="Trackers load with no cookie consent tool" p={["bad", "High"]} />
+        <Row t="Forms use HTTPS" p={["good", "Pass"]} />
+      </div>
+    </div>
+  );
+}
+
+export function WcagMock() {
+  return (
+    <div data-ui className="mock">
+      <Top title="WCAG 2.2 checklist" sub="Level A and AA, 55 rules" pill={["bad", "4 failing"]} />
+      <div className="mk-grid c3">
+        <div className="tile"><div className="k">Failing</div><div className="v bad-t">4</div></div>
+        <div className="tile"><div className="k">By hand</div><div className="v">38</div></div>
+        <div className="tile"><div className="k">No issues</div><div className="v good-t">13</div></div>
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <Row t="1.4.3 Contrast (Minimum)" p={["bad", "AA"]} />
+        <Row t="2.4.4 Link Purpose (In Context)" p={["bad", "A"]} />
+        <Row t="1.2.2 Captions (Prerecorded)" p={["mute", "By hand"]} />
+        <Row t="3.1.1 Language of Page" p={["good", "No issues"]} />
+        <Row t="2.4.7 Focus Visible" p={["good", "No issues"]} />
+      </div>
+    </div>
+  );
+}
+
+export function CodeMock() {
+  return (
+    <div data-ui className="mock">
+      <Top title="Code security" sub="What we read from your site" pill={["bad", "3 issues"]} />
+      <div className="mk-grid c3">
+        <div className="tile"><div className="k">Files read</div><div className="v">4</div></div>
+        <div className="tile"><div className="k">Libraries</div><div className="v">4</div></div>
+        <div className="tile"><div className="k">Known flaws</div><div className="v bad-t">2</div></div>
+      </div>
+      <div style={{ marginTop: 12 }}>
+        <Row t="jQuery 3.4.1 (CVE-2020-11022)" p={["bad", "Upgrade"]} />
+        <Row t="Stripe secret key in main.js" p={["bad", "Revoke"]} />
+        <Row t="Source map is public" p={["warn", "Medium"]} />
+        <Row t="Bootstrap 4.6.2" p={["good", "No known flaws"]} />
       </div>
     </div>
   );
@@ -369,10 +483,11 @@ export function DiscoverMock() {
 }
 
 export function AnalyseMock() {
-  const m: [string, string][] = [["Website health", "done"], ["Performance", "done"], ["SEO", "done"], ["GEO readiness", "run"], ["Security", "wait"], ["Accessibility", "wait"]];
+  // Every scored area, in report order: the first four done, the fifth running, the rest queued.
+  const m: [string, string][] = AREA_NAMES.map((n, i) => [n, i < 4 ? "done" : i === 4 ? "run" : "wait"]);
   return (
     <div data-ui className="mock">
-      <Top title="Analysing" sub="Six dimensions, one score" pill={["info", "4 of 6"]} />
+      <Top title="Analysing" sub={`${capWords(AREA_COUNT)} areas, one score`} pill={["info", `5 of ${AREA_COUNT}`]} />
       {m.map(([n, s]) => (
         <div className="lrow" key={n}>
           <span>{n}</span>

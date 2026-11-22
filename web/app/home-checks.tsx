@@ -1,23 +1,25 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, ArrowRight, Bot, ChartLine, Gauge, Lightbulb, Plug, ShieldCheck, Swords } from "lucide-react";
+import { Accessibility, Activity, ArrowRight, Bot, CodeXml, Cookie, Gauge, MailCheck, Search, ShieldCheck } from "lucide-react";
 import { useEffect, useRef, useState, type CSSProperties, type ElementType, type KeyboardEvent } from "react";
 import { FEATURES } from "./features-data";
 
 /* Per area: icon, colour pair, and the sample result shown in the preview card (illustrative, not real data). */
-const AREAS: Record<string, { icon: ElementType; c1: string; c2: string; score: number; stat: string; finding: string }> = {
+const AREAS: Record<string, { icon: ElementType; c1: string; c2: string; score: number; stat: string; finding: string; tag?: string }> = {
   "website-health": { icon: Activity, c1: "#14a58e", c2: "#5ee0c4", score: 92, stat: "99.98% uptime", finding: "3 redirect chains slow down /blog" },
   performance: { icon: Gauge, c1: "#f08c1a", c2: "#ffc46b", score: 74, stat: "LCP 2.9 s on phones", finding: "Hero image is 2.4 MB: serve WebP" },
-  "seo-geo": { icon: Bot, c1: "#3b82f6", c2: "#8cc1ff", score: 82, stat: "Cited by 2 of 4 AI assistants", finding: "No FAQ schema on /pricing" },
-  "security-accessibility": { icon: ShieldCheck, c1: "#22a35a", c2: "#7ee0a3", score: 61, stat: "4 missing security headers", finding: "12 images have no alt text" },
-  "competitor-intelligence": { icon: Swords, c1: "#e0457b", c2: "#ff9cbf", score: 68, stat: "You vs 3 competitors", finding: "Rival loads 1.2 s faster on mobile" },
-  "ai-recommendations": { icon: Lightbulb, c1: "#9b5cf0", c2: "#d1b3ff", score: 87, stat: "18 fixes, ranked by impact", finding: "Fix #1 could add +9 to your score" },
-  "monitoring-reports": { icon: ChartLine, c1: "#06a5c4", c2: "#7fe3f5", score: 84, stat: "Rescanned every week", finding: "Score up 12 points in 4 weeks" },
-  "google-integrations": { icon: Plug, c1: "#e8a400", c2: "#ffd766", score: 79, stat: "1,240 clicks on affected pages", finding: "/pricing lost 31% of Google clicks" },
+  seo: { icon: Search, c1: "#3b82f6", c2: "#8cc1ff", score: 82, stat: "42 pages crawled", finding: "4 pages share the same title" },
+  geo: { icon: Bot, c1: "#7c5cf0", c2: "#c3b1ff", score: 68, stat: "4 of 5 AI crawlers allowed", finding: "No FAQ schema on /pricing" },
+  security: { icon: ShieldCheck, c1: "#22a35a", c2: "#7ee0a3", score: 61, stat: "4 missing security headers", finding: "/.git/config is publicly readable" },
+  accessibility: { icon: Accessibility, c1: "#0e8fd6", c2: "#7cc9f5", score: 87, stat: "4 WCAG rules failing", finding: "12 images have no alt text", tag: "WCAG 1.1.1 · A" },
+  "domain-email": { icon: MailCheck, c1: "#d9622b", c2: "#ffad85", score: 70, stat: "Domain renews in 281 days", finding: "DMARC is p=none: spoofed mail gets through" },
+  privacy: { icon: Cookie, c1: "#b0861a", c2: "#f1cf6e", score: 79, stat: "3 trackers on the homepage", finding: "Trackers load before cookie consent" },
+  "code-security": { icon: CodeXml, c1: "#3f3cbb", c2: "#8fa8ff", score: 86, stat: "4 files read, 4 libraries", finding: "jQuery 3.4.1 has known vulnerabilities", tag: "CVE-2020-11022" },
 };
 
-const LIST = FEATURES.filter((f) => AREAS[f.slug]);
+/** One tab per scored area: the feature pages that carry an `area`. */
+const LIST = FEATURES.filter((f) => f.area && AREAS[f.slug]);
 const TOTAL_CHECKS = LIST.reduce((n, f) => n + f.checks.length, 0);
 const STEP_MS = 6000;
 
@@ -139,6 +141,7 @@ export function HomeChecks() {
             </div>
             <p className="hc-stat">{a.stat}</p>
             <p className="hc-find"><span aria-hidden="true">!</span>{a.finding}</p>
+            {a.tag && <p className="hc-tag">{a.tag}</p>}
           </figure>
         </div>
       </div>

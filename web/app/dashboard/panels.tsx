@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "../toast";
+import { criteriaOf, wcagCsvRows, wcagSummary } from "@/lib/scan/wcag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/avara/ToggleGroupBlock";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Findings } from "../findings";
@@ -26,12 +27,26 @@ const SEV: { key: Severity | "all"; label: string }[] = [
   { key: "low", label: "Minor" },
 ];
 
+/* WCAG filter on All findings: findings failing a Level A or Level AA criterion, or best-practice accessibility checks. */
+type WcagFilter = "any" | "A" | "AA" | "bp";
+const WCAG_FILTERS: { key: Exclude<WcagFilter, "any">; label: string }[] = [
+  { key: "A", label: "Level A" },
+  { key: "AA", label: "Level AA" },
+  { key: "bp", label: "Best practice" },
+];
+const wcagMatch = (f: Finding, k: Exclude<WcagFilter, "any">) => {
+  if (f.module !== "accessibility") return false;
+  const cs = criteriaOf(f);
+  return k === "bp" ? cs.length === 0 : cs.some((c) => c.level === k);
+};
+
 export function FindingsExplorer({ findings, fixed, onToggleFixed, gains, traffic, visits, spend }: { findings: Finding[]; fixed: Set<string>; onToggleFixed?: (k: string) => void; gains?: Map<string, number>; traffic?: Map<string, Traffic>; visits?: Map<string, Visits>; spend?: Map<string, AdSpend> }) {
   const [bySize, setBySize] = useState(false);
   const [byClicks, setByClicks] = useState(false);
   const [sev, setSev] = useState<Severity | "all">("all");
   const [q, setQ] = useState("");
   const [hideFixed, setHideFixed] = useState(false);
+  const [wc, setWc] = useState<WcagFilter>("any");
   const box = useRef<HTMLInputElement>(null);
 
   const shown = useMemo(() => {
@@ -40,11 +55,14 @@ export function FindingsExplorer({ findings, fixed, onToggleFixed, gains, traffi
     const list = byClicks && traffic ? [...findings].sort((a, b) => clicks(b) - clicks(a)) : bySize ? [...findings].sort((a, b) => (gains?.get(findingKey(b)) ?? 0) - (gains?.get(findingKey(a)) ?? 0)) : findings;
     return list.filter((f) => {
       if (sev !== "all" && f.severity !== sev) return false;
+      if (wc !== "any" && !wcagMatch(f, wc)) return false;
       if (hideFixed && fixed.has(findingKey(f))) return false;
       if (!needle) return true;
       return `${f.title} ${f.why} ${f.fix} ${MODULE_NAMES[f.module]}`.toLowerCase().includes(needle);
     });
-  }, [findings, sev, q, hideFixed, fixed, bySize, gains, byClicks, traffic]);
+  }, [findings, sev, q, hideFixed, fixed, bySize, gains, byClicks, traffic, wc]);
+  const wcCount = (k: Exclude<WcagFilter, "any">) => findings.filter((f) => wcagMatch(f, k)).length;
+  const hasA11y = findings.some((f) => f.module === "accessibility");
 
   const count = (k: Severity | "all") => (k === "all" ? findings.length : findings.filter((f) => f.severity === k).length);
 
@@ -99,6 +117,16 @@ export function FindingsExplorer({ findings, fixed, onToggleFixed, gains, traffi
           )}
         </div>
       </div>
+      {hasA11y && (
+        <div className="fnd-wcag" role="group" aria-label="Filter by WCAG 2.2 level">
+          <span className="fnd-wcag-l">WCAG 2.2</span>
+          {WCAG_FILTERS.map((w) => (
+            <button key={w.key} type="button" className={`wf-${w.key}`} aria-pressed={wc === w.key} disabled={wcCount(w.key) === 0 && wc !== w.key} onClick={() => setWc((v) => (v === w.key ? "any" : w.key))}>
+              {w.label} <span className="fnd-seg-n">{wcCount(w.key)}</span>
+            </button>
+          ))}
+        </div>
+      )}
       <p className="fnd-result" aria-live="polite">
         Showing {shown.length} of {findings.length}
       </p>
@@ -130,7 +158,7 @@ function download(name: string, mime: string, body: string) {
 
 /* The Export modal's tiles: PDF, the fix checklist and raw data. Sharing has its own modal in the dashboard. */
 export function ExportTiles({ scan, findings, fixed, pdfLabel, pdfText, onPdf, pdfBusy }: { scan: StoredScan; findings: Finding[]; fixed: Set<string>; pdfLabel: string; pdfText: string; onPdf: () => void; pdfBusy?: boolean }) {
-  const [done, setDone] = useState<"" | "copy" | "csv" | "json" | "copy-fail">("");
+  const [done, setDone] = useState<"" | "copy" | "csv" | "json" | "wcag" | "copy-fail">("");
   const flash = (k: typeof done) => {
     setDone(k);
     window.setTimeout(() => setDone(""), 2200);
@@ -162,7 +190,7 @@ export function ExportTiles({ scan, findings, fixed, pdfLabel, pdfText, onPdf, p
     ].join("\n");
   const base = `pagelyt-${scan.host}-${scan.scannedAt.slice(0, 10)}`;
 
-  const run = async (kind: "copy" | "csv" | "json") => {
+  const run = async (kind: "copy" | "csv" | "json" | "wcag") => {
     if (kind === "copy") {
       try {
         await navigator.clipboard.writeText(checklist());
@@ -171,8 +199,13 @@ export function ExportTiles({ scan, findings, fixed, pdfLabel, pdfText, onPdf, p
       } catch {
         flash("copy-fail");
       }
+    } else if (kind === "wcag") {
+      // Every WCAG 2.2 A and AA criterion with its status, from the issues still open.
+      const rows = wcagCsvRows(wcagSummary(all.filter((f) => !fixed.has(findingKey(f))), scan.wcag?.tested));
+      download(`${base}-wcag-2.2.csv`, "text/csv", rows.map((r) => r.map(csvCell).join(",")).join("\n"));
+      flash("wcag");
     } else if (kind === "csv") {
-      const rows = [["#", "Priority", "Area", "Issue", "Why it matters", "How to fix", "Affected pages", "Evidence", "Fixed"], ...all.map((f, i) => [String(i + 1), sevName(f.severity), MODULE_NAMES[f.module], f.title, f.why, f.fix, String(f.pages?.rows.length ?? ""), evidenceText(f), fixed.has(findingKey(f)) ? "yes" : "no"])];
+      const rows = [["#", "Priority", "Area", "Issue", "WCAG 2.2", "Why it matters", "How to fix", "Affected pages", "Evidence", "Fixed"], ...all.map((f, i) => [String(i + 1), sevName(f.severity), MODULE_NAMES[f.module], f.title, criteriaOf(f).map((c) => `${c.id} (${c.level})`).join("; ") || (f.module === "accessibility" ? "Best practice" : ""), f.why, f.fix, String(f.pages?.rows.length ?? ""), evidenceText(f), fixed.has(findingKey(f)) ? "yes" : "no"])];
       download(`${base}.csv`, "text/csv", rows.map((r) => r.map(csvCell).join(",")).join("\n"));
       flash("csv");
     } else {
@@ -187,6 +220,7 @@ export function ExportTiles({ scan, findings, fixed, pdfLabel, pdfText, onPdf, p
       <ExportCard kind="pdf" icon="pdf" tag="Branded" title={pdfLabel} text={pdfText} cta={pdfBusy ? "Preparing…" : "Get PDF"} onClick={onPdf} busy={pdfBusy} score={scan.overall} />
       <ExportCard kind="list" icon="check" tag="To-do list" title="Copy fix checklist" text={`All ${findings.length} issues (${open} still open) with where each was found, ready for Notion, Trello or an email.`} cta="Copy" onClick={() => void run("copy")} done={done === "copy" ? "Copied to your clipboard" : done === "copy-fail" ? "Your browser blocked copying" : undefined} />
       <ExportCard kind="csv" icon="table" tag="Spreadsheet" title="Download CSV" text={`All ${findings.length} issues with priority, fix and every affected page, for Excel or Google Sheets.`} cta="Download .csv" onClick={() => void run("csv")} done={done === "csv" ? "Downloaded" : undefined} />
+      <ExportCard kind="csv" icon="accessibility" tag="WCAG 2.2" title="WCAG checklist (CSV)" text="All 55 Level A and AA criteria with their status (failing, no issues found, check by hand) and the issues behind each. Ready to hand to a client or developer." cta="Download .csv" onClick={() => void run("wcag")} done={done === "wcag" ? "Downloaded" : undefined} />
       <ExportCard kind="json" icon="code" tag="Developers" title="Download JSON" text={`The full raw report with all ${findings.length} issues and a summary, for your own tools.`} cta="Download .json" onClick={() => void run("json")} done={done === "json" ? "Downloaded" : undefined} />
     </>
   );

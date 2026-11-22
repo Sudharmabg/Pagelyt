@@ -3,6 +3,8 @@ import { BowlArcs } from "./art";
 import { AuthLink } from "./auth-link";
 import { FEATURES } from "./features-data";
 import { NavMobile } from "./nav-mobile";
+import { FeaturesMenu, type MenuFeature } from "./features-menu";
+import { FREE_TOOLS } from "./home-data";
 import { MainCta } from "./main-cta";
 import { CONTACT_EMAIL, PRICING_ON } from "./site-config";
 import { SignInLink } from "@/app/sign-in-modal";
@@ -15,12 +17,9 @@ const MENU: [string, string][] = [
   ["Blog", "/blog"],
 ].filter(([, href]) => PRICING_ON || href !== "/pricing") as [string, string][];
 
-// Features menu: every feature, then the free tools.
-const FEATURE_ITEMS = [
-  { name: "All features", href: "/features" },
-  ...FEATURES.map((f) => ({ name: f.name, href: `/features/${f.slug}` })),
-  { name: "Free tools", href: "/tools" },
-];
+// Features menu: every feature (Google data gets its own card on desktop), then the free tools.
+const MENU_FEATURES: MenuFeature[] = FEATURES.map(({ slug, name, short }) => ({ slug, name, short }));
+const GOOGLE = MENU_FEATURES.find((f) => f.slug === "google-integrations");
 
 export function SiteNav() {
   return (
@@ -31,21 +30,7 @@ export function SiteNav() {
           <img src="/logo.png" alt="Pagelyt" width={163} height={35} />
         </Link>
         <nav className="menu" aria-label="Main">
-          <div className="menu-dd">
-            <Link href="/features" aria-haspopup="true">
-              Features
-              <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
-                <path d="M2 3.5 5 6.5 8 3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </Link>
-            <div className="dd-panel">
-              {FEATURE_ITEMS.map((f) => (
-                <Link key={f.href} href={f.href}>
-                  {f.name}
-                </Link>
-              ))}
-            </div>
-          </div>
+          <FeaturesMenu features={MENU_FEATURES.filter((f) => f !== GOOGLE)} google={GOOGLE} tools={FREE_TOOLS.length} />
           {MENU.map(([n, h]) => (
             <Link key={n} href={h}>
               {n}
@@ -59,7 +44,8 @@ export function SiteNav() {
           <AuthLink />
           <MainCta className="btn sm nav-cta" label="Analyse a website" signedLabel="Dashboard" signedClassName="is-dash" />
           <NavMobile
-            features={FEATURE_ITEMS}
+            features={MENU_FEATURES}
+            tools={FREE_TOOLS.length}
             links={[...MENU.map(([name, href]) => ({ name, href })), { name: "FAQ", href: "/faq" }]}
           />
         </div>

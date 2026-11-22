@@ -9,6 +9,16 @@ import { SiteFooter, SiteNav } from "../../site-chrome";
 import { SITE_URL } from "../../site-config";
 import { Body, toc } from "../rich";
 import { PostToc } from "../toc";
+import { fitTitle } from "../../counts";
+import { POST_ANSWERS } from "../../answers";
+import { QuickAnswer, TopicLinks } from "../../seo-bits";
+import { POST_FOCUS, featuresForPost, postsForFeature, toolsForPost } from "../../topics";
+
+/** The post's focus keyword first, then its other keywords without repeats. */
+const keywordsFor = (slug: string, kw: string[]) => {
+  const all = POST_FOCUS[slug] ? [POST_FOCUS[slug], ...kw] : kw;
+  return all.filter((k, i) => all.findIndex((x) => x.toLowerCase() === k.toLowerCase()) === i);
+};
 
 export function generateStaticParams() {
   return POSTS.map((p) => ({ slug: p.slug }));
@@ -19,9 +29,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const p = postBySlug(slug);
   if (!p) return {};
   return {
-    title: p.title,
+    title: fitTitle(p.title),
     description: p.description,
-    keywords: p.keywords,
+    keywords: keywordsFor(p.slug, p.keywords),
     authors: [{ name: AUTHOR }],
     alternates: { canonical: `/blog/${p.slug}` },
     openGraph: { type: "article", title: p.title, description: p.description, url: `/blog/${p.slug}`, authors: [AUTHOR] },
@@ -32,8 +42,17 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const p = postBySlug(slug);
   if (!p) notFound();
-  const related = p.related.map(postBySlug).filter((x): x is NonNullable<typeof x> => !!x);
   const contents = toc(p.body);
+  const answer = POST_ANSWERS[p.slug];
+  const focus = POST_FOCUS[p.slug];
+  const features = featuresForPost(p.slug);
+  // The post's own picks first, then other posts on its main topic, so every post links to its neighbours.
+  const related = [...new Set([...p.related, ...(features[0] ? postsForFeature(features[0]) : [])])]
+    .filter((s) => s !== p.slug)
+    .slice(0, 4)
+    .map(postBySlug)
+    .filter((x): x is NonNullable<typeof x> => !!x);
+  const tools = toolsForPost(p.slug);
 
   return (
     <>
@@ -42,14 +61,26 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         data={{
           "@context": "https://schema.org",
           "@type": "BlogPosting",
-          headline: p.h1,
+          headline: p.title,
+          alternativeHeadline: p.h1,
           description: p.description,
-          keywords: p.keywords.join(", "),
+          ...(answer ? { abstract: answer } : {}),
+          keywords: keywordsFor(p.slug, p.keywords).join(", "),
+          ...(focus ? { about: { "@type": "Thing", name: focus } } : {}),
+          inLanguage: "en",
+          isAccessibleForFree: true,
+          url: `${SITE_URL}/blog/${p.slug}`,
+          isPartOf: { "@type": "Blog", name: "Pagelyt blog", url: `${SITE_URL}/blog` },
+          mentions: [
+            ...features.map((f) => ({ "@type": "WebPage", url: `${SITE_URL}/features/${f}` })),
+            ...tools.map((t) => ({ "@type": "WebApplication", url: `${SITE_URL}/tools/${t}` })),
+          ],
+          relatedLink: related.map((r) => `${SITE_URL}/blog/${r.slug}`),
           articleSection: p.tag,
           author: { "@type": "Person", name: AUTHOR },
           publisher: { "@type": "Organization", name: "Pagelyt", logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.png` } },
           mainEntityOfPage: `${SITE_URL}/blog/${p.slug}`,
-          image: `${SITE_URL}/assets/use-upcoming-blog-post.webp`,
+          image: `${SITE_URL}/blog/${p.slug}/opengraph-image`,
         }}
       />
       <JsonLd data={faqLd(p.faq)} />
@@ -59,6 +90,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           <p className="post-byline">
             <span className="post-tag">{p.tag}</span> By {AUTHOR} · {readMins(p)} min read
           </p>
+          <QuickAnswer text={answer} label="The short answer" />
         </PageHero>
 
         <section className="sec">
@@ -84,6 +116,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
             </article>
           </div>
         </section>
+
+        <TopicLinks features={features} tools={tools} title="Check it on your own site" lead="Pagelyt checks this in every scan, and the free tools below check one thing in seconds." />
 
         {related.length > 0 && (
           <section className="sec ice" aria-labelledby="rel-h">

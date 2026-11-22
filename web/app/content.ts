@@ -1,4 +1,5 @@
 import { TOOL_LIST } from "./tools/catalog";
+import { AREA_COUNT } from "./counts";
 
 export const NAV = ["Product", "Features", "How It Works", "Pricing", "Resources", "About"];
 
@@ -430,11 +431,11 @@ export const FAQS: [string, string][] = [
   ],
   [
     "How is Pagelyt different from other SEO tools?",
-    "Most SEO tools give you raw data for one area. Pagelyt checks speed, SEO, AI search, security and accessibility in one scan, then explains each issue in plain English and ranks the fixes by impact.",
+    `Most SEO tools give you raw data for one area. Pagelyt checks ${AREA_COUNT} areas in one scan, from speed, SEO and AI search to security, accessibility, email records and code, then explains each issue in plain English and ranks the fixes by impact.`,
   ],
   [
     "Are the free SEO tools really free?",
-    `Yes. ${TOOL_LIST.filter((t) => !t.paid).length} tools, including the llms.txt generator, AI bot checker and schema markup generator, are free with a Pagelyt account. Tools that render pages in a real browser need a paid plan.`,
+    `Yes. All ${TOOL_LIST.length} tools, including the llms.txt generator, AI bot checker and schema markup generator, are free with a Pagelyt account. Tools that open pages in a real browser are rate limited to keep them fast.`,
   ],
   [
     "Is the initial website analysis free?",

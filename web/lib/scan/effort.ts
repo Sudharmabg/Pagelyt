@@ -16,6 +16,7 @@ const E: Record<string, Effort> = {
   "no-security-txt": 1, "security-txt-expired": 1, "no-llms": 1, "no-robots": 1, "no-sitemap": 1, "ai-blocked": 1, noindex: 1,
   "no-viewport": 1, "no-lang": 1, "a11y-lang": 1, "zoom-blocked": 1, "no-title": 1, "a11y-title": 1, "no-description": 1, "no-canonical": 1, "no-og": 1,
   "exposed-env": 1, "exposed-git": 1, "exposed-wpconfig": 1, "exposed-phpinfo": 1, "exposed-svn": 1, "exposed-backup": 1, "exposed-dsstore": 1, "exposed-server-status": 1, "exposed-composer": 1,
+  "code-no-sri": 1, "code-form-http": 1, "code-source-map": 1, "code-secret": 2,
   "hreflang-no-default": 1, "pagination-links": 1, "redirect-chain": 1, "positive-tabindex": 1, "no-skip-link": 1, "no-terms": 2,
   // an hour or two
   "title-length": 2, "description-length": 2, "no-h1": 2, "multi-h1": 2, "img-alt-missing": 2, "a11y-alt": 2, "form-labels": 2, "empty-links": 2, "empty-buttons": 2,
@@ -24,9 +25,10 @@ const E: Record<string, Effort> = {
   "broken-links": 2, "crawl-broken-pages": 2, "crawl-missing-titles": 2, "crawl-missing-descriptions": 2, "crawl-missing-canonicals": 2, "crawl-missing-h1": 2, "crawl-duplicate-titles": 2,
   "crawl-duplicate-descriptions": 2, "crawl-noindex-in-sitemap": 1, "crawl-orphan-pages": 2, "crawl-schema-incomplete": 2, "few-internal-links": 2, "no-subheadings": 2, "no-faq": 2,
   "no-privacy-policy": 2, "no-cookie-consent": 2, "mixed-content": 2, "no-lazy": 2, "img-dimensions": 2, "img-oversized": 2, "img-legacy-format": 2, "img-heavy-gif": 2, "img-savings": 2,
+  "code-vuln-lib": 2, "code-risky": 2, "code-dom-xss": 2,
   "render-blocking": 2, "many-third-party": 2, "stale-content": 2, "defaced": 2, "spam-injection": 2, "status-4xx": 2,
   // a project
-  csp: 3, "no-https": 2, "insecure-form": 2, "slow-response": 3, "heavy-html": 3, "page-weight": 3, "lh-score": 3, lcp: 3, cls: 3, tbt: 3, inp: 3, "thin-text": 3, "crawl-thin-content": 3, "status-5xx": 3,
+  "code-eol-lib": 3, csp: 3, "no-https": 2, "insecure-form": 2, "slow-response": 3, "heavy-html": 3, "page-weight": 3, "lh-score": 3, lcp: 3, cls: 3, tbt: 3, inp: 3, "thin-text": 3, "crawl-thin-content": 3, "status-5xx": 3,
 };
 
 export const effortOf = (f: Finding): Effort => E[f.id] ?? 2;

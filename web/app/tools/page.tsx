@@ -32,7 +32,7 @@ export default async function ToolsPage({ searchParams }: { searchParams: Promis
       <main>
         <PageHero h1="Free tools for a healthier website." lead="Quick checkers and generators for search engines, AI assistants and security. Free with a Pagelyt account.">
           <ul className="tstats" aria-label="At a glance">
-            <li><b>{TOOL_LIST.filter((t) => !t.paid).length}</b><span>free tools</span></li>
+            <li><b>{TOOL_LIST.length}</b><span>free tools</span></li>
             <li><b>{CATEGORIES.length}</b><span>categories</span></li>
             <li><b>0</b><span>installs</span></li>
             <li><b>1</b><span>account for all</span></li>

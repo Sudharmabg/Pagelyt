@@ -57,6 +57,9 @@ const nextConfig: NextConfig = {
       },
       // The analytics feature page became the Google integrations hub.
       { source: "/features/analytics-integrations", destination: "/features/google-integrations", permanent: true },
+      // One feature page per scored area: the combined pages split in two.
+      { source: "/features/seo-geo", destination: "/features/seo", permanent: true },
+      { source: "/features/security-accessibility", destination: "/features/security", permanent: true },
     ];
   },
   // Security headers on every page. (The Pagelyt scan checks for exactly these.)

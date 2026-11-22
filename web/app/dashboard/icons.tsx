@@ -40,6 +40,8 @@ const P: Record<ModuleKey, React.ReactNode> = {
       <path d="M8 11V8a4 4 0 0 1 8 0v3" />
     </>
   ),
+  // Shown via X.code (same key) in AreaIcon; kept so every area has an entry here.
+  code: <path d="M9 5c-2 0-2 1-2 3s-1 3-2.5 4C6 13 7 14 7 16s0 3 2 3M15 5c2 0 2 1 2 3s1 3 2.5 4C18 13 17 14 17 16s0 3-2 3" />,
 };
 
 /* Icons for the dashboard's other sections (overview, insights and the "Grow" tools). */
