@@ -1,0 +1,21 @@
+{
+  "slug": "2026-11-22-core-update",
+  "instagram": {
+    "type": "reel",
+    "media": [
+      "reel-voice.mp4"
+    ],
+    "cover": "cover.png",
+    "caption": "Google traffic dropped this week? Don't touch anything. Yet. 🛑📉\n\nGoogle's November core update has been rolling out since 10 Nov, and rankings bounce around until it's done.\n\n❌ Don't panic-edit: no mass rewrites, no deleting pages, no changing URLs.\n\n✅ Do this instead:\n1️⃣ Wait until the rollout finishes, then compare 2 weeks before vs 2 weeks after in Search Console\n2️⃣ Rule out your own site: an accidental noindex or a blocked page looks just like an update drop\n3️⃣ Check which pages actually lost clicks (the step most people skip)\n\nPagelyt does 2 and 3 in one free audit, with your Search Console data next to every fix.\n\n💬 Comment GOOGLE and we'll DM you our free Search Console setup guide.\n\nSave this 🔖 for the next update.\n\n#googleupdate #coreupdate #seo #seotips #googlesearchconsole #websitetraffic #smallbusinesstips #digitalmarketing #websiteaudit #websitetips #searchengineoptimization",
+    "firstComment": "Comment GOOGLE below 👇 and we'll DM you our free Search Console setup guide."
+  },
+  "linkedin": {
+    "type": "video",
+    "media": [
+      "reel-linkedin.mp4"
+    ],
+    "title": "Your client asks why traffic dropped. Here's your reply.",
+    "caption": "This week, a lot of agencies will get the same message from a client: \"Why did our Google traffic drop?\"\n\nMost likely it's Google's November core update, which started rolling out on 10 Nov and takes about two weeks.\n\nHere's a reply that keeps you calm and in control:\n\n→ Step 1. Rankings move during the rollout. We wait until it's finished before reading anything into the data, as Google recommends.\n→ Step 2. Meanwhile, we rule out technical causes: indexing, robots.txt, broken pages, speed. An accidental noindex looks exactly like an update drop.\n→ Step 3. Then we compare before and after, page by page, in Search Console.\n\nWhat we don't do: mass rewrites, deleting pages or changing URLs in a panic.\n\nPagelyt covers steps 2 and 3 in one report you can share with your client as a link. Free audit in the first comment 👇\n\nHow do you explain a core update to your clients?\n\n#SEO #GoogleUpdate #DigitalMarketing #SearchConsole #Agencies",
+    "firstComment": "Run a free audit (technical checks + Search Console data in one report): https://pagelyt.dev/?utm_source=linkedin&utm_medium=social&utm_campaign=core-update\n\nGoogle Search Console setup guide: https://pagelyt.dev/blog/google-search-console-setup-guide?utm_source=linkedin&utm_medium=social&utm_campaign=core-update\n\nAbout the update (Search Engine Journal): https://www.searchenginejournal.com/google-november-2026-core-update/596614/"
+  }
+}

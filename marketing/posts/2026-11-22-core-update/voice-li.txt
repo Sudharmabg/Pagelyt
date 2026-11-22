@@ -1,0 +1,8 @@
+# LinkedIn reel (agencies and freelancers). One line per scene, Neerja Expressive.
+This week, a client will send you this message.
+Most likely, it's Google's November core update, rolling out since the tenth.
+Here's a reply that keeps you calm, and in control.
+One. Rankings move during the rollout, so we wait until it's finished, as Google recommends.
+Two. Meanwhile, we rule out technical causes, like indexing, robots dot text, and broken pages.
+Three. Then we compare before and after, page by page, in Search Console.
+Page-light does steps two and three, in one report you can share with your client.

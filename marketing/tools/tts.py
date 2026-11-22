@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Make a reel's voiceover clips with word timings.
 
-    python3 marketing/tools/tts.py <post-folder> [--voice en-IN-NeerjaExpressiveNeural] [--rate +4%] [--only 2,5]
+    python3 marketing/tools/tts.py <post-folder> [--voice en-IN-NeerjaExpressiveNeural] [--rate +4%] [--only 2,5] [--script voice-li.txt --out voice-li]
 
 Reads <post-folder>/voice.txt (one line per scene; blank lines and lines starting with # are skipped) and writes:
   voice/v1.mp3 … vN.mp3   trimmed to the speech (ffmpeg)
@@ -15,7 +15,8 @@ import argparse, asyncio, json, os, re, subprocess, sys, tempfile
 import edge_tts
 
 # spoken words (lower case, no punctuation) → caption text
-DISPLAY = {"page-light": "Pagelyt", "page light dot dev": "pagelyt.dev", "page-light dot dev": "pagelyt.dev", "sixty-one percent": "61%"}
+DISPLAY = {"page-light": "Pagelyt", "page light dot dev": "pagelyt.dev", "page-light dot dev": "pagelyt.dev", "sixty-one percent": "61%",
+           "robots dot text": "robots.txt", "llms dot text": "llms.txt", "no-index": "noindex"}
 TICK = 1e7  # edge-tts offsets are in 100 ns units
 
 
@@ -74,15 +75,17 @@ def main():
     ap.add_argument("--rate", default="+4%")
     ap.add_argument("--only", default="", help="comma-separated clip numbers to regenerate")
     ap.add_argument("--show", action="append", default=[], help='extra caption mapping "spoken=shown"')
+    ap.add_argument("--script", default="voice.txt", help="script file inside the post folder")
+    ap.add_argument("--out", default="voice", help="output folder inside the post folder")
     a = ap.parse_args()
 
     rules = dict(DISPLAY)
     for s in a.show:
         k, _, v = s.partition("=")
         rules[norm(k)] = v
-    src = os.path.join(a.post, "voice.txt")
+    src = os.path.join(a.post, a.script)
     lines = [l.strip() for l in open(src, encoding="utf-8") if l.strip() and not l.lstrip().startswith("#")]
-    vdir = os.path.join(a.post, "voice")
+    vdir = os.path.join(a.post, a.out)
     os.makedirs(vdir, exist_ok=True)
     data_path = os.path.join(vdir, "words.js")
     old = []

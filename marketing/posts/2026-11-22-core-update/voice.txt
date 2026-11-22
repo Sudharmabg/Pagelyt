@@ -1,0 +1,8 @@
+# Instagram reel. One line per scene, Neerja Expressive. Phonetic spellings are mapped back for captions by marketing/tools/tts.py.
+Your Google traffic dropped this week? Don't touch anything. Yet.
+Google's core update is rolling out, and rankings bounce until it's done.
+So don't panic-edit. No rewrites, no deleting pages.
+One: wait until it's finished, then compare before and after.
+Two: rule out your own site. An accidental no-index looks just like an update drop.
+Three, the one most people skip: see which pages lost clicks. Page-light shows it next to every fix.
+Comment Google, and we'll send you our free Search Console guide.

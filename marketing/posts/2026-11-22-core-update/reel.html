@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Pagelyt reel: Google core update (Instagram)</title>
+<!-- 1080x1920, built on marketing/tools/reel-base.{css,js}. (none) = Neerja voice · ?silent = trending-audio cut · ?captions = word captions. Add &play to watch. -->
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..900&family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
+<link rel="stylesheet" href="../../tools/reel-base.css">
+<style>
+  /* 1 · hook */
+  .chartwrap { position:relative; width:960px; }
+  .chart .top { display:flex; justify-content:space-between; align-items:baseline; }
+  .chart .top b { font:700 34px/1 Inter; } .chart .top span { font:600 28px/1 Inter; color:var(--muted); }
+  .chart svg { display:block; width:872px; height:320px; margin-top:24px; overflow:visible; }
+  .stamp { position:absolute; left:50%; top:50%; padding:22px 40px; border:8px solid var(--purple); border-radius:24px; background:#fff;
+           color:var(--purple); font:900 92px/1 Archivo; font-variation-settings:"wdth" 80; letter-spacing:.01em; white-space:nowrap;
+           box-shadow:0 30px 60px rgba(106,48,189,.3); opacity:0; }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute">
+  <defs><linearGradient id="gb" x1="0" x2="1"><stop offset="0" stop-color="#ba8aff"/><stop offset=".5" stop-color="#fe79a2"/><stop offset=".78" stop-color="#febc77"/><stop offset="1" stop-color="#68cea7"/></linearGradient></defs>
+  <symbol id="logo" viewBox="0 0 200 120"><path d="M22 108 A78 78 0 0 1 178 108" fill="none" stroke="url(#gb)" stroke-width="26" stroke-linecap="round"/><path d="M100 108 L146 62" stroke="#2a1f3d" stroke-width="12" stroke-linecap="round"/><circle cx="100" cy="108" r="14" fill="#2a1f3d"/></symbol>
+  <symbol id="ribbons" viewBox="0 0 1440 460" preserveAspectRatio="xMidYMid slice">
+    <path d="M -160 460 C 280 420, 940 20, 1600 30" stroke="#ba8aff" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 342, 940 54, 1600 126" stroke="#d3b6ff" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 264, 940 88, 1600 222" stroke="#68cea7" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 186, 940 122, 1600 318" stroke="#febc77" stroke-width="48" fill="none"/>
+    <path d="M -160 460 C 280 108, 940 156, 1600 414" stroke="#fe79a2" stroke-width="48" fill="none"/>
+  </symbol>
+</svg>
+
+<div id="stage">
+  <svg class="arcs" id="arcs"><use href="#ribbons"/></svg>
+
+  <!-- 1 · hook (cover) -->
+  <section class="scene" id="sc1"><div class="block">
+    <div class="brand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <h1>Traffic<br><em>dropped?</em></h1>
+    <div class="chartwrap">
+      <div class="card chart"><div class="top"><b>Google search clicks</b><span>this week</span></div>
+        <svg viewBox="0 0 872 320"><path id="line" d="M0 120 C 90 100, 150 140, 230 110 S 380 80, 450 100 S 560 90, 600 110 C 660 140, 700 250, 872 290" fill="none" stroke="#6a30bd" stroke-width="10" stroke-linecap="round"/>
+          <circle id="dot" cx="872" cy="290" r="16" fill="#d23b3b" opacity="0"/></svg></div>
+      <div class="stamp" id="stamp">DON'T PANIC</div>
+    </div>
+  </div></section>
+
+  <!-- 2 · what's happening -->
+  <section class="scene" id="sc2"><div class="block">
+    <div class="chip"><i></i>Google core update · since 10 Nov</div>
+    <h2>Rankings bounce<br>until it's <em>done</em></h2>
+    <div class="card ladder" id="ladder"><h4>Your position on Google</h4>
+      <div class="slot" style="top:90px"><i>#1</i>competitor-a.com</div>
+      <div class="slot" style="top:176px"><i>#2</i>competitor-b.com</div>
+      <div class="slot" style="top:262px"><i>#3</i>competitor-c.com</div>
+      <div class="slot" style="top:348px"><i>#4</i>competitor-d.com</div>
+      <div class="slot me" id="me"><i id="mePos">#2</i>yoursite.com</div>
+    </div>
+    <p class="src">Rollout started 10 Nov (Google Search Status Dashboard)</p>
+  </div></section>
+
+  <!-- 3 · don't -->
+  <section class="scene" id="sc3"><div class="block">
+    <h2>Don't<br><em>panic-edit</em></h2>
+    <div class="rows" id="donts">
+      <div class="row"><span class="n x">✕</span><div><b>Rewrite every page</b><span>Changes now muddy what the update did</span></div></div>
+      <div class="row"><span class="n x">✕</span><div><b>Delete content</b><span>Pages that dip can bounce back</span></div></div>
+      <div class="row"><span class="n x">✕</span><div><b>Change your URLs</b><span>That resets signals you already have</span></div></div>
+    </div>
+  </div></section>
+
+  <!-- 4 · step 1 -->
+  <section class="scene" id="sc4"><div class="block">
+    <span class="kicker">Step 1</span>
+    <h2>Wait, then<br><em>compare</em></h2>
+    <div class="card roll"><div class="top"><b>Core update rollout</b><span id="rollTxt">in progress…</span></div><div class="bar"><i id="rollBar"></i></div>
+      <div class="marks"><span><b>10 Nov</b><br>started</span><span>about<br>2 weeks</span><span id="rollEnd" style="text-align:right">then<br>compare</span></div></div>
+    <div class="shot" id="cmp" style="height:430px"><img src="../../../assets/instagram/shots/google-top.png" alt="" style="width:2214px; margin:-661px 0 0 -37px"></div>
+  </div></section>
+
+  <!-- 5 · step 2 -->
+  <section class="scene" id="sc5"><div class="block">
+    <span class="kicker">Step 2</span>
+    <h2>Google… or<br><em>your site?</em></h2>
+    <div class="card scan"><p class="t">Checking <b>yoursite.com</b></p>
+      <ul id="checks">
+        <li><span class="s">✓</span>Pages can be indexed</li>
+        <li><span class="s">✓</span>robots.txt lets Google in</li>
+        <li><span class="s">✓</span>No broken pages</li>
+        <li><span class="s">✓</span>Pages load fast</li>
+      </ul></div>
+  </div></section>
+
+  <!-- 6 · step 3 -->
+  <section class="scene" id="sc6"><div class="block">
+    <span class="kicker">Step 3 · most people skip it</span>
+    <h2>Which pages<br><em>lost clicks?</em></h2>
+    <div class="shot" id="fixShot" style="height:440px"><img src="../../../assets/instagram/shots/google-fix.png" alt="" style="width:1451px; margin:-203px 0 0 -49px">
+      <div class="ring" id="ring6"></div></div>
+    <p class="src">Your Search Console clicks, next to every fix</p>
+  </div></section>
+
+  <!-- 7 · close -->
+  <section class="scene" id="sc7"><div class="block">
+    <div class="brand big" id="endBrand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <h1 id="endH"><span>Don't panic.</span><br><em>Diagnose.</em></h1>
+    <div class="pill" id="pill"><small>Free website audit</small><b>pagelyt.dev</b></div>
+    <p class="endp" id="endP">Comment <b>GOOGLE</b> for our free guide</p>
+  </div></section>
+</div>
+
+<script src="voice/words.js"></script>
+<script src="../../tools/captions.js"></script>
+<script src="../../tools/reel-base.js"></script>
+<script>
+const { $, ramp, out, back, ease, lerp, clamp, pop, popScale } = Reel;
+const SL = [2.8, 3.2, 3.0, 3.2, 3.4, 3.4, 3.0]; // silent lengths; animation times below are written for these and stretched
+const R = Reel.setup({ scenes: ["sc1", "sc2", "sc3", "sc4", "sc5", "sc6", "sc7"], silent: SL });
+const K = (i, len) => len / (SL[i] + .2);
+
+const LINE = $("line"), LL = LINE.getTotalLength();
+R.on("sc1", (u, len) => { const k = K(0, len);
+  const d = out(ramp(u, 0, .9)); LINE.style.strokeDasharray = LL; LINE.style.strokeDashoffset = LL * (1 - d);
+  $("dot").setAttribute("opacity", ramp(u, .8, .95));
+  const s = ramp(u, 1.3 * k, 1.65 * k); const st = $("stamp");
+  st.style.opacity = clamp(s * 1.6); st.style.transform = `translate(-50%,-50%) rotate(-7deg) scale(${lerp(1.8, 1, back(s))})`;
+});
+R.on("sc2", (u, len) => { const k = K(1, len);
+  // yoursite.com jumps between positions while the update rolls out
+  const path = [1, 3, 0, 2, 1], seg = ramp(u, .3 * k, 2.9 * k) * (path.length - 1), i = Math.min(path.length - 2, Math.floor(seg)), f = ease(seg - i);
+  const pos = lerp(path[i], path[i + 1], f); $("me").style.top = (90 + pos * 86) + "px";
+  $("mePos").textContent = "#" + (Math.round(pos) + 1);
+  [...$("ladder").querySelectorAll(".slot:not(.me)")].forEach((el, j) => el.style.opacity = Math.abs(j - pos) < .5 ? 0 : 1);
+});
+R.on("sc3", (u, len) => { const k = K(2, len);
+  [...$("donts").children].forEach((el, i) => { const a = (.3 + i * .55) * k; pop(el, u, a, .35, 0); el.style.transform = `translateX(${(1 - out(ramp(u, a, a + .35))) * 120}px)`; el.classList.toggle("struck", u > a + .45 * k); });
+});
+R.on("sc4", (u, len) => { const k = K(3, len);
+  const p = ramp(u, .3 * k, 1.6 * k); $("rollBar").style.width = (p * 100) + "%"; $("rollTxt").textContent = p >= 1 ? "finished ✓" : "in progress…";
+  $("rollTxt").style.color = p >= 1 ? "var(--green)" : ""; $("rollEnd").classList.toggle("on", p >= 1);
+  pop($("cmp"), u, 1.7 * k, .45);
+});
+R.on("sc5", (u, len) => { const k = K(4, len);
+  [...$("checks").children].forEach((li, i) => { const a = (.5 + i * .5) * k, d = u >= a; li.classList.toggle("done", d); li.querySelector(".s").style.transform = `scale(${d ? lerp(1.35, 1, ramp(u, a, a + .2)) : 1})`; });
+});
+// google-fix.png shown at 1451 px wide (scale .8133), offset (-49,-203). "Traffic touched" column ≈ x 990–1230, rows y 255–635 in the source.
+R.on("sc6", (u, len) => { const k = K(5, len), s = 1451 / 1784;
+  Object.assign($("ring6").style, { left: (990 * s - 49 - 8) + "px", top: (255 * s - 203 - 8) + "px", width: (240 * s + 16) + "px", height: (380 * s + 16) + "px" });
+  $("ring6").style.opacity = ramp(u, 1.2 * k, 1.5 * k); $("ring6").style.boxShadow = `0 0 0 ${8 + 8 * Math.sin(u * 5)}px rgba(106,48,189,.15)`;
+});
+R.on("sc7", (u) => {
+  $("endBrand").style.transform = `scale(${lerp(.7, 1, back(ramp(u, .05, .5)))})`;
+  [...$("endH").querySelectorAll("span, em")].forEach((el, i) => { const q = out(ramp(u, .3 + i * .3, .7 + i * .3)); el.style.opacity = q; el.style.display = "inline-block"; el.style.transform = `translateY(${(1 - q) * 30}px)`; });
+  popScale($("pill"), u, .9); $("endP").style.opacity = ramp(u, 1.3, 1.7);
+});
+R.start();
+</script>
+</body>
+</html>
