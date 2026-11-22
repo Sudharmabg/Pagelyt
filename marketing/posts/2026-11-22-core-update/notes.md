@@ -1,8 +1,8 @@
 # Google core update reels (idea 2, 2026-11-21 batch)
 
 **Files:**
-- `reel-silent.mp4` (22 s): **main Instagram post**. Post by hand and add a trending song.
-- `reel-voice.mp4` (40 s): Instagram with Neerja voice. `post.json` uses this one for API posting, since API posts can't add Instagram music.
+- `reel-silent.mp4` (26 s): **main Instagram post**. Post by hand and add a trending song.
+- `reel-voice.mp4` (52 s): Instagram with Neerja voice. `post.json` uses this one for API posting, since API posts can't add Instagram music.
 - `reel-linkedin.mp4` (40 s): the LinkedIn "client message" version, for agencies, with voice and word-by-word captions.
 - `cover.png` (Instagram, "Traffic dropped?" + DON'T PANIC stamp) and `cover-linkedin.png` (the client message).
 - Sources: `reel.html` + `voice.txt` (Instagram) and `reel-li.html` + `voice-li.txt` (LinkedIn), built on `marketing/tools/reel-base.{css,js}`.
@@ -45,6 +45,14 @@
 - Brand: pass (house style, logo at start and end, real Pagelyt UI for the Google data and Fix first).
 - Truth: pass. Dates match Google's rollout (10 Nov, about two weeks). No promise of recovery; Pagelyt is positioned as ruling out technical causes and showing clicks per page.
 - CTA: pass. "Comment GOOGLE" appears on screen, in the caption, in the pinned comment and in the DM. Shortened the end line so it doesn't wrap.
+
+## Revision 2 (user feedback, 22 Nov)
+
+- Pagelyt logo on every scene.
+- "Panic" in red everywhere: the DON'T PANIC stamp is now red, slams in, shakes the chart card and then pulses. The word "panic" in "Don't panic-edit" and on the end card is red, and wobbles on the end card.
+- More motion on every scene: staggered entrances (`autoIn` in `reel-base.js`), pulsing chip, the ranking row bumping as it moves, ✕ badges shaking as each row is struck, a scan progress bar with checks flashing green, a slow zoom and highlight ring on the Google numbers, and a beating CTA pill.
+- **Stronger close:** a new scene "Pagelyt does all 3 steps" (compares Google clicks, rules out site problems, shows which pages dropped; numbers flip to ✓), then the end card "Don't panic. Use Pagelyt." with pagelyt.dev. New voice lines 7 and 8; the caption is updated to match.
+- Re-checked: all ✓. Silent 26.2 s. The voice cut is 51.9 s (! over 35 s), kept because the new ending was asked for; the silent cut stays the main post.
 
 ## Editing and re-rendering
 

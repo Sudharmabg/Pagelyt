@@ -5,4 +5,5 @@ So don't panic-edit. No rewrites, no deleting pages.
 One: wait until it's finished, then compare before and after.
 Two: rule out your own site. An accidental no-index looks just like an update drop.
 Three, the one most people skip: see which pages lost clicks. Page-light shows it next to every fix.
-Comment Google, and we'll send you our free Search Console guide.
+Page-light does all three steps for you. It compares your Google clicks, rules out site problems, and shows which pages dropped.
+So don't panic. Use Page-light. Your free audit is at page light dot dev.

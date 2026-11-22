@@ -84,3 +84,5 @@ h3 { font:800 58px/1.02 Archivo; font-variation-settings:"wdth" 78; letter-spaci
 .dots { display:flex; gap:10px; padding:26px 30px; } .dots span { width:16px; height:16px; border-radius:50%; background:#c9b6e6; }
 .roll .marks { display:flex; justify-content:space-between; margin-top:22px; font:600 30px/1.2 Inter; color:var(--muted); }
 .roll .marks b { color:var(--ink); } .roll .marks .on { color:var(--green); }
+.red, h1 .red, h2 .red { color:var(--red); }
+.brand.sm svg { width:64px; height:39px; } .brand.sm b { font-size:40px; }

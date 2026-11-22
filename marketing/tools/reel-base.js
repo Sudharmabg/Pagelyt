@@ -8,7 +8,8 @@
        R.on("sc1", (u, len) => { … });   // u = seconds since the scene started, len = scene length
        R.start();
      </script>
-   Query: ?silent (no voice, `silent` lengths) · ?captions (word-by-word captions) · &play (watch in a browser). */
+   Options: autoIn: true gives every scene after the first a staggered entrance for its .block children (mark a child
+   data-own to animate it yourself). Query: ?silent (no voice, `silent` lengths) · ?captions (word-by-word captions) · &play (watch in a browser). */
 (function () {
   const $ = (id) => document.getElementById(id);
   const clamp = (x) => Math.max(0, Math.min(1, x));
@@ -21,7 +22,7 @@
   const pop = (el, u, a, d = .4, dy = 40) => { const q = out(ramp(u, a, a + d)); el.style.opacity = q; el.style.transform = `translateY(${(1 - q) * dy}px)`; return q; };
   const popScale = (el, u, a, d = .4) => { const q = ramp(u, a, a + d); el.style.opacity = clamp(q * 1.6); el.style.transform = `scale(${lerp(.8, 1, back(q))})`; return q; };
 
-  function setup({ scenes, silent, voiceDir = "voice", lead = .2, gap = .25, endHold = .7, captionsTop = 1610 }) {
+  function setup({ scenes, silent, voiceDir = "voice", lead = .2, gap = .25, endHold = .7, captionsTop = 1610, autoIn = false }) {
     const Q = location.search, SILENT = Q.includes("silent") || !window.VOICE_DATA, CAPTIONS = Q.includes("captions") && !SILENT;
     const S = {}, VOICE = [], handlers = {};
     let at = 0;
@@ -48,6 +49,13 @@
         const vin = a === 0 ? 1 : out(ramp(t, a, a + .35)), vout = id === last ? 1 : 1 - ramp(t, b - .3, b);
         const v = Math.min(vin, vout);
         el.style.opacity = v; el.style.transform = `translateY(${(1 - vin) * 40}px)`;
+        if (v > 0 && autoIn && a > 0) {
+          // staggered entrance for the block's direct children (skip ones marked data-own, which animate themselves)
+          [...el.querySelectorAll(":scope > .block > *")].filter((c) => !c.hasAttribute("data-own")).forEach((c, i) => {
+            const q = out(ramp(t - a, .05 + i * .1, .5 + i * .1));
+            c.style.opacity = q; c.style.transform = `translateY(${(1 - q) * 50}px) scale(${lerp(.95, 1, q)})`;
+          });
+        }
         if (v > 0 && handlers[id]) handlers[id](t - a, b - a);
       });
       if (cap) cap.update(t, VOICE);
