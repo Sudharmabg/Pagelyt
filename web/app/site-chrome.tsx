@@ -18,7 +18,7 @@ const MENU: [string, string][] = [
 ].filter(([, href]) => PRICING_ON || href !== "/pricing") as [string, string][];
 
 // Features menu: every feature (Google data gets its own card on desktop), then the free tools.
-const MENU_FEATURES: MenuFeature[] = FEATURES.map(({ slug, name, short }) => ({ slug, name, short }));
+const MENU_FEATURES: MenuFeature[] = FEATURES.map(({ slug, name, short, area, products }) => ({ slug, name, short, area, pills: products?.map((p) => p.name) }));
 const GOOGLE = MENU_FEATURES.find((f) => f.slug === "google-integrations");
 
 export function SiteNav() {

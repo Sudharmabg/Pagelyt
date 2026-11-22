@@ -3,9 +3,45 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { MODULE_NAMES, type ModuleKey } from "@/lib/scan/types";
+import { AREA_COUNT } from "./counts";
 import { FEATURE_ICON, NEW_FEATURES } from "./feature-icons";
 
-export type MenuFeature = { slug: string; name: string; short: string };
+export type MenuFeature = { slug: string; name: string; short: string; area?: string; pills?: string[] };
+
+/** One-line hints for the scan-area grid; the full `short` lines are too long for three columns. */
+const AREA_HINT: Record<ModuleKey, string> = {
+  health: "Uptime, SSL and DNS",
+  performance: "Speed, Core Web Vitals",
+  seo: "Titles, links, indexing",
+  geo: "Ready for AI search",
+  security: "HTTPS, headers, files",
+  accessibility: "Contrast, labels, WCAG",
+  domain: "Expiry, SPF, DMARC",
+  privacy: "Cookies and trackers",
+  code: "Old libraries, leaked keys",
+};
+const AREA_ORDER = Object.keys(MODULE_NAMES) as ModuleKey[];
+
+/** Scan-area pages (in report order) and the other feature pages, for the desktop menu and the phone menu. */
+export function splitFeatures(features: MenuFeature[]) {
+  const areas = features.filter((f) => f.area).sort((a, b) => AREA_ORDER.indexOf(a.area as ModuleKey) - AREA_ORDER.indexOf(b.area as ModuleKey));
+  return { areas, extras: features.filter((f) => !f.area) };
+}
+export const areaLabel = (f: MenuFeature) => MODULE_NAMES[f.area as ModuleKey] ?? f.name;
+export const areaHint = (f: MenuFeature) => AREA_HINT[f.area as ModuleKey] ?? f.short;
+
+/** The Google products (Search Console, Analytics, Ads) as small pills on the Google card. */
+export function GooglePills({ names }: { names?: string[] }) {
+  if (!names?.length) return null;
+  return (
+    <span className="dd-gpills">
+      {names.map((n) => (
+        <span key={n} className="dd-gpill">{n}</span>
+      ))}
+    </span>
+  );
+}
 
 const tone = (slug: string) => {
   const t = FEATURE_ICON[slug];
@@ -18,12 +54,14 @@ export function FeatureIcon({ slug }: { slug: string }) {
 }
 
 /** Desktop "Features" mega menu: opens on hover, or on click and keyboard (a disclosure button). Closes on Escape,
- *  a click outside and page changes. Google data gets its own highlighted card; the rest sit in a two-column grid. */
+ *  a click outside and page changes. The scan areas sit in a three-column grid, the other features in a slim row
+ *  under them, and Google data gets its own highlighted card. */
 export function FeaturesMenu({ features, google, tools }: { features: MenuFeature[]; google?: MenuFeature; tools: number }) {
   const [open, setOpen] = useState(false);
   const root = useRef<HTMLDivElement>(null);
   const btn = useRef<HTMLButtonElement>(null);
   const path = usePathname();
+  const { areas, extras } = splitFeatures(features);
 
   const [seen, setSeen] = useState(path);
   if (seen !== path) {
@@ -65,23 +103,39 @@ export function FeaturesMenu({ features, google, tools }: { features: MenuFeatur
       </button>
       <div className="dd-mega" id="dd-mega">
         <div className="dd-mega-main">
-          <p className="dd-mega-h">What every scan checks</p>
+          <p className="dd-mega-h">{AREA_COUNT} areas every scan checks</p>
           <ul className="dd-mega-grid">
-            {features.map((f, i) => (
+            {areas.map((f, i) => (
               <li key={f.slug} style={{ ["--i" as string]: i }}>
                 <Link href={`/features/${f.slug}`} className="dd-item" style={tone(f.slug)}>
                   <FeatureIcon slug={f.slug} />
                   <span className="dd-item-tx">
                     <b>
-                      {f.name}
+                      {areaLabel(f)}
                       {NEW_FEATURES.has(f.slug) && <span className="dd-new">New</span>}
                     </b>
-                    <small>{f.short}</small>
+                    <small>{areaHint(f)}</small>
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
+          {extras.length > 0 && (
+            <>
+              <p className="dd-mega-h dd-mega-h2">Also included</p>
+              <ul className="dd-extra">
+                {extras.map((f) => (
+                  <li key={f.slug}>
+                    <Link href={`/features/${f.slug}`} className="dd-chip" style={tone(f.slug)} title={f.short}>
+                      <FeatureIcon slug={f.slug} />
+                      <span>{f.name}</span>
+                      {NEW_FEATURES.has(f.slug) && <span className="dd-new">New</span>}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
           <Link href="/features" className="dd-all">
             All features <span aria-hidden="true">→</span>
           </Link>
@@ -92,9 +146,7 @@ export function FeaturesMenu({ features, google, tools }: { features: MenuFeatur
               <span className="dd-google-tag"><span aria-hidden="true">★</span> Google data</span>
               <b>Your traffic, explained. And how to grow it.</b>
               <small>Overall traffic from Search Console, Analytics and Ads, what&apos;s changing, and AI steps to improve it.</small>
-              <span className="dd-google-bars" aria-hidden="true">
-                {[38, 52, 46, 64, 58, 78, 92].map((h, i) => <i key={i} style={{ height: `${h}%`, ["--i" as string]: i } as CSSProperties} />)}
-              </span>
+              <GooglePills names={google.pills} />
               <span className="dd-google-go">See Google data <span aria-hidden="true">→</span></span>
             </Link>
           )}

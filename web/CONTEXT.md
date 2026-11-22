@@ -296,7 +296,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 
 **Shared UI:**
 - `site-chrome.tsx`: nav and footer. The desktop nav's Features item is `FeaturesMenu`, and the phone menu gets the same feature list (`MENU_FEATURES`).
-- `features-menu.tsx`: `FeaturesMenu`, the desktop Features mega menu (two-column feature grid with icons and short lines, a Google data card, a free-tools card and All features; hover, click and keyboard; closes on Escape, outside click and page change), `FeatureIcon` and `MenuFeature`.
+- `features-menu.tsx`: `FeaturesMenu`, the desktop Features mega menu, centred on the header pill (the scan areas in a three-column grid with one-line hints from `AREA_HINT`, an "Also included" row of the other features, a Google data card with product pills, a free-tools card and All features; hover, click and keyboard; closes on Escape, outside click and page change). Also `FeatureIcon`, `MenuFeature` (with `area` and Google `pills`), `splitFeatures`, `areaLabel`, `areaHint` and `GooglePills`, shared with the phone menu.
 - `feature-icons.tsx`: `FEATURE_ICON` (lucide icon and colour pair per feature slug, used by both menus) and `NEW_FEATURES` (slugs that get a "New" badge).
 - `page-shell.tsx`: hero and CTA band. `PageHero` `words` adds a decorative rotating "Built for …" pill above the H1 (/tools, /features).
 - `ui.tsx`: rings (`Ring` text can be any node), sparklines and mock graphics (one `*Mock` per feature page, e.g. `WcagMock`; `features/feature-card.tsx` `MOCKS` needs an entry for every feature slug).
@@ -310,7 +310,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 - `welcome-back.tsx`: `WelcomeBack`, the signed-in bar above the home headline with the latest report and an Open dashboard button.
 - `dashboard/page.tsx` + `dashboard/open-latest.tsx`: /dashboard sends signed-in people to their newest report (or /account if none) and visitors to sign in, keeping the query string (`/dashboard?view=google&gtab=ads` opens that tab of the newest report).
 - `api/account/latest/route.ts`: GET the signed-in person's newest finished report (id, host, score).
-- `nav-mobile.tsx`: phone menu; Features is an accordion of the same feature items with icons, plus All features and free tools links.
+- `nav-mobile.tsx`: phone menu; Features is an accordion with the same groups as the desktop menu (scan areas and Also included as two-column icon grids, the Google card with product pills), plus All features and free tools links.
 - `home-wcag.tsx`: `WcagSection`, the homepage WCAG 2.2 checklist section (#wcag, after "Inside every report"): copy, three points, Check my site button and a sample checklist card with A/AA rings that fill in on scroll. Sample numbers; copy never claims conformance.
 - `home-code.tsx`: `CodeSection`, the homepage Code security section (#code-security, right after the WCAG section): a sample "What we checked" card (library chips turning red, a masked leaked key, files read) and three points with a Check my site button. Card left on desktop, above the copy on phones. Copy says basic checks, not a full audit.
 - `scroll-top.tsx`, `json-ld.tsx`, `use-turnstile.ts`, `request-form.tsx`.

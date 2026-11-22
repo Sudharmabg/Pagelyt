@@ -5,7 +5,8 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSignedInUser } from "@/lib/use-signed-in";
 import { SignInLink } from "@/app/sign-in-modal";
-import { FeatureIcon, type MenuFeature } from "./features-menu";
+import { AREA_COUNT } from "./counts";
+import { FeatureIcon, GooglePills, areaLabel, splitFeatures, type MenuFeature } from "./features-menu";
 import { NEW_FEATURES } from "./feature-icons";
 
 type Item = { name: string; href: string };
@@ -15,6 +16,8 @@ export function NavMobile({ features, tools, links }: { features: MenuFeature[];
   const [feat, setFeat] = useState(false);
   const path = usePathname();
   const user = useSignedInUser();
+  const google = features.find((f) => f.pills?.length);
+  const { areas, extras } = splitFeatures(features.filter((f) => f !== google));
 
   // Close the menu when the page changes (adjusting state while rendering, as React recommends).
   const [seenPath, setSeenPath] = useState(path);
@@ -72,18 +75,41 @@ export function NavMobile({ features, tools, links }: { features: MenuFeature[];
           </button>
           {feat && (
             <div className="nm-feat" id="nm-feat">
-              {features.map((f) => (
-                <Link key={f.slug} href={`/features/${f.slug}`} className="nm-fi">
-                  <FeatureIcon slug={f.slug} />
-                  <span>
+              <p className="nm-h">{AREA_COUNT} areas every scan checks</p>
+              <div className="nm-grid">
+                {areas.map((f) => (
+                  <Link key={f.slug} href={`/features/${f.slug}`} className="nm-fi">
+                    <FeatureIcon slug={f.slug} />
                     <b>
-                      {f.name}
+                      {areaLabel(f)}
                       {NEW_FEATURES.has(f.slug) && <span className="dd-new">New</span>}
                     </b>
-                    <small>{f.short}</small>
-                  </span>
+                  </Link>
+                ))}
+              </div>
+              {extras.length > 0 && (
+                <>
+                  <p className="nm-h">Also included</p>
+                  <div className="nm-grid">
+                    {extras.map((f) => (
+                      <Link key={f.slug} href={`/features/${f.slug}`} className="nm-fi">
+                        <FeatureIcon slug={f.slug} />
+                        <b>
+                          {f.name}
+                          {NEW_FEATURES.has(f.slug) && <span className="dd-new">New</span>}
+                        </b>
+                      </Link>
+                    ))}
+                  </div>
+                </>
+              )}
+              {google && (
+                <Link href={`/features/${google.slug}`} className="nm-google">
+                  <span className="dd-google-tag"><span aria-hidden="true">★</span> Google data</span>
+                  <b>Your traffic, explained. And how to grow it.</b>
+                  <GooglePills names={google.pills} />
                 </Link>
-              ))}
+              )}
               <div className="nm-feat-foot">
                 <Link href="/features">All features →</Link>
                 <Link href="/tools">{tools} free tools →</Link>
