@@ -19,6 +19,11 @@ Record the result in the post's `notes.md` under "Critic pass": one line per sec
 - [ ] Voice and picture match: whatever the voice names is on screen while it's said.
 - [ ] Length fits the platform: Instagram silent 15–25 s; voice cuts ideally ≤ 35 s; LinkedIn ≤ 60 s.
 
+## Layout (brand guideline)
+- [ ] Every title, headline, text block, card, pill and caption is **centred horizontally**.
+- [ ] Each scene's content block is **centred vertically**: in y = 250–1500 for Instagram reels, and in the frame for 4:5 posts and LinkedIn. There's **no extra empty space above or below** it. Compare the top and bottom gaps on the contact sheet; they should look about equal.
+- [ ] Spacing between the title, content and items is tight and even. If a scene looks sparse, enlarge the content rather than leaving blank bands.
+
 ## Readability
 - [ ] Headlines at least 70 px, body text at least 28 px on the 1080-wide stage; product screenshots are zoomed until their key line is readable on a phone.
 - [ ] Strong contrast (dark ink on peach, white on purple); no text over busy ribbons.

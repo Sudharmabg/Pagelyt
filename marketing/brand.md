@@ -44,6 +44,31 @@ The social agent reads this before suggesting ideas or writing a caption. Keep i
 - Every reel uses **en-IN-NeerjaExpressiveNeural** (Indian English, female, expressive), made with edge-tts at `--rate=+4%`. This is the user's chosen voice, so don't switch it unless asked.
 - With music under the voice, keep the music at about 10–15%.
 
+## Reel and post design guidelines
+
+The **Black Friday reel** (`marketing/posts/2026-11-21-black-friday/`) is the reference for every new reel and post. Start new reels from its `reel.html`.
+
+**Look**
+- Peach `#f8e5d4` background with the faint purple grid, rainbow ribbons as the backdrop, and the Pagelyt logo on the first and last scene.
+- Archivo extra-bold headlines (condensed, tight letter-spacing) with **one key phrase in purple** ("Will your website *survive it?*"). Inter for body text.
+- Small purple uppercase kicker pills ("THE RISK") above a section when needed, and a dark chip for dates or context ("Black Friday · Fri 27 Nov").
+- White rounded cards (radius about 40 px, soft shadow) for lists and screenshots; numbered badges in brand colours (pink, orange, lilac).
+- Big stat numbers in purple (about 400 px) that count up, with the source in small muted text underneath.
+- Real Pagelyt UI only (homepage on a phone, real report screenshots), zoomed until the key line is readable on a phone.
+- End card: logo → headline → purple pill "Free website audit / pagelyt.dev" → comment keyword line.
+
+**Layout: centred, with no extra space**
+- **Everything is centred horizontally:** titles, headlines, body text, stats, cards, pills and captions. Cards use equal side margins (60–70 px).
+- **Content is centred vertically too.** Each scene's content (title + body + visual) forms one block placed in the middle of the usable area, so there's no big empty gap above or below it.
+  - Instagram reels (1080×1920): centre the block in the safe area y = 250–1500 (middle about y = 875). Key content never goes outside it.
+  - Posts and carousels (1080×1350) and LinkedIn cuts: centre the block in the frame, inside the margins.
+- Space between the title and the content, and between items, stays tight and even (about 30–60 px). There should be no leftover empty band at the top or bottom; if a scene looks short, scale the content up rather than leaving blank space.
+- Ribbons and the grid are background only and don't count as content when judging empty space.
+
+**Motion and sound**
+- Something moves every 1–2 s (count-ups, staggered card slide-ins, cursor taps, pulsing highlight rings); scenes cross-fade.
+- Neerja Expressive voiceover, word-by-word captions on the LinkedIn cut, and a silent cut for Instagram trending audio.
+
 ## Formats and sizes
 
 | Platform | Format | Size | Notes |

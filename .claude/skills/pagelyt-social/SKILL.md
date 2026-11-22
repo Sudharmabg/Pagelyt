@@ -58,7 +58,8 @@ For each approved idea, make `marketing/posts/<YYYY-MM-DD>-<slug>/` containing:
 
 **Rendering:** the tools are in `assets/instagram/tools` and `assets/linkedin/tools`. They are plain Node with no packages, driving headless Chrome.
 - In a cloud session: `export CHROME=/opt/pw-browsers/chromium`. On Windows the default Chrome path is used.
-- **Reel:** start from `assets/instagram/reel4.html`.
+- **Design guidelines:** follow "Reel and post design guidelines" in `marketing/brand.md`. Everything is centred horizontally and vertically, with no extra empty space at the top or bottom.
+- **Reel:** start from `marketing/posts/2026-11-21-black-friday/reel.html` (the reference reel), or `assets/instagram/reel4.html` for a product walkthrough.
   - Keep its contract: `window.setT(seconds)`, `window.DURATION`, optional `window.VOICE = [{src, at}]`, a 1080×1920 stage, key text between y=250 and y=1500.
   - Check frames before the full render: `node record.mjs <reel.html> x.mp4 --width 1080 --height 1920 --scale 1 --times 0.5,3,8 --dir <scratch>`, then Read the PNGs.
   - Full render: `node record.mjs <reel.html> <out.mp4> --width 1080 --height 1920 --scale 1`.
