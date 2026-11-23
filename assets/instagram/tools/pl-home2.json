@@ -1,0 +1,5 @@
+{ "jobs": [
+  { "url": "http://localhost:3100/", "out": "../shots/peerlist/home.png", "width": 1440, "height": 900, "scale": 2, "wait": 3000,
+    "eval": "document.querySelector('nextjs-portal')?.remove(); [...document.querySelectorAll('div,section,aside')].filter(e=>/^Cookies on Pagelyt/.test(e.innerText||'')&&e.offsetHeight<300).forEach(e=>e.style.display='none'); document.querySelectorAll('.rot > span').forEach(s=>{ s.style.animation='none'; s.style.opacity = s.dataset.w==='AI Search' ? '1' : '0'; s.style.transform='none'; s.style.filter='none'; }); return 'ok'",
+    "after": 800 }
+] }
