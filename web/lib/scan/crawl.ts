@@ -1,5 +1,6 @@
-import * as cheerio from "cheerio";
+import type * as cheerio from "cheerio";
 import { safeFetch } from "./fetcher";
+import { lighten, loadFast } from "./html";
 import type { Finding, CrawlSummary, CrawlPage, CrawlStop, PageTable } from "./types";
 import { crawlDeepFindings, hreflangs, pageSchemaProblems } from "./seo-deep";
 import { imagesIn } from "./images";
@@ -35,14 +36,8 @@ export function sitemapLocs(xml: string, host: string): string[] {
   return out;
 }
 
-/** Empties every inline script except JSON-LD. Framework payloads (e.g. Next.js RSC data) can be half of a page's
-    HTML and nothing in the scan reads them; parsing them pushed the crawl past the Worker's memory limit. */
-export function lighten(html: string): string {
-  return html.replace(/(<script\b(?![^>]*ld\+json)[^>]*>)[\s\S]*?(<\/script\s*>)/gi, "$1$2");
-}
-
 export function internalLinks(html: string, base: string, host: string): string[] {
-  return linksIn(cheerio.load(lighten(html)), base, host);
+  return linksIn(loadFast(lighten(html)), base, host);
 }
 
 function linksIn($: cheerio.CheerioAPI, base: string, host: string): string[] {
@@ -82,7 +77,7 @@ const words = (s: string) => (s.trim() ? s.trim().split(/\s+/).length : 0);
 
 export function inspect(url: string, status: number, html: string, host: string): { page: CrawlPage; links: string[]; images: string[] } {
   // One parse per page: links come from the same tree (anchors are untouched by the strip below).
-  const $ = cheerio.load(lighten(html).slice(0, 600_000));
+  const $ = loadFast(lighten(html).slice(0, 600_000));
   const links = status < 400 ? linksIn($, url, host) : [];
   const images = status < 400 ? imagesIn($, url) : []; // before <noscript> is stripped (lazy-load fallbacks live there)
   const robots = ($('meta[name="robots"]').attr("content") || "").toLowerCase();

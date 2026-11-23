@@ -37,6 +37,7 @@ A scan runs as short stages, one HTTP request each, because a Worker request has
 | `labels.ts` | `STAGE_LABELS`, `TOTAL_STAGES`, `AREA_DONE_AT` | Stage names, and after how many stages each area's score is final (client-safe) |
 | `types.ts` | `ScanResult`, `Finding` (optional `pages`: every affected page, as a `PageTable`), `evidenceText` (full evidence for copy/CSV), `Severity`, `ModuleKey`, `MODULE_NAMES`, `Vitals`, `CrawlSummary` (optional `stop`: a `CrawlStop` saying why the crawl stopped), `DomainInfo`, `ChangeInfo` | Shared scan types |
 | `fetcher.ts` | `safeFetch`, `normaliseUrl`, `isPrivateIp` | Edge-safe fetch with SSRF guards; the `range` option sends a Range header and skips the body |
+| `html.ts` | `lighten`, `loadFast` | Cheap parsing for crawl/image reads: empties non-JSON-LD inline scripts and parses with htmlparser2 (~3x less CPU than parse5); keeps heavy pages under the Worker CPU limit |
 | `checks.ts` | `runChecks`, `Ctx` | Main static page checks (robots, meta, SEO and more) |
 | `checks-extra.ts` | `extraChecks` | ARIA and keyboard, content and privacy checks |
 | `seo-deep.ts` | `schemaFindings`, `hreflangChecks`, `paginationChecks`, `crawlDeepFindings` | Structured data, hreflang and pagination |

@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import type { CheerioAPI } from "cheerio";
 import { safeFetch, type FetchResult } from "./fetcher";
+import { lighten, loadFast } from "./html";
 import type { Finding, ImageAudit, PageWeight } from "./types";
 
 /* Image audit. The page HTML gives us the image list; a HEAD request per sampled image (sent with
@@ -34,7 +35,7 @@ const BG_ATTRS = ["data-bg", "data-background", "data-bg-src", "data-background-
     <picture> sources, inline and lazy background images, preloaded images, then og/twitter images. A placeholder
     `src` shared by every lazy image counts once at most. SVGs are skipped (vectors, not a weight problem). */
 export function imageList(page: FetchResult): { count: number; sample: string[]; all: string[] } {
-  const all = imagesIn(cheerio.load(page.body), page.url);
+  const all = imagesIn(loadFast(lighten(page.body)), page.url);
   return { count: all.length, sample: all.slice(0, IMAGE_SAMPLE), all };
 }
 
