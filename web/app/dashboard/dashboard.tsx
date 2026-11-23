@@ -1301,7 +1301,10 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
 
       <div className="dash-body">
         <nav className="dash-nav" aria-label="Report sections">
-          {star.length > 0 && navGroup("star", <><span aria-hidden="true">★</span> Star features</>, star.map((s) => navBtn(s.id, s.icon, s.label, needsPlan(s.id) ? <span className="plan-dot" data-tip="Part of the paid plans">Paid</span> : s.id === "wcag" ? <NewPill /> : undefined)), star.some((s) => s.id === view), "nav-star")}
+          {star.length > 0 && navGroup("star", <><span aria-hidden="true">★</span> Star features</>, star.flatMap((s) => [
+            navBtn(s.id, s.icon, s.label, needsPlan(s.id) ? <span className="plan-dot" data-tip="Part of the paid plans">Paid</span> : undefined),
+            ...(s.id === "wcag" && modules.some((m) => m.key === "code") ? [navBtn("code", "code", "Code security")] : []),
+          ]), star.some((s) => s.id === view) || view === "code", "nav-star")}
           {navBtn("overview", "overview", "Overview", <b>{remaining.length}</b>)}
           {navBtn("all", "list", "All findings", <b>{scan.findings.length}</b>)}
           {navGroup("scan", "From this scan", INSIGHTS.map((s) => navBtn(s.id, s.icon, s.label)), INSIGHTS.some((s) => s.id === view))}

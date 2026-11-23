@@ -8228,14 +8228,12 @@ i.rv-them { background: repeating-linear-gradient(45deg, var(--d-line) 0 4px, tr
 
 /* 13 cards: 8 area scores, then 5 lighter cards with details from the scan */
 .dash .dash-cards-13 { grid-template-columns: repeat(12, minmax(0, 1fr)); margin-top: 1.1rem; }
-.dash-cards-13 > li { grid-column: span 3; display: flex; }
+.dash-cards-13 > li { grid-column: span 4; display: flex; }
 .dash-cards-13 > li > button { height: 100%; }
-.dash-cards-13 > li.dc-ins-li { grid-column: span 4; }
-.dash-cards-13 > li.dc-ins-li:nth-last-child(-n + 2) { grid-column: span 6; }
 @media (max-width: 900px) {
   .dash .dash-cards-13 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dash-cards-13 > li, .dash-cards-13 > li.dc-ins-li, .dash-cards-13 > li.dc-ins-li:nth-last-child(-n + 2) { grid-column: span 1; }
-  .dash-cards-13 > li.dc-ins-li:last-child { grid-column: span 2; }
+  .dash-cards-13 > li { grid-column: span 1; }
+  .dash-cards-13 > li:last-child:nth-child(odd) { grid-column: span 2; }
 }
 
 /* Do more with this report: banner, then the cards two per row */
@@ -11161,10 +11159,11 @@ html:has(.hn-modal[open]) { overflow: hidden; }
 .gd-tab[aria-selected="true"] .gd-tab-badge:not(.off) { background: var(--c); color: #fff; }
 
 /* AI insights button: a small banner */
-.gd-ai-btn.gd-bn { min-height: 48px; padding: 7px 18px 7px 8px; gap: 10px; border: 0; color: #fff; font-weight: 800; font-size: .95rem; letter-spacing: .01em;
+.gd-ai-btn.gd-bn { min-height: 38px; padding: 4px 14px 4px 5px; gap: 8px; border: 0; color: #fff; font-weight: 800; font-size: .86rem; letter-spacing: .01em;
   box-shadow: 0 14px 28px -16px rgba(20, 60, 140, .85), inset 0 0 0 1px rgba(255, 255, 255, .18); }
 .gd-ai-btn.gd-bn:hover { transform: translateY(-2px); box-shadow: 0 18px 32px -16px rgba(20, 60, 140, .95), inset 0 0 0 1px rgba(255, 255, 255, .3); }
 .gd-ai-btn.gd-bn:focus-visible { outline-color: #2a78d6; }
+.gd-ai-btn.gd-bn .gd-ai-ic { width: 26px; height: 26px; }
 .gd-bn .gd-ai-ic { background: rgba(255, 255, 255, .95); color: #2a78d6; box-shadow: 0 0 18px 2px rgba(255, 255, 255, .35); animation: bn-pulse 2.6s ease-out infinite; }
 .gd-ai-btn.gd-bn .gd-ai-n { background: #fff; color: #1d4f9a; font-weight: 800; }
 
@@ -11212,29 +11211,31 @@ html:has(.hn-modal[open]) { overflow: hidden; }
 /* Biggest wins: light section, each win its own colourful gradient card */
 .gd-teaser { counter-reset: none; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 1fr)); }
 .gd-teaser > li { padding: 0; border: 0; background: none; animation: gd-tile-in .45s var(--d-ease, cubic-bezier(.2, .8, .2, 1)) both; animation-delay: calc(var(--i, 0) * 80ms); }
-.gd-teaser > li:nth-child(1) { --w1: #2a78d6; --w2: #7b3fe0; }
-.gd-teaser > li:nth-child(2) { --w1: #7b3fe0; --w2: #d14fa0; }
-.gd-teaser > li:nth-child(3) { --w1: #0f9d8a; --w2: #2a78d6; }
-.gd-win { all: unset; box-sizing: border-box; position: relative; overflow: hidden; isolation: isolate; height: 100%; display: flex; flex-direction: column; gap: 12px; padding: 20px; border-radius: 20px; cursor: pointer; color: #fff;
-  background: radial-gradient(90% 80% at 100% 0%, rgba(255, 255, 255, .22), transparent 60%), linear-gradient(140deg, var(--w1), var(--w2));
-  box-shadow: 0 18px 34px -22px var(--w2); transition: transform .25s var(--d-ease, ease), box-shadow .25s; }
-.gd-win::after { content: ""; position: absolute; z-index: -1; right: -30px; bottom: -40px; width: 140px; aspect-ratio: 1; border-radius: 50%; border: 18px solid rgba(255, 255, 255, .08); }
-.gd-win:hover { transform: translateY(-3px); box-shadow: 0 24px 40px -22px var(--w2); }
-.gd-win:focus-visible { outline: 3px solid var(--w1); outline-offset: 3px; }
+.gd-teaser > li:nth-child(1) { --tc: #2a78d6; }
+.gd-teaser > li:nth-child(2) { --tc: #7b3fe0; }
+.gd-teaser > li:nth-child(3) { --tc: #0f9d8a; }
+/* Same look as the Search clicks tile: tinted card, coloured bar on the left, chip in the card's colour */
+.gd-win { all: unset; box-sizing: border-box; position: relative; overflow: hidden; height: 100%; display: flex; flex-direction: column; gap: 10px; padding: 20px 20px 16px; border-radius: 20px; cursor: pointer; color: var(--d-ink, #14202b);
+  background: linear-gradient(160deg, color-mix(in srgb, var(--tc) 9%, var(--d-card, #fff)), var(--d-card, #fff) 60%);
+  border: 1px solid color-mix(in srgb, var(--tc) 18%, var(--d-line, #e8e1f2));
+  transition: transform .25s var(--d-ease, ease), box-shadow .25s, border-color .25s; }
+.gd-win::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: linear-gradient(var(--tc), color-mix(in srgb, var(--tc) 30%, transparent)); }
+.gd-win:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--tc) 40%, transparent); box-shadow: 0 16px 30px -22px color-mix(in srgb, var(--tc) 70%, transparent); }
+.gd-win:focus-visible { outline: 3px solid var(--tc); outline-offset: 3px; }
 .gd-win-top { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-.gd-win-n { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 11px; background: rgba(255, 255, 255, .95); color: var(--w2); font-weight: 900; font-size: .95rem; box-shadow: 0 6px 14px -8px rgba(0, 0, 0, .5); }
-.gd-win .gd-metric { color: #fff; background: rgba(255, 255, 255, .18); border: 1px solid rgba(255, 255, 255, .3); }
+.gd-win-n { display: grid; place-items: center; width: 34px; height: 34px; border-radius: 11px; background: color-mix(in srgb, var(--tc) 14%, var(--d-card, #fff)); color: var(--tc); font-weight: 900; font-size: .95rem; }
+.gd-win .gd-metric { color: var(--tc); background: color-mix(in srgb, var(--tc) 12%, var(--d-card, #fff)); border: 1px solid color-mix(in srgb, var(--tc) 25%, transparent); }
 .gd-win-t { font-size: 1.02rem; font-weight: 800; line-height: 1.4; overflow-wrap: anywhere; }
-.gd-win-gain { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; background: rgba(255, 255, 255, .16); font-size: .88rem; font-weight: 700; line-height: 1.4; color: #fff; }
-.gd-win-gain svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: #b8ffd9; }
-.gd-win-go { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; font-size: .86rem; font-weight: 700; opacity: .92; }
+.gd-win-gain { display: flex; align-items: flex-start; gap: 8px; padding: 10px 12px; border-radius: 12px; background: color-mix(in srgb, var(--tc) 10%, var(--d-card, #fff)); font-size: .88rem; font-weight: 700; line-height: 1.4; color: var(--d-ink, #14202b); }
+.gd-win-gain svg { flex: none; width: 16px; height: 16px; margin-top: 2px; color: var(--tc); }
+.gd-win-go { margin-top: auto; display: inline-flex; align-items: center; gap: 6px; font-size: .86rem; font-weight: 700; color: var(--tc); }
 .gd-win-go svg { width: 15px; height: 15px; transition: transform .2s; }
 .gd-win:hover .gd-win-go svg { transform: translateX(4px); }
 
 @media (max-width: 720px) {
   .star-body[data-star="google"] .gd-bar-av { grid-template-columns: minmax(0, 1fr); }
   .star-body[data-star="google"] .gd-bar-av > * { grid-column: 1; }
-  .gd-ai-btn.gd-bn { justify-content: center; }
+  .gd-ai-btn.gd-bn { justify-content: center; min-height: 40px; }
   /* Tabs: a strip that stays at the top and scrolls sideways */
   .star-body[data-star="google"] .gd-tabs { position: sticky; top: 0; z-index: 6; margin-inline: -16px; padding: 8px 16px; border-radius: 0; border-inline: 0; scroll-padding-inline: 16px;
     background: color-mix(in srgb, var(--d-bg, #f5f2fb) 94%, transparent); backdrop-filter: blur(8px); }
@@ -11917,4 +11918,15 @@ html:has(.hn-modal[open]) { overflow: hidden; }
 }
 @media (prefers-reduced-motion: reduce) {
   .tl-card, .tl-card:hover { transition: none; transform: none; }
+}
+
+/* Ask Pagelyt page on phones: a taller chat card, and a first screen that scrolls easily with every quick question reachable */
+@media (max-width: 640px) {
+  .dash .asst:not(.asst-mini) { height: calc(100dvh - 120px - env(safe-area-inset-bottom)); min-height: 520px; }
+  .asst:not(.asst-mini) .asst-log { overscroll-behavior-y: auto; -webkit-overflow-scrolling: touch; scroll-padding-bottom: 1rem; }
+  .asst:not(.asst-mini) .asst-empty { margin: 0; gap: .8rem; padding-bottom: .6rem; }
+  .asst:not(.asst-mini) .asst-cards { gap: .55rem; }
+  .asst:not(.asst-mini) .asst-card { padding: .65rem; border-radius: 16px; }
+  .asst:not(.asst-mini) .asst-gh { margin-bottom: .1rem; }
+  .asst:not(.asst-mini) .asst-idea { padding: .5rem .6rem; font-size: .84rem; }
 }
