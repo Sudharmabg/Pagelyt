@@ -7,6 +7,7 @@ import { featuresOpen, getPlan } from "../scan/store-ext";
 import { openToken, sealToken } from "./crypto";
 import { GoogleError, refreshAccess, revoke, SCOPES, type Product } from "./oauth";
 import { fetchGsc } from "./gsc";
+import { existingSitemap } from "../scan/sitemap-existing";
 import { fetchGa4 } from "./ga4";
 import { AdsTokenError, fetchAds } from "./ads";
 import type { AdsData } from "./ads-insights";
@@ -126,7 +127,12 @@ export async function refreshGsc(site: Site, conn: Connection, property: string,
   const scan = site.last_scan_id ? await getScanRow(site.last_scan_id) : null;
   const src = sourceOf("gsc", days);
   try {
-    const data = await fetchGsc(access, property, { url: scan?.result?.url ?? site.url, findings: scan?.result?.findings ?? [] }, days);
+    const prior = days === 28 ? (await getCache<GscData>(site.id, src).catch(() => null))?.data?.inspections ?? [] : [];
+    const home = scan?.result?.url ?? site.url;
+    // A scan crawls at most 30 pages, so a bigger site's other pages come from its own sitemap.
+    const sitemap = days === 28 ? (await existingSitemap(new URL(home).origin, 500).catch(() => null))?.urls ?? [] : [];
+    const crawl = [...(scan?.result?.crawl?.list.map((p) => p.url) ?? []), ...sitemap];
+    const data = await fetchGsc(access, property, { url: home, findings: scan?.result?.findings ?? [], crawl }, days, prior);
     await putCache(site.id, src, data, null);
   } catch (e) {
     const old = await getCache<GscData>(site.id, src);

@@ -9,8 +9,10 @@ import { pageKey, type GscData, type GscInspection, type GscPage, type GscQuery 
 
 const WM = "https://www.googleapis.com/webmasters/v3";
 const INSPECT = "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect";
-/** URL Inspection allows 2,000 a day per property; a refresh uses at most this many. */
-const MAX_INSPECT = 15;
+/** URL Inspection allows 2,000 a day per property; a refresh inspects at most this many (a Worker's subrequest budget is the tighter limit). */
+const MAX_INSPECT = 30;
+/** The most pages tracked for the indexing check. */
+const MAX_CANDIDATES = 500;
 
 export type GscProperty = { siteUrl: string; permissionLevel: string };
 
@@ -47,7 +49,7 @@ async function query(access: string, prop: string, body: Record<string, unknown>
 }
 
 /** `days`: 7, 28 or 90. URL Inspection runs only for the 28-day window (the other windows reuse its answers). */
-export async function fetchGsc(access: string, property: string, scan: { url: string; findings: Finding[] }, days = 28): Promise<GscData> {
+export async function fetchGsc(access: string, property: string, scan: { url: string; findings: Finding[]; crawl?: string[] }, days = 28, prior: GscInspection[] = []): Promise<GscData> {
   const { range, prevRange } = ranges(new Date(), days);
   const span = (r: { start: string; end: string }) => ({ startDate: r.start, endDate: r.end });
   const [pages, prevPages, queries, daily, tot, prevTot, devices, countries] = await Promise.all([
@@ -72,6 +74,7 @@ export async function fetchGsc(access: string, property: string, scan: { url: st
   const seen = new Set(pageRows.map((p) => p.url));
   for (const [url, p] of prev) if (url && !seen.has(url) && p.clicks > 0) pageRows.push({ url, clicks: 0, impressions: 0, ctr: 0, position: 0, prevClicks: p.clicks, prevImpressions: p.impressions });
 
+  const all = days === 28 ? candidates(scan, pageRows) : [];
   const qRows: GscQuery[] = queries.map((r) => ({ query: r.keys?.[0] ?? "", page: r.keys?.[1] ?? "", clicks: r.clicks, impressions: r.impressions, ctr: r.ctr, position: r.position }));
   const t = tot[0] ?? { clicks: 0, impressions: 0, ctr: 0, position: 0 };
   const pt = prevTot[0] ?? { clicks: 0, impressions: 0 };
@@ -87,20 +90,34 @@ export async function fetchGsc(access: string, property: string, scan: { url: st
     daily: daily.map((r) => ({ date: r.keys?.[0] ?? "", clicks: r.clicks, impressions: r.impressions })).sort((a, b) => a.date.localeCompare(b.date)),
     pages: pageRows.sort((a, b) => b.impressions - a.impressions).slice(0, 500),
     queries: qRows,
-    inspections: days === 28 ? await inspectPages(access, property, pickInspect(scan, pageRows)) : [],
+    inspections: days === 28 ? await inspectNext(access, property, all, prior) : [],
+    inspectTotal: days === 28 ? all.length : undefined,
   };
 }
 
-/** The homepage, the pages with the most impressions, and pages the scan found problems on. */
-function pickInspect(scan: { url: string; findings: Finding[] }, pages: GscPage[]): string[] {
+/** Every page worth asking Google about, most important first: the homepage, the pages with the most impressions,
+    pages the scan found problems on, then every other page the scan crawled (sitemap and links). Pages Google hasn't
+    indexed get no impressions, so only the crawl list can reveal them. */
+function candidates(scan: { url: string; findings: Finding[]; crawl?: string[] }, pages: GscPage[]): string[] {
   const out = new Map<string, string>();
   const add = (u: string) => {
-    if (out.size < MAX_INSPECT && /^https?:\/\//i.test(u) && !out.has(pageKey(u))) out.set(pageKey(u), u);
+    if (out.size < MAX_CANDIDATES && /^https?:\/\//i.test(u) && !out.has(pageKey(u))) out.set(pageKey(u), u);
   };
   add(scan.url);
   for (const p of pages.filter((x) => x.impressions > 0).slice(0, 7)) add(p.url);
   for (const f of scan.findings) for (const r of f.pages?.rows.slice(0, 2) ?? []) add(r.url);
+  for (const u of scan.crawl ?? []) add(u);
   return [...out.values()];
+}
+
+/** Inspects the next batch: pages never checked first; once all are checked, the ones Google hadn't indexed, to catch
+    fixes. Earlier answers are kept, so each refresh covers more of the site. */
+async function inspectNext(access: string, property: string, all: string[], prior: GscInspection[]): Promise<GscInspection[]> {
+  const keep = new Map(prior.filter((i) => all.some((u) => pageKey(u) === pageKey(i.url))).map((i) => [pageKey(i.url), i]));
+  let todo = all.filter((u) => !keep.has(pageKey(u)));
+  if (!todo.length) todo = [...keep.values()].filter((i) => i.verdict !== "PASS").map((i) => i.url);
+  for (const i of await inspectPages(access, property, todo.slice(0, MAX_INSPECT))) keep.set(pageKey(i.url), i);
+  return [...keep.values()];
 }
 
 type InspectReply = { inspectionResult?: { indexStatusResult?: { verdict?: string; coverageState?: string; lastCrawlTime?: string; googleCanonical?: string; userCanonical?: string } } };

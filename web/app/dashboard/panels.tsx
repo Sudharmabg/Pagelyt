@@ -1,6 +1,9 @@
 "use client";
 
 import { toast } from "../toast";
+import { createPortal } from "react-dom";
+import { ModalX } from "../modal-close";
+import { TECH_CATALOG } from "@/lib/scan/tech-catalog";
 import { criteriaOf, wcagCsvRows, wcagSummary } from "@/lib/scan/wcag";
 import { ToggleGroup, ToggleGroupItem } from "@/components/avara/ToggleGroupBlock";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -776,13 +779,84 @@ export function VitalsPanel({ vitals }: { vitals: Vitals | null | undefined }) {
 /* Technology + domain                                                 */
 /* ------------------------------------------------------------------ */
 
+const noopSub = () => () => {};
+
+/* Modal listing everything the scan knows how to recognise, with this site's matches highlighted. */
+function TechCatalogModal({ found }: { found: Set<string> }) {
+  const [open, setOpen] = useState(false);
+  const mounted = useSyncExternalStore(noopSub, () => true, () => false);
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const d = ref.current;
+    if (!d) return;
+    if (open && !d.open) d.showModal();
+    if (!open && d.open) d.close();
+  }, [open]);
+  const total = TECH_CATALOG.reduce((n, g) => n + g.names.length, 0);
+  return (
+    <>
+      <button type="button" className="tech-info-btn" aria-haspopup="dialog" onClick={() => setOpen(true)}>
+        <span aria-hidden="true">i</span>What we detect
+      </button>
+      {mounted &&
+        createPortal(
+          <dialog
+            ref={ref}
+            className="amodal tech-modal"
+            aria-labelledby="tech-modal-h"
+            onClose={() => setOpen(false)}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) e.currentTarget.close();
+            }}
+          >
+            <div className="am-card">
+              <header className="am-head">
+                <span className="am-ico" aria-hidden="true">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m16 18 6-6-6-6" /><path d="m8 6-6 6 6 6" /></svg>
+                </span>
+                <div>
+                  <h2 id="tech-modal-h">What we detect</h2>
+                  <p>{total} technologies across {TECH_CATALOG.length} groups. Ones found on this site are highlighted.</p>
+                </div>
+                <ModalX onClick={() => setOpen(false)} />
+              </header>
+              <dl className="tech-cat">
+                {TECH_CATALOG.map((g) => (
+                  <div key={g.category}>
+                    <dt>{g.category}</dt>
+                    <dd>
+                      {g.names.map((n) => (
+                        <span key={n} className={found.has(n) ? "chip tech-on" : "chip tech-off"}>
+                          {found.has(n) && <span aria-hidden="true">✓ </span>}
+                          {n}
+                        </span>
+                      ))}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="panel-note">Read from the page&rsquo;s public HTML and response headers, so tools loaded only after the page runs can&rsquo;t be seen.</p>
+              <div className="why-actions">
+                <button type="button" className="dash-btn" onClick={() => setOpen(false)}>Close</button>
+              </div>
+            </div>
+          </dialog>,
+          document.querySelector(".dash") ?? document.body
+        )}
+    </>
+  );
+}
+
 export function TechPanel({ tech }: { tech: StoredScan["tech"] }) {
   if (!tech) return null;
   const groups = new Map<string, string[]>();
   for (const t of tech) groups.set(t.category, [...(groups.get(t.category) ?? []), t.name]);
   return (
     <section className="panel" aria-label="Technology detected">
-      <h2>Technology detected</h2>
+      <div className="tech-head">
+        <h2>Technology detected</h2>
+        <TechCatalogModal found={new Set(tech.map((t) => t.name))} />
+      </div>
       {groups.size === 0 ? (
         <p className="panel-note">No well-known platforms were recognised. That is common for custom-built sites.</p>
       ) : (

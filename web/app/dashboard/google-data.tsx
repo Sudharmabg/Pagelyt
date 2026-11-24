@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
+import { ModalX } from "../modal-close";
 import { useSearchParams } from "next/navigation";
 import { ChartColumn, Eye, FileText, LayoutGrid, Link2, ListOrdered, Megaphone, MousePointerClick, Percent, ScanSearch, Search, Sparkles, TrendingDown, TrendingUp } from "lucide-react";
 import { LoaderBlock } from "@/components/avara/LoaderBlock";
@@ -240,7 +242,7 @@ function GscTab({ g, scan, findings, notice }: { g: GoogleState; scan: Scan; fin
     <>
       {head}
       {c.error && <p className="panel gd-note bad" role="alert">{c.error} Showing the numbers from {new Date(c.fetchedAt).toLocaleDateString("en-GB")}.</p>}
-      <GscView d={c.data} scanUrl={scan.url} findings={findings} />
+      <GscView d={c.data} scanUrl={scan.url} findings={findings} g={g} />
       <Footer g={g} property={s.property} fetchedAt={c.fetchedAt} />
     </>
   );
@@ -317,7 +319,80 @@ function topSearches(d: GscData): (GscQuery & { pages: number })[] {
   return [...m.values()].map(({ pw, ...x }) => ({ ...x, ctr: x.impressions ? x.clicks / x.impressions : 0, position: x.impressions ? pw / x.impressions : x.position }));
 }
 
-function GscView({ d, scanUrl, findings }: { d: GscData; scanUrl: string; findings: Finding[] }) {
+/* "Check more pages": opens a modal with the indexing progress, the pages Google hasn't indexed so far, and a button
+   that asks Google about the next batch. The numbers update in place as the refresh lands. */
+function CheckMore({ d, g }: { d: GscData; g: GoogleState }) {
+  const [open, setOpen] = useState(false);
+  const mounted = useSyncExternalStore(noopSub, () => true, () => false);
+  const ref = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (open && !el.open) el.showModal();
+    if (!open && el.open) el.close();
+  }, [open]);
+  const total = Math.max(d.inspectTotal ?? 0, d.inspections.length);
+  const done = d.inspections.length;
+  const ni = notIndexed(d);
+  const left = total - done;
+  const busy = g.busy === "refresh" || g.busy === "range";
+  return (
+    <>
+      <button type="button" className="fnd-link" aria-haspopup="dialog" onClick={() => setOpen(true)}>Check more pages</button>
+      {mounted &&
+        createPortal(
+          <dialog
+            ref={ref}
+            className="amodal tech-modal"
+            aria-labelledby="chk-more-h"
+            onClose={() => setOpen(false)}
+            onClick={(e) => {
+              if (e.target === e.currentTarget) e.currentTarget.close();
+            }}
+          >
+            <div className="am-card">
+              <header className="am-head">
+                <span className="am-ico" aria-hidden="true"><ScanSearch size={22} /></span>
+                <div>
+                  <h2 id="chk-more-h">Indexing check</h2>
+                  <p>Pagelyt asks Google about your pages in batches of about 30, so a large site takes a few rounds.</p>
+                </div>
+                <ModalX onClick={() => setOpen(false)} />
+              </header>
+              <div className="chk-prog" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label="Pages checked">
+                <span style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }} />
+              </div>
+              <p className="chk-line"><b>{done}</b> of <b>{total}</b> pages checked · <b className={ni.length ? "bad" : undefined}>{ni.length}</b> not indexed so far</p>
+              {ni.length > 0 && (
+                <ul className="chk-list" aria-label="Pages Google has not indexed">
+                  {ni.map((i) => (
+                    <li key={i.url}>
+                      <PageLink url={i.url} />
+                      <span>{i.coverage ?? "Not indexed"}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {left <= 0 && <p className="panel-note">Every page we know about has been checked. Pages that aren&rsquo;t indexed are re-checked on each refresh.</p>}
+              <div className="why-actions">
+                <button type="button" className="dash-btn" onClick={() => setOpen(false)}>Close</button>
+                {left > 0 && (
+                  <button type="button" className="dash-btn primary" disabled={busy} onClick={() => void g.refresh(true)}>
+                    {busy ? "Checking…" : `Check ${Math.min(30, left)} more`}
+                  </button>
+                )}
+              </div>
+            </div>
+          </dialog>,
+          document.querySelector(".dash") ?? document.body
+        )}
+    </>
+  );
+}
+
+const noopSub = () => () => {};
+
+function GscView({ d, scanUrl, findings, g }: { d: GscData; scanUrl: string; findings: Finding[]; g: GoogleState }) {
   const days = d.days ?? 28;
   const t = useMemo(() => trafficMap(findings, d, scanUrl, findingKey), [findings, d, scanUrl]);
   const ranked = useMemo(() => byTraffic(findings, t, findingKey).filter((f) => (t.get(findingKey(f))?.impressions ?? 0) > 0), [findings, t]);
@@ -453,7 +528,13 @@ function GscView({ d, scanUrl, findings }: { d: GscData; scanUrl: string; findin
           <p className="panel-note">Google&rsquo;s indexing check runs with the 28-day view. Switch to 28 days to see it.</p>
         ) : (
           <>
-            <p className="panel-note">Google&rsquo;s own answer for {d.inspections.length === 1 ? "1 key page" : `${d.inspections.length} key pages`}: the homepage, your busiest pages and pages with issues.</p>
+            <p className="panel-note">
+              Google&rsquo;s own answer for {d.inspections.length} of {Math.max(d.inspectTotal ?? 0, d.inspections.length)} pages: the homepage, your busiest pages, pages with issues and the rest of the pages we found on your site.
+              {" "}{ni.length > 0 ? `${ni.length} not indexed so far.` : ""}
+              {(d.inspectTotal ?? 0) > d.inspections.length && (
+                <> Each refresh checks about 30 more. <CheckMore d={d} g={g} /></>
+              )}
+            </p>
             <DataTable
               rows={[...ni, ...d.inspections.filter((i) => i.verdict === "PASS")]}
               rowKey={(i) => i.url}

@@ -23,6 +23,8 @@ export type GscData = {
   pages: GscPage[];
   queries: GscQuery[];
   inspections: GscInspection[];
+  /** How many pages the scan knows about that Google can be asked about (the inspections cover some of them, more on each refresh). */
+  inspectTotal?: number;
 };
 
 /** Same page whatever the scheme, "www.", trailing slash or #fragment. */
