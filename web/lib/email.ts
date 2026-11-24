@@ -54,6 +54,43 @@ export async function notifyPasswordChanged(to: string, how: "reset" | "changed"
   await sendEmail({ from: process.env.ALERT_FROM ?? "Pagelyt <alerts@pagelyt.dev>", to, subject: how === "set" ? "A password was added to your Pagelyt account" : "Your Pagelyt password was changed", text, replyTo: process.env.CONTACT_EMAIL ?? "customer_care@pagelyt.dev" });
 }
 
+/* ---------- Admin shared scans ---------- */
+
+/** The report link an admin scanned for someone: score teaser, optional note, and a button. From and reply-to are the support address. */
+export function scanReportMail(o: { to: string; link: string; host: string; score: number | null; note?: string }): Mail {
+  const addr = contact();
+  const subject = `Your website report for ${o.host}`;
+  const text = [
+    "Hello,",
+    "",
+    `We scanned ${o.host} with Pagelyt and your report is ready.`,
+    ...(o.score != null ? [`Overall score: ${o.score} / 100.`] : []),
+    ...(o.note ? ["", o.note] : []),
+    "",
+    `Open your report: ${o.link}`,
+    "Sign in or sign up with this email to see the full report. It is saved to your account.",
+    "",
+    "Questions? Just reply to this email.",
+    "",
+    "Pagelyt",
+  ].join("\n");
+  const html = `<!doctype html><html><body style="margin:0;background:#f6f3ee;font-family:Arial,Helvetica,sans-serif;color:#14202b">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="padding:24px 12px"><tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#fff;border-radius:14px;overflow:hidden">
+<tr><td style="padding:16px 20px;border-bottom:4px solid #14202b"><b style="font-size:18px">Pagelyt</b></td></tr>
+<tr><td style="padding:22px 20px">
+<p style="margin:0 0 4px;font-size:11px;font-weight:bold;letter-spacing:.06em;text-transform:uppercase;color:#55616d">Your website report</p>
+<p style="margin:0 0 14px;font-size:22px;font-weight:bold">${escapeHtml(o.host)}</p>
+${o.score != null ? `<p style="margin:0 0 16px;font-size:15px">Overall score: <b>${o.score}</b> / 100</p>` : ""}
+${o.note ? `<p style="margin:0 0 18px;font-size:15px;line-height:1.5;white-space:pre-line">${escapeHtml(o.note)}</p>` : ""}
+<p style="margin:0 0 18px;font-size:15px;line-height:1.5">Sign in or sign up with this email to see the full report. It is saved to your account.</p>
+<a href="${escapeHtml(o.link)}" style="display:inline-block;background:#14202b;color:#fff;text-decoration:none;font-weight:bold;padding:11px 20px;border-radius:999px">Open your report</a>
+</td></tr></table>
+<p style="margin:14px 0 0;font-size:12px;color:#55616d">Sent by Pagelyt. Reply to this email to reach us.</p>
+</td></tr></table></body></html>`;
+  return { from: `Pagelyt <${addr}>`, to: o.to, subject, text, html, replyTo: addr };
+}
+
 /* ---------- Consultation bookings ---------- */
 
 type BookingMail = { id: string; starts_at: string; ends_at: string; session: string; name: string; email: string; website: string | null; message: string | null; timezone: string | null; meet_url: string | null };

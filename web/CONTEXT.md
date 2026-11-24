@@ -248,7 +248,7 @@ Search Console, Analytics (GA4) and Google Ads. Setup and design notes in DEPLOY
 - `account/sites`: agency multi-site view.
 - `account/visibility/[siteId]`: AI visibility. `visibility.tsx` `Visibility({ siteId, embedded })`: "Check all" bar and summary tiles, then the questions beside "who ChatGPT names" and the settings. Each question row has its own Check / Check again button (`checkOne`); questions are added through a guided 3-step card (`.vis-adder`: describe what you offer → pick ChatGPT's suggestions or write your own → check the new ones), which is the empty state when there are no questions. `embedded` is the same tool inside the dashboard's AI visibility view.
 
-**Admin:** `admin/`. `admin.tsx` `AdminPanel` (tabs: Operations, Scan, Websites, Bookings, Requests, Analytics). `kit.tsx`: `Caller`, `DataTable` (search, sortable headers, show more, CSV download with formula-safe cells), `ScoresDialog` (one website’s overall, area and speed scores, issue counts and past scans), `Score`, `fmtDate`. `scan.tsx` `AdminScan` (scan a URL from the tab, copy the link, list of shared scans with opened / claimed by). `websites.tsx` `AdminWebsites` (every scanned website with its emails). `analytics.tsx` `AdminAnalytics` (number tiles that open their table; no charts). `requests.tsx`, `bookings.tsx`.
+**Admin:** `admin/`. `admin.tsx` `AdminPanel` (tabs: Operations, Scan, Websites, Bookings, Requests, Analytics). `kit.tsx`: `Caller`, `DataTable` (search, sortable headers, show more, CSV download with formula-safe cells), `ScoresDialog` (one website’s overall, area and speed scores, issue counts and past scans), `Score`, `fmtDate`. `scan.tsx` `AdminScan` (scan a URL from the tab, copy the link or email it with `SendReport`, list of shared scans with opened / claimed by / emailed to; email sent by `api/admin/scan/email/route.ts` using `scanReportMail` in `lib/email.ts`). `websites.tsx` `AdminWebsites` (every scanned website with its emails). `analytics.tsx` `AdminAnalytics` (number tiles that open their table; no charts). `requests.tsx`, `bookings.tsx`.
 
 **Marketing and content:**
 - `content.ts`: copy for nav, plans, FAQs, modules and sessions.
@@ -357,6 +357,7 @@ Copied from avaraui.com (shadcn-style registry) and trimmed. They use Tailwind c
 | 0016 | Switches saved sites with no schedule to weekly rescans (first run spread over 7 days) |
 | 0018 | `inbox_has_other_account()` for Google/GitHub sign-ups |
 | 0019 | `google_cache.source` allows `all_ai` (Combined AI insights) |
+| 0020 | `scans.emailed_to`, `emailed_at` (admin shared scan emailed to someone) |
 
 ## Dev mocks (`scripts/`)
 

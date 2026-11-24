@@ -78,6 +78,10 @@ becomes the report's owner, and the website becomes theirs too unless another ac
 open the full report of any scan without claiming it. The Websites tab lists every scanned website with its emails
 and scores; the Analytics tab shows the rows behind each number, with CSV downloads.
 
+**Emailing a shared scan.** After a scan (or from a row's Email action) the admin enters an address and an optional note and the
+report link goes out from `customer_care@pagelyt.dev` (also the reply-to; it must be verified in Resend, and `EMAILS_ON=1` set).
+Run `supabase/migrations/0020_invite_emailed.sql` to fill the "Emailed to" column; sending works without it.
+
 ## Password accounts (modal sign-up, `/login`)
 
 Entering a website decides the form. The modal asks `/api/auth/site` whether that website (its **root domain**:

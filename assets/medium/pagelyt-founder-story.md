@@ -82,7 +82,7 @@ You paste your website address. In under a minute, Pagelyt checks your site acro
 
 Then it rolls all of that into one score.
 
-![Pagelyt audit dashboard showing an overall score of 80 and a score card for each area](images/02-audit-score.png)
+![Pagelyt audit dashboard showing an overall score of 82 and a score card for each area](images/02-audit-score.png)
 *One scan, one score, and a card for each area. The weakest area is called out at the top.*
 
 The part I'm proudest of is the line at the top of the report. On the screenshot above it says: *fix the 1 important item first: +2 points. Weakest area: Security.*
@@ -193,7 +193,7 @@ I read every message that comes in. If you run it on your site, I'd genuinely lo
 | # | File | Where it goes | Alt text |
 |---|------|---------------|----------|
 | 1 | `01-cover.png` | Top of the story, and the story preview image | Pagelyt homepage: Find what's holding your site back. And how to fix it. |
-| 2 | `02-audit-score.png` | "How Pagelyt works" | Pagelyt audit dashboard showing an overall score of 80 and a score card for each area |
+| 2 | `02-audit-score.png` | "How Pagelyt works" | Pagelyt audit dashboard showing an overall score of 82 and a score card for each area |
 | 3 | `03-fix-with-code.png` | "Not just what's wrong" | Pagelyt security headers generator with missing headers listed by priority and copy-paste code for Netlify |
 | 4 | `04-ai-bot-checker.png` | "AI search" | Pagelyt AI bot access checker showing 14 of 14 AI bots allowed, including GPTBot, ClaudeBot and PerplexityBot |
 | 5 | `05-google-insights.png` | "Connecting the audit to your real Google traffic" | Pagelyt Google overview with Search Console connected, showing 995 clicks and 105,430 impressions over 28 days |

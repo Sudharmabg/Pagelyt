@@ -140,20 +140,21 @@ export async function adminHostDetail(host: string): Promise<AdminHostDetail | n
 
 /* ---------- scans an admin made to share ---------- */
 
-export type AdminInvite = { id: string; host: string; url: string; at: string; status: Lite["status"]; error: string | null; score: number | null; openedAt: string | null; claimedAt: string | null; claimedBy: string | null };
+export type AdminInvite = { id: string; host: string; url: string; at: string; status: Lite["status"]; error: string | null; score: number | null; openedAt: string | null; claimedAt: string | null; claimedBy: string | null; emailedTo: string | null; emailedAt: string | null };
 
-/** `ready` is false until migration 0014 has been run. */
+/** `ready` is false until migration 0014 has been run. The emailed columns come with migration 0020 and are read when present. */
 export async function adminInvites(): Promise<{ ready: boolean; invites: AdminInvite[] }> {
   if (!live()) return { ready: false, invites: [] };
-  let rows: Lite[];
+  let rows: (Lite & { emailed_to?: string | null; emailed_at?: string | null })[];
   try {
-    rows = await rest<Lite[]>(`scans?invite=is.true&select=${LITE}${INVITE}&order=created_at.desc&limit=200`);
+    const q = (cols: string) => rest<typeof rows>(`scans?invite=is.true&select=${cols}&order=created_at.desc&limit=200`);
+    rows = await q(`${LITE}${INVITE},emailed_to,emailed_at`).catch(() => q(LITE + INVITE));
   } catch {
     return { ready: false, invites: [] };
   }
   const [users, mods] = await Promise.all([emailsById(), modulesFor(rows.filter((r) => r.status === "done").map((r) => r.id))]);
   return {
     ready: true,
-    invites: rows.map((r) => ({ id: r.id, host: r.host, url: r.url, at: r.created_at, status: r.status, error: r.error, score: scoreOf(mods.get(r.id)?.modules), openedAt: r.opened_at ?? null, claimedAt: r.claimed_at ?? null, claimedBy: r.user_id ? (users.get(r.user_id) ?? r.user_id.slice(0, 8)) : null })),
+    invites: rows.map((r) => ({ id: r.id, host: r.host, url: r.url, at: r.created_at, status: r.status, error: r.error, score: scoreOf(mods.get(r.id)?.modules), openedAt: r.opened_at ?? null, claimedAt: r.claimed_at ?? null, claimedBy: r.user_id ? (users.get(r.user_id) ?? r.user_id.slice(0, 8)) : null, emailedTo: r.emailed_to ?? null, emailedAt: r.emailed_at ?? null })),
   };
 }

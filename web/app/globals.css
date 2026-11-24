@@ -5118,6 +5118,9 @@ button.fnd-link:disabled { opacity: .5; cursor: default; }
 .adm-scan-form .fnd-search { flex: 1 1 260px; padding: .6rem 1rem; font-size: 1rem; }
 .adm-scan-done { margin-top: 1rem; padding: 1rem 1.1rem; border-radius: 14px; background: #f3f0fb; border: 1px solid #ddd3f5; display: grid; gap: .6rem; }
 .adm-scan-done p { margin: 0; }
+.adm-scan-mail { display: grid; gap: .5rem; }
+.adm-scan-mail .adm-scan-form { margin: 0; }
+.adm-scan-mail textarea { resize: vertical; border-radius: 14px; padding: .6rem 1rem; font: inherit; }
 .adm-scores { width: min(720px, calc(100vw - 2rem)); max-width: none; }
 .adm-scores h2 { overflow-wrap: anywhere; margin-right: 2rem; }
 .adm-scores h3 { margin: 1.25rem 0 .5rem; font-size: 1rem; }
