@@ -10,7 +10,10 @@ import { pageKey, type GscData, type GscInspection, type GscPage, type GscQuery 
 const WM = "https://www.googleapis.com/webmasters/v3";
 const INSPECT = "https://searchconsole.googleapis.com/v1/urlInspection/index:inspect";
 /** URL Inspection allows 2,000 a day per property; a refresh inspects at most this many (a Worker's subrequest budget is the tighter limit). */
-const MAX_INSPECT = 30;
+const MAX_INSPECT = 15;
+/** Pages asked about at once, and the longest the whole inspection step may take. */
+const INSPECT_GROUP = 5;
+const INSPECT_BUDGET_MS = 20_000;
 /** The most pages tracked for the indexing check. */
 const MAX_CANDIDATES = 500;
 
@@ -123,17 +126,21 @@ async function inspectNext(access: string, property: string, all: string[], prio
 type InspectReply = { inspectionResult?: { indexStatusResult?: { verdict?: string; coverageState?: string; lastCrawlTime?: string; googleCanonical?: string; userCanonical?: string } } };
 
 async function inspectPages(access: string, property: string, urls: string[]): Promise<GscInspection[]> {
-  const res = await Promise.all(
-    urls.map(async (url): Promise<GscInspection | null> => {
-      try {
-        const d = await gJson<InspectReply>(access, INSPECT, { inspectionUrl: url, siteUrl: property });
-        const s = d.inspectionResult?.indexStatusResult;
-        if (!s?.verdict) return null;
-        return { url, verdict: s.verdict, coverage: s.coverageState ?? null, lastCrawl: s.lastCrawlTime ?? null, googleCanonical: s.googleCanonical ?? null, userCanonical: s.userCanonical ?? null };
-      } catch {
-        return null; // a URL outside the property, or the daily quota: skip it
-      }
-    })
-  );
-  return res.filter((x): x is GscInspection => !!x);
+  const out: GscInspection[] = [];
+  const deadline = Date.now() + INSPECT_BUDGET_MS;
+  const one = async (url: string) => {
+    try {
+      const d = await gJson<InspectReply>(access, INSPECT, { inspectionUrl: url, siteUrl: property });
+      const s = d.inspectionResult?.indexStatusResult;
+      if (s?.verdict) out.push({ url, verdict: s.verdict, coverage: s.coverageState ?? null, lastCrawl: s.lastCrawlTime ?? null, googleCanonical: s.googleCanonical ?? null, userCanonical: s.userCanonical ?? null });
+    } catch {
+      /* a URL outside the property, or the daily quota: skip it */
+    }
+  };
+  // Small groups, and no new group once the time budget is spent: the pages answered so far are kept and the rest wait for the next refresh.
+  for (let i = 0; i < urls.length && Date.now() < deadline; i += INSPECT_GROUP) {
+    const left = deadline - Date.now();
+    await Promise.race([Promise.all(urls.slice(i, i + INSPECT_GROUP).map(one)), new Promise((r) => setTimeout(r, left))]);
+  }
+  return out;
 }

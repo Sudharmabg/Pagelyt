@@ -355,7 +355,7 @@ function CheckMore({ d, g }: { d: GscData; g: GoogleState }) {
                 <span className="am-ico" aria-hidden="true"><ScanSearch size={22} /></span>
                 <div>
                   <h2 id="chk-more-h">Indexing check</h2>
-                  <p>Pagelyt asks Google about your pages in batches of about 30, so a large site takes a few rounds.</p>
+                  <p>Pagelyt asks Google about your pages in batches of about 15, so a large site takes a few rounds.</p>
                 </div>
                 <ModalX onClick={() => setOpen(false)} />
               </header>
@@ -378,7 +378,7 @@ function CheckMore({ d, g }: { d: GscData; g: GoogleState }) {
                 <button type="button" className="dash-btn" onClick={() => setOpen(false)}>Close</button>
                 {left > 0 && (
                   <button type="button" className="dash-btn primary" disabled={busy} onClick={() => void g.refresh(true)}>
-                    {busy ? "Checking…" : `Check ${Math.min(30, left)} more`}
+                    {busy ? "Checking…" : `Check ${Math.min(15, left)} more`}
                   </button>
                 )}
               </div>
@@ -532,7 +532,7 @@ function GscView({ d, scanUrl, findings, g }: { d: GscData; scanUrl: string; fin
               Google&rsquo;s own answer for {d.inspections.length} of {Math.max(d.inspectTotal ?? 0, d.inspections.length)} pages: the homepage, your busiest pages, pages with issues and the rest of the pages we found on your site.
               {" "}{ni.length > 0 ? `${ni.length} not indexed so far.` : ""}
               {(d.inspectTotal ?? 0) > d.inspections.length && (
-                <> Each refresh checks about 30 more. <CheckMore d={d} g={g} /></>
+                <> Each refresh checks about 15 more. <CheckMore d={d} g={g} /></>
               )}
             </p>
             <DataTable

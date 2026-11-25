@@ -120,6 +120,11 @@ export async function putCache(siteId: string, source: Source, data: unknown, er
 export const STALE_MS = 24 * 60 * 60 * 1000;
 export const isStale = (c: { fetched_at: string } | null) => !c || Date.now() - Date.parse(c.fetched_at) > STALE_MS;
 
+/** The promise's answer, or `fallback` if it fails or takes longer than `ms`. */
+function withTimeout<T>(p: Promise<T>, ms: number, fallback: T): Promise<T> {
+  return Promise.race([p.catch(() => fallback), new Promise<T>((r) => setTimeout(() => r(fallback), ms))]);
+}
+
 /** Fetches Search Console for a site and caches it. On a Google error the old data is kept and the error stored. */
 export async function refreshGsc(site: Site, conn: Connection, property: string, days: Days = 28): Promise<CacheRow<GscData> | { revoked: true }> {
   const access = await accessFor(conn);
@@ -130,7 +135,7 @@ export async function refreshGsc(site: Site, conn: Connection, property: string,
     const prior = days === 28 ? (await getCache<GscData>(site.id, src).catch(() => null))?.data?.inspections ?? [] : [];
     const home = scan?.result?.url ?? site.url;
     // A scan crawls at most 30 pages, so a bigger site's other pages come from its own sitemap.
-    const sitemap = days === 28 ? (await existingSitemap(new URL(home).origin, 500).catch(() => null))?.urls ?? [] : [];
+    const sitemap = days === 28 ? await withTimeout(existingSitemap(new URL(home).origin, 500).then((r) => r.urls), 5000, []) : [];
     const crawl = [...(scan?.result?.crawl?.list.map((p) => p.url) ?? []), ...sitemap];
     const data = await fetchGsc(access, property, { url: home, findings: scan?.result?.findings ?? [], crawl }, days, prior);
     await putCache(site.id, src, data, null);
