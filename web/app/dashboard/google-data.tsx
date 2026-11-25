@@ -338,7 +338,7 @@ function CheckMore({ d, g }: { d: GscData; g: GoogleState }) {
   const busy = g.busy === "refresh" || g.busy === "range";
   return (
     <>
-      <button type="button" className="fnd-link" aria-haspopup="dialog" onClick={() => setOpen(true)}>Check more pages</button>
+      <button type="button" className="fnd-link" aria-haspopup="dialog" onClick={() => setOpen(true)}>{left > 0 ? "Check more pages" : "View not-indexed pages"}</button>
       {mounted &&
         createPortal(
           <dialog
@@ -362,7 +362,7 @@ function CheckMore({ d, g }: { d: GscData; g: GoogleState }) {
               <div className="chk-prog" role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} aria-label="Pages checked">
                 <span style={{ width: `${total ? Math.round((done / total) * 100) : 0}%` }} />
               </div>
-              <p className="chk-line"><b>{done}</b> of <b>{total}</b> pages checked · <b className={ni.length ? "bad" : undefined}>{ni.length}</b> not indexed so far</p>
+              <p className="chk-line"><b>{done}</b> of <b>{total}</b> pages checked · <b className={ni.length ? "bad" : undefined}>{ni.length}</b> not indexed{left > 0 ? " so far" : ""}</p>
               {ni.length > 0 && (
                 <ul className="chk-list" aria-label="Pages Google has not indexed">
                   {ni.map((i) => (
@@ -530,10 +530,9 @@ function GscView({ d, scanUrl, findings, g }: { d: GscData; scanUrl: string; fin
           <>
             <p className="panel-note">
               Google&rsquo;s own answer for {d.inspections.length} of {Math.max(d.inspectTotal ?? 0, d.inspections.length)} pages: the homepage, your busiest pages, pages with issues and the rest of the pages we found on your site.
-              {" "}{ni.length > 0 ? `${ni.length} not indexed so far.` : ""}
-              {(d.inspectTotal ?? 0) > d.inspections.length && (
-                <> Each refresh checks about 15 more. <CheckMore d={d} g={g} /></>
-              )}
+              {" "}{ni.length > 0 ? `${ni.length} not indexed${(d.inspectTotal ?? 0) > d.inspections.length ? " so far" : ""}.` : ""}
+              {(d.inspectTotal ?? 0) > d.inspections.length && <> Each refresh checks about 15 more.</>}
+              {(d.inspectTotal ?? 0) > 0 && <> <CheckMore d={d} g={g} /></>}
             </p>
             <DataTable
               rows={[...ni, ...d.inspections.filter((i) => i.verdict === "PASS")]}

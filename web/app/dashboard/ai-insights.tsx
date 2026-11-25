@@ -33,9 +33,18 @@ export const METRIC: Record<Metric, { label: string; icon: LucideIcon }> = {
   ad_efficiency: { label: "Ad efficiency", icon: Wallet },
 };
 const SRC: Record<Source, string> = { gsc: "Search Console", ga4: "Analytics", ads: "Google Ads" };
+const EFFORT = { quick: "Quick job", moderate: "A few hours", bigger: "Bigger project" } as const;
 const PRIORITY = { high: "Biggest win", medium: "Worth doing", low: "Smaller win" } as const;
 
 type Result = { insights: Ga4Insight[]; at: string; current: boolean } | null;
+
+/** The four categories the modal always shows, whether or not the product is connected yet. */
+const ALL_TABS: AiTab[] = ["all", "gsc", "ga4", "ads"];
+const PRODUCT: Record<Source, { name: string; pitch: string }> = {
+  gsc: { name: "Search Console", pitch: "the searches that bring people to your site, the pages close to page one, pages losing clicks and pages Google has not indexed" },
+  ga4: { name: "Google Analytics", pitch: "where visitors come from, which pages lose them, and which channels are growing or shrinking" },
+  ads: { name: "Google Ads", pitch: "where ad money is wasted, which searches convert, and how paid and organic traffic overlap" },
+};
 
 /** The tabs this site can use: each linked product with numbers, plus Combined with two or more. */
 export function aiTabs(g: GoogleState): AiTab[] {
@@ -79,8 +88,9 @@ export function AiButton({ g, onOpen }: { g: GoogleState; onOpen: () => void }) 
 }
 
 export function AiInsightsModal({ g, scanId, findings, start, onClose }: { g: GoogleState; scanId: string; findings: Finding[]; start: AiTab | null; onClose: () => void }) {
-  const tabs = aiTabs(g);
-  const [tab, setTab] = useState<AiTab>(() => (start && tabs.includes(start) ? start : tabs[0] ?? "gsc"));
+  const ready = aiTabs(g);
+  const tabs = ALL_TABS;
+  const [tab, setTab] = useState<AiTab>(() => (start && tabs.includes(start) ? start : ready[0] ?? "all"));
   const close = useRef<HTMLButtonElement>(null);
   const body = useRef<HTMLDivElement>(null);
   const tabRefs = useRef<Partial<Record<AiTab, HTMLButtonElement | null>>>({});
@@ -148,11 +158,12 @@ export function AiInsightsModal({ g, scanId, findings, start, onClose }: { g: Go
             <button ref={close} type="button" className="gd-aim-x" onClick={onClose} aria-label="Close"><X aria-hidden="true" /></button>
           </header>
 
-          {tabs.length > 1 && (
+          {(
             <div className="gd-aim-tabs" role="tablist" aria-label="Insights from" onKeyDown={(e) => { if (e.key === "ArrowRight") step(1); if (e.key === "ArrowLeft") step(-1); }}>
               {tabs.map((t) => {
                 const Ic = TAB[t].icon;
                 const n = slot(g, t).ai?.insights.length ?? 0;
+                const on = ready.includes(t);
                 return (
                   <button
                     key={t}
@@ -163,12 +174,12 @@ export function AiInsightsModal({ g, scanId, findings, start, onClose }: { g: Go
                     aria-selected={tab === t}
                     aria-controls="gd-aim-panel"
                     tabIndex={tab === t ? 0 : -1}
-                    className={t === "all" ? "all" : undefined}
+                    className={[t === "all" ? "all" : "", on ? "" : "off"].join(" ").trim() || undefined}
                     onClick={() => pick(t)}
                   >
                     <Ic aria-hidden="true" />
                     {TAB[t].label}
-                    {n > 0 && <span className="gd-aim-tn">{n}</span>}
+                    {on ? n > 0 && <span className="gd-aim-tn">{n}</span> : <span className="gd-aim-tn off">Connect</span>}
                   </button>
                 );
               })}
@@ -176,9 +187,9 @@ export function AiInsightsModal({ g, scanId, findings, start, onClose }: { g: Go
           )}
         </div>
 
-        <div ref={body} className="gd-aim-body" id="gd-aim-panel" role={tabs.length > 1 ? "tabpanel" : undefined} aria-labelledby={tabs.length > 1 ? `gd-aim-t-${tab}` : undefined} aria-busy={cur.busy} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
+        <div ref={body} className="gd-aim-body" id="gd-aim-panel" role="tabpanel" aria-labelledby={`gd-aim-t-${tab}`} aria-busy={cur.busy} onTouchStart={onTouchStart} onTouchEnd={onTouchEnd}>
           <GoogleNav.Provider value={inner}>
-            <Panel key={tab} tab={tab} source={meta.source} cur={cur} findings={findings} products={tab === "all" ? (g.allAi?.products ?? tabs.filter((t): t is Source => t !== "all")) : null} onRun={(force) => void cur.run(scanId, force)} />
+            <Panel key={tab} tab={tab} source={meta.source} cur={cur} findings={findings} ready={ready} g={g} scanId={scanId} products={tab === "all" ? (g.allAi?.products ?? ready.filter((t): t is Source => t !== "all")) : null} onRun={(force) => void cur.run(scanId, force)} />
           </GoogleNav.Provider>
         </div>
 
@@ -197,8 +208,41 @@ export function AiInsightsModal({ g, scanId, findings, start, onClose }: { g: Go
   );
 }
 
-function Panel({ tab, source, cur, findings, products, onRun }: { tab: AiTab; source: string; cur: ReturnType<typeof slot>; findings: Finding[]; products: Source[] | null; onRun: (force: boolean) => void }) {
+/** A category that isn't usable yet: says what the AI would find there and offers to connect what is missing. */
+function ConnectCard({ tab, ready, g, scanId }: { tab: AiTab; ready: AiTab[]; g: GoogleState; scanId: string }) {
+  const have = ready.filter((t): t is Source => t !== "all");
+  const connecting = g.busy === "connect";
+  const adsOff = g.status?.adsOn === false;
+  if (tab === "all") {
+    const missing = (["gsc", "ga4", "ads"] as Source[]).filter((p) => !have.includes(p) && !(p === "ads" && adsOff));
+    return (
+      <div className="gd-aim-empty">
+        <h3>Combined insights need two products</h3>
+        <p>Combined reads Search Console, Analytics and Google Ads side by side, so it can follow a visitor from the search to the sale. {have.length ? `You have ${have.map((p) => PRODUCT[p].name).join(" and ")} connected.` : "Nothing is connected yet."} Connect {have.length ? "one more" : "two"} to unlock it.</p>
+        <div className="gd-aim-cta">
+          {missing.map((p) => <button key={p} type="button" className="dash-btn primary" disabled={connecting} onClick={() => void g.connect(scanId, p)}>{connecting ? "Opening Google…" : `Connect ${PRODUCT[p].name}`}</button>)}
+        </div>
+      </div>
+    );
+  }
+  const p = tab as Source;
+  return (
+    <div className="gd-aim-empty">
+      <h3>Connect {PRODUCT[p].name} to get its AI insights</h3>
+      <p>AI reads your {PRODUCT[p].name} numbers next to this report and shows {PRODUCT[p].pitch}. Each insight comes with the numbers behind it and a step-by-step plan.</p>
+      {p === "ads" && adsOff ? (
+        <p className="panel-note">Google Ads isn&rsquo;t switched on for this server yet.</p>
+      ) : (
+        <div className="gd-aim-cta"><button type="button" className="dash-btn primary" disabled={connecting} onClick={() => void g.connect(scanId, p)}>{connecting ? "Opening Google…" : `Connect ${PRODUCT[p].name}`}</button></div>
+      )}
+      {g.status?.[p === "gsc" ? "property" : p === "ga4" ? "ga4Property" : "adsCustomer"] && !g[p === "gsc" ? "gsc" : p === "ga4" ? "ga4" : "ads"] && <p className="panel-note">It is linked, but its numbers haven&rsquo;t loaded yet. Open its tab in Google data and press Refresh now.</p>}
+    </div>
+  );
+}
+
+function Panel({ tab, source, cur, findings, products, ready, g, scanId, onRun }: { tab: AiTab; source: string; cur: ReturnType<typeof slot>; findings: Finding[]; products: Source[] | null; ready: AiTab[]; g: GoogleState; scanId: string; onRun: (force: boolean) => void }) {
   const byId = useMemo(() => new Map(findings.map((f) => [f.id, f])), [findings]);
+  if (!ready.includes(tab)) return <ConnectCard tab={tab} ready={ready} g={g} scanId={scanId} />;
   if (cur.busy && !cur.ai) {
     return (
       <div className="gd-aim-empty" role="status">
@@ -261,13 +305,32 @@ export function InsightCard({ i, n, byId, showSources }: { i: Ga4Insight; n: num
           {i.gain && <div className={/hard to estimate/i.test(i.gain) ? "unk" : "gain"}><small>Possible gain</small><b>{i.gain}</b></div>}
         </div>
       )}
-      <p className="gd-insight-d">{i.detail}</p>
-      {steps.length > 0 && (
+      <div className="gd-why"><h4>Why this matters</h4><p className="gd-insight-d">{i.detail}</p></div>
+      {i.plan?.length ? (
+        <details className="gd-play" open={n === 0}>
+          <summary>
+            <span className="gd-play-t">Step-by-step plan</span>
+            <span className="gd-play-n">{i.plan.length} steps</span>
+            {i.effort && <span className={`gd-effort e-${i.effort}`}>{EFFORT[i.effort]}</span>}
+          </summary>
+          {i.time && <p className="gd-play-time"><b>Time and results:</b> {i.time}</p>}
+          <ol className="gd-plan">
+            {i.plan.map((st, k) => (
+              <li key={k}>
+                <b>{st.title}</b>
+                {st.how && <p>{st.how}</p>}
+                {st.example && <blockquote><small>Example wording</small>{st.example}</blockquote>}
+              </li>
+            ))}
+          </ol>
+          {i.check && <p className="gd-check"><b>How to check it worked</b>{i.check}</p>}
+        </details>
+      ) : steps.length > 0 ? (
         <div className="gd-insight-steps">
           <h4>What to do</h4>
           <ol>{steps.map((s) => <li key={s}>{s}</li>)}</ol>
         </div>
-      )}
+      ) : null}
       {(i.pages.length > 0 || i.findings.length > 0) && (
         <p className="gd-ins-refs">
           {i.pages.map((p) => <PageLink key={p} url={p} />)}

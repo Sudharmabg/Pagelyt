@@ -3,6 +3,7 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { Finding } from "@/lib/scan/types";
 import Link from "next/link";
+import { TableModal } from "../table-modal";
 import { Sparkles, type LucideIcon } from "lucide-react";
 
 /* Shared pieces of the ★ Google data view: sortable tables with CSV download, links that open a page's drill-down
@@ -102,7 +103,13 @@ export function downloadCsv(file: string, head: string[], rows: (string | number
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function DataTable<T>({ rows, cols, file, sort: initial, limit = 25, rowKey, empty }: { rows: T[]; cols: Col<T>[]; file: string; sort?: { col: number; desc?: boolean }; limit?: number; rowKey: (r: T) => string; empty?: ReactNode }) {
+/** "top-searches-28d" → "Top searches". */
+const titleOf = (file: string) => {
+  const t = file.replace(/-\d+d$/, "").replace(/-/g, " ");
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+export function DataTable<T>({ rows, cols, file, sort: initial, limit = 25, rowKey, empty, title }: { rows: T[]; cols: Col<T>[]; file: string; sort?: { col: number; desc?: boolean }; limit?: number; rowKey: (r: T) => string; empty?: ReactNode; title?: string }) {
   const [sort, setSort] = useState<{ col: number; desc: boolean } | null>(initial ? { col: initial.col, desc: initial.desc ?? true } : null);
   const [all, setAll] = useState(false);
   const sorted = useMemo(() => {
@@ -118,49 +125,60 @@ export function DataTable<T>({ rows, cols, file, sort: initial, limit = 25, rowK
     });
   }, [rows, cols, sort]);
   if (!rows.length) return <>{empty ?? null}</>;
-  const shown = all ? sorted : sorted.slice(0, limit);
   const by = (i: number) => setSort((s) => (s?.col === i ? { col: i, desc: !s.desc } : { col: i, desc: typeof cols[i].get(rows[0]) === "number" }));
-  return (
-    <>
-      <div className="crawl-wrap">
-        <table className="crawl gd-t">
-          <thead>
-            <tr>
-              {cols.map((c, i) => (
-                <th key={c.label} scope="col" aria-sort={sort?.col === i ? (sort.desc ? "descending" : "ascending") : undefined}>
-                  {c.noSort ? c.label : (
-                    <button type="button" className="gd-sort" onClick={() => by(i)}>
-                      {c.label}
-                      <span aria-hidden="true">{sort?.col === i ? (sort.desc ? "↓" : "↑") : "↕"}</span>
-                    </button>
-                  )}
-                </th>
+  const table = (list: T[]) => (
+    <div className="crawl-wrap">
+      <table className="crawl gd-t">
+        <thead>
+          <tr>
+            {cols.map((c, i) => (
+              <th key={c.label} scope="col" aria-sort={sort?.col === i ? (sort.desc ? "descending" : "ascending") : undefined}>
+                {c.noSort ? c.label : (
+                  <button type="button" className="gd-sort" onClick={() => by(i)}>
+                    {c.label}
+                    <span aria-hidden="true">{sort?.col === i ? (sort.desc ? "↓" : "↑") : "↕"}</span>
+                  </button>
+                )}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((r) => (
+            <tr key={rowKey(r)}>
+              {cols.map((c) => (
+                <td key={c.label} className={[c.wrap ? "gd-wrap" : "", c.cls?.(r) ?? ""].join(" ").trim() || undefined}>
+                  {c.cell ? c.cell(r) : c.get(r)}
+                </td>
               ))}
             </tr>
-          </thead>
-          <tbody>
-            {shown.map((r) => (
-              <tr key={rowKey(r)}>
-                {cols.map((c) => (
-                  <td key={c.label} className={[c.wrap ? "gd-wrap" : "", c.cls?.(r) ?? ""].join(" ").trim() || undefined}>
-                    {c.cell ? c.cell(r) : c.get(r)}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+  const csv = (
+    <button type="button" className="fnd-link" onClick={() => downloadCsv(file, cols.map((c) => c.label), sorted.map((r) => cols.map((c) => c.get(r))))}>
+      Download CSV
+    </button>
+  );
+  return (
+    <>
+      {table(sorted.slice(0, limit))}
       <p className="gd-tbar">
         {rows.length > limit && (
-          <button type="button" className="fnd-link" onClick={() => setAll((v) => !v)}>
-            {all ? `Show the first ${limit}` : `Show all ${rows.length}`}
+          <button type="button" className="fnd-link" aria-haspopup="dialog" onClick={() => setAll(true)}>
+            Show all {rows.length}
           </button>
         )}
-        <button type="button" className="fnd-link" onClick={() => downloadCsv(file, cols.map((c) => c.label), sorted.map((r) => cols.map((c) => c.get(r))))}>
-          Download CSV
-        </button>
+        {csv}
       </p>
+      {rows.length > limit && (
+        <TableModal open={all} onClose={() => setAll(false)} title={title ?? titleOf(file)} note={`All ${rows.length}. Click a heading to sort.`} closeOnPick="button.gd-page, button.fnd-link:not(.gd-sort)">
+          {table(sorted)}
+          <p className="gd-tbar">{csv}</p>
+        </TableModal>
+      )}
     </>
   );
 }

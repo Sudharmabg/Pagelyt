@@ -487,7 +487,10 @@ function mockOpenAI(res, body) {
   const kind = Object.entries(METRIC).find(([k]) => input.includes(k))?.[1] ?? "visits";
   const reply = (insights) => send(res, 200, { id: `resp_${crypto.randomUUID()}`, object: "response", status: "completed", output: [{ type: "message", role: "assistant", content: [{ type: "output_text", text: JSON.stringify({ insights: insights.map((i, n) => ({
     metric: kind, now: (i.title.match(/\d[\d,.]*%?( [a-z]+)?/) || ["–"])[0], gain: n === 0 ? "about +15% in a month" : n === 3 ? "hard to estimate" : `about +${20 - n * 5} a month`,
-    steps: [i.action, "Check the change on this page in Pagelyt next week."], ...i })) }) }] }] });
+    steps: [i.action, "Check the change on this page in Pagelyt next week."],
+    plan: (i.steps ?? [i.action, "Check the change on this page in Pagelyt next week."]).map((t, k) => ({ title: t, how: "Open the page in your website editor and find its SEO settings. Make the change, save it, then open the live page to confirm it shows. If you are unsure where a setting lives, search your platform's help for the setting's name.", example: k === 0 ? "Free website audit: what to check first | Pagelyt" : "" })),
+    time: "About 2 hours of work; clicks usually move within 2 to 4 weeks", effort: n === 0 ? "quick" : n === 1 ? "moderate" : "bigger", check: "In Search Console open Performance, filter to this page, and compare the last 28 days with the 28 before: expect clicks and click rate to rise.",
+    ...i })) }) }] }] });
   // The combined analysis (Search Console + Analytics + Ads): built from its PAGE JOURNEY table.
   if (body.text?.format?.name === "growth_insights") {
     const rows = [...input.matchAll(/^(\/[^ |]*) \| (.+)$/gm)].filter((m) => /search clicks|visits|ad spend/.test(m[2])).map((m) => ({ path: m[1], line: m[2], issues: ((m[2].match(/issues (.+)$/) || [])[1] || "").split(", ").filter(Boolean) }));

@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "./toast";
+import { TableModal } from "./table-modal";
 import { CopyButton } from "@/components/avara/CopyButtonBlock";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
@@ -25,40 +26,47 @@ const pathOf = (u: string) => {
 };
 const safeHref = (u: string) => (/^https?:\/\//i.test(u) ? u : undefined);
 
-/* Every page a finding affects: the first 10, then all of them in a scrolling box. */
+/* Every page a finding affects: the first 10, then "Show all N pages" opens the full list in a modal. */
 function PagesTable({ t, title }: { t: PageTable; title: string }) {
   const [all, setAll] = useState(false);
-  const rows = all ? t.rows : t.rows.slice(0, FIRST_ROWS);
   const n = t.rows.length;
+  const table = (rows: PageTable["rows"]) => (
+    <div className="fpt-wrap">
+      <table>
+        <caption className="sr-only">Pages affected: {title}</caption>
+        <thead>
+          <tr>
+            <th scope="col" className="fpt-n">#</th>
+            <th scope="col">Page</th>
+            {t.cols.map((c) => <th scope="col" key={c}>{c}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={`${r.url}-${i}`}>
+              <td className="fpt-n">{i + 1}</td>
+              <td className="fpt-page">
+                {safeHref(r.url) ? <a href={r.url} target="_blank" rel="noopener noreferrer nofollow">{pathOf(r.url)}</a> : pathOf(r.url)}
+              </td>
+              {r.cells.map((c, j) => <td key={j}>{c}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
   return (
     <div className="fpt">
-      <div className={`fpt-wrap${all ? " all" : ""}`}>
-        <table>
-          <caption className="sr-only">Pages affected: {title}</caption>
-          <thead>
-            <tr>
-              <th scope="col" className="fpt-n">#</th>
-              <th scope="col">Page</th>
-              {t.cols.map((c) => <th scope="col" key={c}>{c}</th>)}
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={`${r.url}-${i}`}>
-                <td className="fpt-n">{i + 1}</td>
-                <td className="fpt-page">
-                  {safeHref(r.url) ? <a href={r.url} target="_blank" rel="noopener noreferrer nofollow">{pathOf(r.url)}</a> : pathOf(r.url)}
-                </td>
-                {r.cells.map((c, j) => <td key={j}>{c}</td>)}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {table(t.rows.slice(0, FIRST_ROWS))}
       {n > FIRST_ROWS && (
-        <button type="button" className="fnd-link fpt-more" aria-expanded={all} onClick={() => setAll((v) => !v)}>
-          {all ? "Show fewer" : `Show all ${n} pages`}
-        </button>
+        <>
+          <button type="button" className="fnd-link fpt-more" aria-haspopup="dialog" onClick={() => setAll(true)}>
+            Show all {n} pages
+          </button>
+          <TableModal open={all} onClose={() => setAll(false)} title="Pages affected" note={`${title}. All ${n} pages.`}>
+            <div className="fpt">{table(t.rows)}</div>
+          </TableModal>
+        </>
       )}
     </div>
   );

@@ -48,8 +48,15 @@ export type Ga4Insight = {
   now?: string;
   gain?: string;
   steps?: string[];
+  /** The step-by-step playbook (newer insights): each step says what to do, exactly where and how, and may carry example wording. `steps` holds just the step titles. */
+  plan?: PlanStep[];
+  /** How long the plan takes and when results show, how big a job it is, and how to confirm it worked. */
+  time?: string;
+  effort?: "quick" | "moderate" | "bigger";
+  check?: string;
   sources?: Source[];
 };
+export type PlanStep = { title: string; how: string; example?: string };
 export type Ga4Ai = { insights: Ga4Insight[]; basedOn: string; model: string };
 
 export const rate = (engaged: number, sessions: number) => (sessions ? engaged / sessions : 0);
