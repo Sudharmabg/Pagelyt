@@ -9,6 +9,7 @@ import { SiteFooter, SiteNav } from "../../site-chrome";
 import { AllFeaturesBanner, FeatureCard, FeatureGains, MOCKS } from "../feature-card";
 import { FEATURE_ANSWERS } from "../../answers";
 import { QuickAnswer, TopicLinks } from "../../seo-bits";
+import { guidesForArea } from "@/lib/scan/guides-extra";
 import { postsForFeature, toolsForFeature } from "../../topics";
 import { SITE_URL } from "../../site-config";
 import { fitTitle } from "../../counts";
@@ -149,6 +150,7 @@ export default async function FeaturePage({ params }: { params: Promise<{ slug: 
         <TopicLinks
           posts={posts}
           tools={tools}
+          fixes={f.area ? guidesForArea(f.area, f.slug, 4) : []}
           title={`Guides and free tools for ${f.name.toLowerCase()}`}
           lead="Read how it works in depth, or check one thing right now with a free tool."
         />

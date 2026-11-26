@@ -3,6 +3,7 @@ import { Arrow } from "./arrow";
 import { postBySlug } from "./blog-data";
 import { FEATURE_ICON } from "./feature-icons";
 import { featureBySlug } from "./features-data";
+import { GUIDES } from "@/lib/scan/guides";
 import { TOOLS_BY_SLUG, type ToolSlug } from "./tools/catalog";
 
 /* Shared SEO pieces for feature, tool and blog pages: the ~100-word answer right under the title, and the
@@ -26,12 +27,15 @@ export function TopicLinks({
   posts = [],
   tools = [],
   features = [],
+  fixes = [],
   title = "On this topic",
   lead,
 }: {
   posts?: string[];
   tools?: string[];
   features?: string[];
+  /** Fix guide ids (lib/scan/guides.ts). */
+  fixes?: string[];
   title?: string;
   lead?: string;
 }) {
@@ -43,6 +47,10 @@ export function TopicLinks({
     ...tools.flatMap((s) => {
       const t = TOOLS_BY_SLUG.get(s as ToolSlug);
       return t ? [{ href: `/tools/${t.slug}`, kind: "Free tool", title: t.name, text: t.blurb }] : [];
+    }),
+    ...fixes.flatMap((id) => {
+      const g = GUIDES[id];
+      return g ? [{ href: `/fix/${id}`, kind: "Fix guide", title: g.title, text: g.summary }] : [];
     }),
     ...posts.flatMap((s) => {
       const p = postBySlug(s);
@@ -59,10 +67,10 @@ export function TopicLinks({
           {items.map((it) => (
             <li key={it.href}>
               <Link className="tl-card" href={it.href} style={it.color ? { ["--tl" as string]: it.color } : undefined}>
-                <span className={`tl-kind k-${it.kind === "Guide" ? "guide" : it.kind === "Feature" ? "feat" : "tool"}`}>{it.kind}</span>
+                <span className={`tl-kind k-${it.kind === "Guide" || it.kind === "Fix guide" ? "guide" : it.kind === "Feature" ? "feat" : "tool"}`}>{it.kind}</span>
                 <b>{it.title}</b>
                 <small>{it.text}</small>
-                <span className="tl-go">{it.kind === "Guide" ? "Read the guide" : it.kind === "Feature" ? "See the feature" : "Try it free"} <Arrow /></span>
+                <span className="tl-go">{it.kind === "Guide" ? "Read the guide" : it.kind === "Fix guide" ? "See the steps" : it.kind === "Feature" ? "See the feature" : "Try it free"} <Arrow /></span>
               </Link>
             </li>
           ))}

@@ -8,6 +8,7 @@ import { CtaBand, PageHero } from "../../page-shell";
 import { SiteFooter, SiteNav } from "../../site-chrome";
 import { SITE_URL } from "../../site-config";
 import { GUIDES, GUIDE_ORDER } from "@/lib/scan/guides";
+import { GUIDE_EXTRA } from "@/lib/scan/guides-extra";
 import { MODULE_NAMES } from "@/lib/scan/types";
 import { CopyCode } from "../copy-code";
 
@@ -28,8 +29,10 @@ export default async function FixPage({ params }: { params: Promise<{ id: string
   const at = GUIDE_ORDER.indexOf(id);
   const prev = at > 0 ? GUIDE_ORDER[at - 1] : null;
   const next = at < GUIDE_ORDER.length - 1 ? GUIDE_ORDER[at + 1] : null;
-  // same-area guides, minus the ones already offered as previous/next
-  const related = GUIDE_ORDER.filter((x) => x !== id && x !== prev && x !== next && GUIDES[x].module === g.module).slice(0, 3);
+  const extra = GUIDE_EXTRA[id];
+  // hand-picked guides first (across areas), then same-area ones, minus the previous and next cards
+  const picked = (extra?.related ?? []).filter((x) => GUIDES[x] && x !== id);
+  const related = [...new Set([...picked, ...GUIDE_ORDER.filter((x) => x !== id && GUIDES[x].module === g.module)])].filter((x) => x !== prev && x !== next).slice(0, 5);
   const url = `${SITE_URL}/fix/${id}`;
   const howTo = {
     "@context": "https://schema.org",
@@ -47,6 +50,7 @@ export default async function FixPage({ params }: { params: Promise<{ id: string
     <>
       <JsonLd data={crumbLd([["Home", "/"], ["Fix guides", "/fix"], [g.title, `/fix/${id}`]])} />
       <JsonLd data={howTo} />
+      {extra && <JsonLd data={{ "@context": "https://schema.org", "@type": "FAQPage", mainEntity: extra.faq.map(([q, a]) => ({ "@type": "Question", name: q, acceptedAnswer: { "@type": "Answer", text: a } })) }} />}
       <SiteNav />
       <main>
         <PageHero h1={g.title} lead={g.summary} />
@@ -64,6 +68,8 @@ export default async function FixPage({ params }: { params: Promise<{ id: string
               <h2>Why it matters</h2>
               <p>{g.why}</p>
             </div>
+
+            {extra && <p className="guide-time"><b>How long it takes:</b> {extra.time}</p>}
 
             <h2>Steps</h2>
             <ol className="guide-steps">
@@ -89,6 +95,24 @@ export default async function FixPage({ params }: { params: Promise<{ id: string
               <p>{g.verify}</p>
             </div>
 
+            {extra && (
+              <>
+                <section className="guide-mistakes" aria-labelledby="mistakes-h">
+                  <h2 id="mistakes-h">Common mistakes</h2>
+                  <ul>{extra.mistakes.map((m) => <li key={m}>{m}</li>)}</ul>
+                </section>
+                <section className="guide-faq" aria-labelledby="gfaq-h">
+                  <h2 id="gfaq-h">Questions people ask</h2>
+                  {extra.faq.map(([q, a]) => (
+                    <div key={q}>
+                      <h3>{q}</h3>
+                      <p>{a}</p>
+                    </div>
+                  ))}
+                </section>
+              </>
+            )}
+
             {g.tool && (
               <Link className="btn" href={g.tool.href}>
                 {g.tool.label} <Arrow />
@@ -102,7 +126,7 @@ export default async function FixPage({ params }: { params: Promise<{ id: string
 
             {related.length > 0 && (
               <section className="guide-related" aria-labelledby="related-h">
-                <h2 id="related-h">More {area} guides</h2>
+                <h2 id="related-h">Related guides</h2>
                 <ul>
                   {related.map((r) => (
                     <li key={r}>

@@ -12,6 +12,10 @@ import { PostToc } from "../toc";
 import { fitTitle } from "../../counts";
 import { POST_ANSWERS } from "../../answers";
 import { QuickAnswer, TopicLinks } from "../../seo-bits";
+import { guidesForArea } from "@/lib/scan/guides-extra";
+
+/* Which area of fix guides each blog tag links to. */
+const TAG_AREA: Record<string, string> = { SEO: "seo", GEO: "geo", Security: "security", Accessibility: "accessibility", Performance: "performance", Speed: "performance", Guides: "health" };
 import { POST_FOCUS, featuresForPost, postsForFeature, toolsForPost } from "../../topics";
 
 /** The post's focus keyword first, then its other keywords without repeats. */
@@ -117,7 +121,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           </div>
         </section>
 
-        <TopicLinks features={features} tools={tools} title="Check it on your own site" lead="Pagelyt checks this in every scan, and the free tools below check one thing in seconds." />
+        <TopicLinks features={features} tools={tools} fixes={guidesForArea(TAG_AREA[p.tag] ?? "seo", p.slug, 3)} title="Check it on your own site" lead="Pagelyt checks this in every scan, and the free tools below check one thing in seconds." />
 
         {related.length > 0 && (
           <section className="sec ice" aria-labelledby="rel-h">

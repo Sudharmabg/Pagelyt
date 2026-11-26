@@ -4,6 +4,11 @@ import { POSTS } from "./blog-data";
 import { GUIDES } from "@/lib/scan/guides";
 import { PRICING_ON, SITE_URL } from "./site-config";
 import { TOOL_LIST } from "./tools/catalog";
+import { SITEMAP_DATES, SITEMAP_DEFAULT_DATE } from "./sitemap-dates";
+
+/* The real last-changed date of a page (from git, see scripts/sitemap-dates.mjs), not "now": a sitemap that says every
+   page changed this second teaches Google to ignore lastmod. */
+const changed = (route: string) => SITEMAP_DATES[route] ?? SITEMAP_DATES[`/${route.split("/")[1]}/`] ?? SITEMAP_DEFAULT_DATE;
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const routes = [
@@ -29,7 +34,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
   ];
   return routes.map((r) => ({
     url: `${SITE_URL}${r}`,
-    lastModified: new Date(),
+    lastModified: changed(r),
     changeFrequency: r === "" ? "weekly" : "monthly",
     priority: r === "" ? 1 : r.startsWith("/features/") || r.startsWith("/fix/") || r.startsWith("/blog/") || r.startsWith("/tools/") ? 0.7 : 0.8,
   }));

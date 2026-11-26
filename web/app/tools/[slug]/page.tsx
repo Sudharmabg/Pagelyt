@@ -12,6 +12,7 @@ import { ToolSample } from "../samples";
 import { ToolSteps } from "../tool-steps";
 import { TOOL_ANSWERS } from "../../answers";
 import { QuickAnswer, TopicLinks } from "../../seo-bits";
+import { guidesForTool } from "@/lib/scan/guides-extra";
 import { featuresForTool, postsForTool } from "../../topics";
 import { SITE_URL } from "../../site-config";
 import { fitTitle } from "../../counts";
@@ -167,7 +168,7 @@ export default async function ToolPage({ params }: { params: Promise<{ slug: str
           </div>
         </section>
         {hasGoogleNote(t.slug) && <GoogleStrip slug={t.slug} />}
-        <TopicLinks features={features} posts={posts} title="Learn more on this topic" lead="The full scan checks this and much more. The guides explain the topic step by step." />
+        <TopicLinks features={features} posts={posts} fixes={guidesForTool(t.slug)} title="Learn more on this topic" lead="The full scan checks this and much more. The guides explain the topic step by step." />
         <CtaBand title="Want the full picture?" text="This tool checks one thing. A free Pagelyt scan checks speed, SEO, AI readiness, security and more, and tells you what to fix first." />
       </main>
       <SiteFooter />
