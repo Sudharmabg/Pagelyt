@@ -1,5 +1,5 @@
 # One line per scene, spoken by Neerja. Spell names the way they should sound; captions map them back (marketing/tools/tts.py).
-Black Friday is next Friday. Will your website survive the rush?
+Black Friday is here. Will your website survive the rush?
 In one survey, sixty-one percent of store owners said their site crashed during a sale.
 The usual culprits? Heavy images, render-blocking scripts, and too many third-party apps.
 Paste your URL into Page-light, and in under a minute, you'll see what's slowing you down.

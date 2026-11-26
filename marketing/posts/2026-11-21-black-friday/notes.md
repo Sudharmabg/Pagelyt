@@ -6,7 +6,7 @@
 - `reel-linkedin.mp4` (34 s): voiceover plus word-by-word captions, for LinkedIn.
 - `cover.png`: cover frame for all three.
 
-**Post by:** Wednesday 25 Nov at the latest. The hook says "next Friday" and the date chip says Fri 27 Nov.
+**Post by:** 26–27 Nov. The hook now says "Black Friday is here" (v2); the date chip says Fri 27 Nov. After the 27th, swap the hook for Cyber Monday (30 Nov) or a general "before the Christmas rush".
 Best slots: Instagram 7–9 pm IST; LinkedIn Tuesday or Wednesday, 8–10 am.
 
 ## Instagram: when someone comments SALE
@@ -46,6 +46,13 @@ https://www.techradar.com/pro/your-small-business-could-lose-out-on-black-friday
 - Truth: pass. The 61% figure is on screen with its source; the voice line matches the survey wording. Goes stale after 26 Nov.
 - CTA: pass. "Comment SALE" appears on screen, in the caption, in the pinned comment and in the DM template.
 - Sound: pass (normalised, 0.2 s or more between lines, no music on the voice cut).
+
+## Revision 2 (26 Nov)
+
+- Rebuilt on `marketing/tools/reel-base.{css,js}` (`reel.html`; v1 kept as `reel-v1.html`). Every scene is one centred block with no empty space above or below; logo on every scene; staggered entrances.
+- The phone scene is a compact, centred phone (568 px screen) so the headline and phone fit together.
+- Hook: "Black Friday is next Friday" → "Black Friday is here" (voice line 1 regenerated); captions updated to match, and LinkedIn now points to Cyber Monday and Christmas.
+- Re-checked: all ✓, no warnings. Voice and LinkedIn cuts are 33.8 s at −14.2 LUFS; the silent cut is 19.8 s.
 
 ## Editing and re-rendering
 

@@ -3,79 +3,29 @@
 <head>
 <meta charset="utf-8">
 <title>Pagelyt reel: Black Friday</title>
-<!-- 1080x1920 reel driven by window.setT(seconds). Modes (query string):
-       (none)     Neerja voiceover, timed to the clips in voice/
-       ?captions  voiceover + word-by-word captions (LinkedIn)
-       ?silent    no voice, tighter timing (Instagram, add a trending song in the app)
-     Add &play to watch in a browser. Render: see notes.md.
-     Instagram covers the top ~220px and bottom ~420px, so key text stays between y=250 and y=1500. -->
+<!-- v2: rebuilt on marketing/tools/reel-base.{css,js}: every scene is one centred block (no empty space above or below), logo on every scene.
+     (none) = Neerja voice (Instagram) · ?captions = voice + word captions (LinkedIn) · ?silent = trending-audio cut. Add &play to watch. v1 is reel-v1.html. -->
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,600..900&family=Inter:wght@400;500;600;700&display=block" rel="stylesheet">
+<link rel="stylesheet" href="../../tools/reel-base.css">
 <style>
-  :root { --bg:#f8e5d4; --ink:#12303f; --body:#2c3f4a; --muted:#5d6b73; --purple:#6a30bd; --red:#d23b3b; }
-  * { box-sizing:border-box; margin:0; padding:0; }
-  html, body { width:1080px; height:1920px; overflow:hidden; background:var(--bg); font-family:Inter, system-ui, sans-serif; color:var(--ink); -webkit-font-smoothing:antialiased; }
-  #stage { position:relative; width:1080px; height:1920px; overflow:hidden; background:var(--bg); }
-  #stage::before { content:""; position:absolute; inset:0;
-    background-image:linear-gradient(to right, rgba(186,138,255,.16) 1px, transparent 1px), linear-gradient(to bottom, rgba(186,138,255,.16) 1px, transparent 1px);
-    background-size:60px 60px; mask-image:radial-gradient(ellipse 90% 60% at 50% 42%, #000 20%, transparent 85%); }
-  .arcs { position:absolute; left:-260px; top:1010px; width:1600px; height:620px; }
-  .scene { position:absolute; inset:0; opacity:0; will-change:opacity, transform; }
-
-  .brand { display:flex; align-items:center; justify-content:center; gap:16px; }
-  .brand svg { width:84px; height:51px; } .brand b { font:800 52px/1 Archivo; font-variation-settings:"wdth" 100; letter-spacing:-.02em; color:#2a1f3d; }
-  h1 { font:800 150px/.94 Archivo; font-variation-settings:"wdth" 72; letter-spacing:-.035em; text-align:center; }
-  h1 em, h2 em { font-style:normal; color:var(--purple); }
-  .cap { position:absolute; left:60px; right:60px; top:250px; text-align:center; }
-  .cap .k { display:inline-block; padding:14px 24px; border-radius:99px; background:var(--purple); color:#fff; font:700 28px/1 Inter; letter-spacing:.08em; text-transform:uppercase; }
-  .cap h2 { margin-top:22px; font:800 92px/.98 Archivo; font-variation-settings:"wdth" 72; letter-spacing:-.03em; }
-
-  /* 1 · hook */
-  .chip { margin:54px auto 0; width:max-content; display:flex; align-items:center; gap:18px; padding:20px 34px; border-radius:99px; background:#12303f; color:#fff; font:700 38px/1 Inter; letter-spacing:.04em; box-shadow:0 20px 40px rgba(18,48,63,.25); }
-  .chip i { width:18px; height:18px; border-radius:50%; background:#fe79a2; box-shadow:0 0 0 6px rgba(254,121,162,.3); }
-  #sc1 h1 { margin-top:56px; font-size:164px; }
-
-  /* 2 · stat */
-  .big { position:absolute; left:0; right:0; top:520px; text-align:center; font:900 400px/1 Archivo; font-variation-settings:"wdth" 80; letter-spacing:-.04em; color:var(--purple); }
+  #sc1 h1 { font-size:164px; }
+  .big { font:900 400px/.9 Archivo; font-variation-settings:"wdth" 80; letter-spacing:-.04em; color:var(--purple); }
   .big small { font-size:200px; }
-  .statp { position:absolute; left:110px; right:110px; top:960px; text-align:center; font:600 50px/1.25 Inter; color:var(--ink); }
-  .statp b { color:var(--red); }
-  .src { position:absolute; left:110px; right:110px; top:1290px; text-align:center; font:500 28px/1.35 Inter; color:var(--muted); }
-  .load { position:absolute; left:50%; top:1180px; width:520px; margin-left:-260px; height:18px; border-radius:99px; background:#eadfd4; overflow:hidden; }
+  .statp { font:600 50px/1.25 Inter; color:var(--ink); max-width:880px; } .statp b { color:var(--red); }
+  .load { width:520px; height:18px; border-radius:99px; background:#eadfd4; overflow:hidden; }
   .load i { display:block; height:100%; width:0; border-radius:99px; background:linear-gradient(90deg,#fe79a2,#d23b3b); }
-
-  /* 3 · culprits */
-  .list { position:absolute; left:70px; right:70px; top:560px; display:flex; flex-direction:column; gap:34px; }
-  .item { display:flex; align-items:center; gap:34px; padding:40px 44px; border-radius:40px; background:#fff; box-shadow:0 30px 70px rgba(18,48,63,.12), 0 0 0 1px rgba(18,48,63,.05); opacity:0; }
-  .item .n { flex:none; width:110px; height:110px; border-radius:32px; display:grid; place-items:center; font:800 56px/1 Archivo; color:#fff; }
-  .item:nth-child(1) .n { background:#fe79a2; } .item:nth-child(2) .n { background:#febc77; color:#5a3300; } .item:nth-child(3) .n { background:#ba8aff; }
-  .item b { display:block; font:800 58px/1 Archivo; font-variation-settings:"wdth" 78; letter-spacing:-.02em; }
-  .item span { display:block; margin-top:14px; font:500 32px/1.25 Inter; color:var(--body); }
-
-  /* 4 · paste URL (phone-home.png is 1170x2532, shown 692 wide) */
-  .phone { position:absolute; left:50%; top:560px; width:724px; margin-left:-362px; padding:16px 16px 0; border-radius:84px 84px 0 0; background:#1b1426; box-shadow:0 50px 110px rgba(18,48,63,.28); }
-  .phone .view { position:relative; height:1500px; border-radius:68px 68px 0 0; overflow:hidden; background:var(--bg); }
-  .phone .view img { position:absolute; left:0; top:0; width:100%; display:block; transform-origin:50% 55%; }
-  #typed { position:absolute; background:#fff; display:flex; align-items:center; font:400 30px/1 Inter; color:var(--ink); }
-  #typed .caret { width:3px; height:36px; background:var(--purple); margin-left:3px; }
-  #press { position:absolute; border-radius:22px; }
-  .cursor { position:absolute; width:54px; height:54px; z-index:5; }
-
-  /* 5 · ranked fixes (fixes.png is 1776x976, shown 1500 wide and cropped to the first two cards) */
-  .shot { position:absolute; left:60px; width:960px; height:640px; top:560px; border-radius:30px; overflow:hidden; box-shadow:0 40px 90px rgba(18,48,63,.18), 0 0 0 1px rgba(18,48,63,.06); }
-  .shot img { width:1500px; display:block; }
-  .ring { position:absolute; border:6px solid var(--purple); border-radius:28px; opacity:0; }
-  .tags { position:absolute; left:60px; right:60px; top:1250px; display:flex; flex-wrap:wrap; justify-content:center; gap:16px; }
-  .tags span { padding:20px 28px; border-radius:99px; background:#fff; font:700 32px/1 Inter; box-shadow:0 0 0 1px rgba(18,48,63,.08); opacity:0; }
-  .tags span i { font-style:normal; color:#1f9d6b; margin-right:8px; }
-
-  /* 6 · end */
-  #sc6 h1 { margin-top:46px; font-size:128px; }
-  .end .brand svg { width:120px; height:73px; } .end .brand b { font-size:76px; }
-  .pill { margin:52px auto 0; width:max-content; padding:32px 52px; border-radius:30px; background:var(--purple); color:#fff; text-align:center; box-shadow:0 30px 60px rgba(106,48,189,.38); }
-  .pill small { display:block; font:600 34px/1 Inter; opacity:.9; }
-  .pill b { display:block; margin-top:14px; font:800 100px/1 Archivo; font-variation-settings:"wdth" 80; letter-spacing:-.01em; }
-  .end p { margin-top:34px; text-align:center; font:600 38px/1.3 Inter; color:var(--body); } .end p b { color:var(--purple); }
-
+  .row .n.c1 { background:#fe79a2; } .row .n.c2 { background:#febc77; color:#5a3300; } .row .n.c3 { background:#ba8aff; }
+  /* phone (phone-home.png is 1170x2532, shown 568 wide) */
+  .phone { width:600px; padding:16px; border-radius:72px; background:#1b1426; box-shadow:0 50px 110px rgba(18,48,63,.28); }
+  .phone .view { position:relative; height:800px; border-radius:58px; overflow:hidden; background:var(--bg); }
+  .phone .view img { position:absolute; left:0; top:0; width:100%; display:block; transform-origin:50% 80%; }
+  #typed { position:absolute; background:#fff; display:flex; align-items:center; font:400 25px/1 Inter; color:var(--ink); }
+  #typed .caret { width:3px; height:30px; background:var(--purple); margin-left:3px; }
+  #press { position:absolute; border-radius:18px; }
+  .phone .cursor { position:absolute; width:48px; height:48px; z-index:5; }
+  .tags { display:flex; flex-wrap:wrap; justify-content:center; gap:16px; }
+  .tags span { padding:20px 28px; border-radius:99px; background:#fff; font:700 32px/1 Inter; box-shadow:0 0 0 1px rgba(18,48,63,.08); }
+  .tags span i { font-style:normal; color:var(--green); margin-right:8px; }
 </style>
 </head>
 <body>
@@ -95,149 +45,109 @@
 <div id="stage">
   <svg class="arcs" id="arcs"><use href="#ribbons"/></svg>
 
-  <!-- 1 · hook (also the cover) -->
-  <section class="scene" id="sc1" style="padding-top:330px">
+  <!-- 1 · hook (cover) -->
+  <section class="scene" id="sc1"><div class="block">
     <div class="brand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
     <div class="chip" id="chip"><i></i>Black Friday · Fri 27 Nov</div>
-    <h1 id="hookH"><span>Will your</span><br><span>website</span><br><em>survive it?</em></h1>
-  </section>
+    <h1 id="hookH">Will your<br>website<br><em>survive it?</em></h1>
+  </div></section>
 
   <!-- 2 · the risk -->
-  <section class="scene" id="sc2">
-    <div class="cap"><span class="k">The risk</span></div>
+  <section class="scene" id="sc2"><div class="block tight">
+    <div class="brand sm"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <span class="kicker">The risk</span>
     <div class="big"><span id="pct">0</span><small>%</small></div>
     <p class="statp">of online store owners saw their site <b>crash</b> during a sale or traffic spike last year</p>
     <div class="load"><i id="load"></i></div>
     <p class="src">Survey of 507 store owners by Network Solutions,<br>reported by TechRadar</p>
-  </section>
+  </div></section>
 
   <!-- 3 · culprits -->
-  <section class="scene" id="sc3">
-    <div class="cap"><h2>The usual <em>culprits</em></h2></div>
-    <div class="list" id="list">
-      <div class="item"><span class="n">1</span><div><b>Heavy images</b><span>Photos over 300 KB slow every page</span></div></div>
-      <div class="item"><span class="n">2</span><div><b>Render-blocking scripts</b><span>Code that makes the page wait to appear</span></div></div>
-      <div class="item"><span class="n">3</span><div><b>Too many apps</b><span>Review, chat and upsell widgets loading from other servers</span></div></div>
+  <section class="scene" id="sc3"><div class="block">
+    <div class="brand sm"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <h2>The usual<br><em>culprits</em></h2>
+    <div class="rows" id="list" data-own>
+      <div class="row"><span class="n c1">1</span><div><b>Heavy images</b><span>Photos over 300 KB slow every page</span></div></div>
+      <div class="row"><span class="n c2">2</span><div><b>Render-blocking scripts</b><span>Code that makes the page wait to appear</span></div></div>
+      <div class="row"><span class="n c3">3</span><div><b>Too many apps</b><span>Review, chat and upsell widgets loading from other servers</span></div></div>
     </div>
-  </section>
+  </div></section>
 
   <!-- 4 · paste URL -->
-  <section class="scene" id="sc4">
-    <div class="cap"><h2>Find yours in<br><em>60 seconds</em></h2></div>
-    <div class="phone" style="top:640px"><div class="view"><img id="homeImg" src="../../../assets/instagram/shots/phone-home.png" alt="">
+  <section class="scene" id="sc4"><div class="block">
+    <div class="brand sm"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <h2>Find yours in<br><em>60 seconds</em></h2>
+    <div class="phone"><div class="view"><img id="homeImg" src="../../../assets/instagram/shots/phone-home.png" alt="">
       <div id="typed"><span id="typedText"></span><span class="caret" id="caret"></span></div>
-      <div id="press"></div></div></div>
-    <svg class="cursor" id="cur4"><use href="#cur"/></svg>
-  </section>
+      <div id="press"></div><svg class="cursor" id="cur4"><use href="#cur"/></svg></div></div>
+  </div></section>
 
-  <!-- 5 · ranked fixes -->
-  <section class="scene" id="sc5">
-    <div class="cap"><h2>Every fix, <em>ranked</em></h2></div>
-    <div class="shot" id="shot"><img src="../../../assets/instagram/shots/fixes.png" alt=""><div class="ring" id="ring"></div></div>
-    <div class="tags" id="tags"><span><i>✓</i>Ranked by impact</span><span><i>✓</i>Plain English</span><span><i>✓</i>Time to fix</span></div>
-  </section>
+  <!-- 5 · ranked fixes (fixes.png is 1776x976, shown 1500 wide, cropped to the first two cards) -->
+  <section class="scene" id="sc5"><div class="block">
+    <div class="brand sm"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <h2>Every fix, <em>ranked</em></h2>
+    <div class="shot" id="shot" style="height:640px"><img src="../../../assets/instagram/shots/fixes.png" alt="" style="width:1500px"><div class="ring" id="ring"></div></div>
+    <div class="tags" id="tags" data-own><span><i>✓</i>Ranked by impact</span><span><i>✓</i>Plain English</span><span><i>✓</i>Time to fix</span></div>
+  </div></section>
 
   <!-- 6 · close -->
-  <section class="scene end" id="sc6" style="padding-top:330px">
-    <div class="brand" id="endBrand"><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
-    <h1 id="endH"><span>Check your store</span><br><em>before the rush.</em></h1>
-    <div class="pill" id="pill"><small>Free website audit</small><b>pagelyt.dev</b></div>
-    <p id="endP">Comment <b>SALE</b> for our free speed guide</p>
-  </section>
-
+  <section class="scene" id="sc6"><div class="block">
+    <div class="brand big" id="endBrand" data-own><svg><use href="#logo"/></svg><b>Pagelyt</b></div>
+    <h1 id="endH" data-own style="font-size:128px"><span>Check your store</span><br><em>before the rush.</em></h1>
+    <div class="pill" id="pill" data-own><small>Free website audit</small><b>pagelyt.dev</b></div>
+    <p class="endp" id="endP" data-own>Comment <b>SALE</b> for our free speed guide</p>
+  </div></section>
 </div>
 
 <script src="voice/words.js"></script>
 <script src="../../tools/captions.js"></script>
+<script src="../../tools/reel-base.js"></script>
 <script>
-const $ = (id) => document.getElementById(id);
-const clamp = (x) => Math.max(0, Math.min(1, x));
-const ramp = (t, a, b) => clamp((t - a) / (b - a));
-const ease = (x) => x < .5 ? 4*x*x*x : 1 - Math.pow(-2*x + 2, 3) / 2;
-const out = (x) => 1 - Math.pow(1 - x, 3);
-const back = (x) => { const c = 1.7; return 1 + (c + 1) * Math.pow(x - 1, 3) + c * Math.pow(x - 1, 2); };
-const lerp = (a, b, x) => a + (b - a) * x;
+const { $, ramp, out, back, ease, lerp, clamp } = Reel;
+const SL = [2.6, 3.4, 3.8, 3.4, 3.2, 3.0];
+const R = Reel.setup({ scenes: ["sc1", "sc2", "sc3", "sc4", "sc5", "sc6"], silent: SL, autoIn: true });
+const K = (i, len) => len / (SL[i] + .2);
 
-const Q = location.search, SILENT = Q.includes("silent"), CAPTIONS = Q.includes("captions") && !SILENT;
-const IDS = ["sc1", "sc2", "sc3", "sc4", "sc5", "sc6"];
-// clip lengths and word timings come from voice/words.js (python3 marketing/tools/tts.py <post>)
-const VLEN = window.VOICE_DATA.map((d) => d.len), LEAD = .2, GAP = .25;
-const SLEN = [2.6, 3.4, 3.8, 3.4, 3.2, 3.0]; // silent scene lengths
-const S = {}, VOICE = []; let at = 0;
-IDS.forEach((id, i) => {
-  const a = i === 0 ? 0 : at - .2;
-  const len = SILENT ? SLEN[i] : LEAD + VLEN[i] + GAP;
-  if (!SILENT) VOICE.push({ src: `voice/v${i + 1}.mp3`, at: a + LEAD });
-  S[id] = [a, a + len + (i === IDS.length - 1 ? .7 : .2)]; at = a + len + .2;
-});
-const DURATION = Math.round((S.sc6[1] - .3) * 10) / 10;
-
-function scene(id, t) {
-  const [a, b] = S[id], el = $(id);
-  const vin = a === 0 ? 1 : out(ramp(t, a, a + .35)), vout = id === "sc6" ? 1 : 1 - ramp(t, b - .3, b);
-  const v = Math.min(vin, vout);
-  el.style.opacity = v; el.style.transform = `translateY(${(1 - vin) * 40}px)`;
-  return v > 0 ? t - a : null; // local time
-}
-const L = (id) => S[id][1] - S[id][0];
-
-const PK = 692 / 1170, PX = 194, PY = 656; // phone view's top-left on the stage
-function placeHome() {
-  const box = (x1, y1, x2, y2, el) => Object.assign(el.style, { left: x1*PK + "px", top: y1*PK + "px", width: (x2-x1)*PK + "px", height: (y2-y1)*PK + "px" });
-  box(120, 1250, 1060, 1372, $("typed"));
-  box(335, 1423, 835, 1553, $("press"));
-}
+// phone: phone-home.png shown 568 wide inside the view
+const PK = 568 / 1170;
+const box = (x1, y1, x2, y2, el) => Object.assign(el.style, { left: x1 * PK + "px", top: y1 * PK + "px", width: (x2 - x1) * PK + "px", height: (y2 - y1) * PK + "px" });
+box(120, 1250, 1060, 1372, $("typed")); box(335, 1423, 835, 1553, $("press"));
 const FK = 1500 / 1776; // fixes.png scale; first fix card spans x 24..1752, y 84..360
 
-function setT(t) {
-  const mid = t > S.sc1[1] - .3 && t < S.sc6[0] + .3;
-  $("arcs").style.transform = `translate(${Math.sin(t / 5) * 30}px, ${mid ? 330 : 0}px)`;
-  $("arcs").style.opacity = mid ? .3 : 1;
-  let u;
-
-  if ((u = scene("sc1", t)) !== null) {
-    $("hookH").style.transform = `scale(${lerp(1, 1.04, ramp(u, 0, L("sc1")))})`;
-    const p = .5 + .5 * Math.sin(u * 6); $("chip").querySelector("i").style.boxShadow = `0 0 0 ${4 + p * 8}px rgba(254,121,162,${.35 - p * .2})`;
-  }
-  if ((u = scene("sc2", t)) !== null) {
-    $("pct").textContent = Math.round(61 * out(ramp(u, .3, 1.6)));
-    $("load").style.width = (ramp(u, .2, 1.4) * 72) + "%"; // stalls at 72%: the "crash"
-  }
-  if ((u = scene("sc3", t)) !== null) {
-    const len = L("sc3"), when = SILENT ? [.25, 1.1, 1.95] : [len * .2, len * .42, len * .62];
-    [...$("list").children].forEach((el, i) => { const q = ramp(u, when[i], when[i] + .4); el.style.opacity = clamp(q * 1.5); el.style.transform = `translateX(${(1 - out(q)) * 120}px)`; });
-  }
-  if ((u = scene("sc4", t)) !== null) {
-    const k = L("sc4") / 3.4, url = "yourstore.com", n = Math.round(ramp(u, .4 * k, 1.5 * k) * url.length);
-    $("typedText").textContent = url.slice(0, n);
-    $("caret").style.opacity = u < 1.8 * k ? 1 : 0;
-    const bx = PX + 620 * PK, by = PY + 1490 * PK, m = ease(ramp(u, 1.5 * k, 2.2 * k));
-    const c = $("cur4"); c.style.left = lerp(860, bx, m) + "px"; c.style.top = lerp(1640, by, m) + "px";
-    c.style.transform = `scale(${u > 2.3 * k && u < 2.5 * k ? .82 : 1})`;
-    const p = ramp(u, 2.35 * k, 3 * k); $("press").style.boxShadow = `0 0 0 ${p * 40}px rgba(106,48,189,${.5 * (1 - p)})`;
-    $("homeImg").style.transform = `scale(${1 + ease(ramp(u, 2.5 * k, 3.4 * k)) * .05})`;
-  }
-  if ((u = scene("sc5", t)) !== null) {
-    const q = out(ramp(u, .1, .6)); $("shot").style.transform = `translateY(${(1 - q) * 60}px) scale(${lerp(.96, 1, q)})`;
-    Object.assign($("ring").style, { left: (24 * FK - 10) + "px", top: (84 * FK - 10) + "px", width: (960 - (24 * FK - 10) - 14) + "px", height: (276 * FK + 20) + "px" });
-    const r = ramp(u, .8, 1.1); $("ring").style.opacity = r; $("ring").style.boxShadow = `0 0 0 ${8 + 8 * Math.sin(u * 5)}px rgba(106,48,189,.15)`;
-    [...$("tags").children].forEach((el, i) => { const z = ramp(u, 1.1 + i * .25, 1.45 + i * .25); el.style.opacity = z; el.style.transform = `scale(${lerp(.8, 1, back(z))})`; });
-  }
-  if ((u = scene("sc6", t)) !== null) {
-    $("endBrand").style.transform = `scale(${lerp(.7, 1, back(ramp(u, .05, .5)))})`;
-    [...$("endH").querySelectorAll("span, em")].forEach((el, i) => { const q = out(ramp(u, .3 + i * .3, .7 + i * .3)); el.style.opacity = q; el.style.display = "inline-block"; el.style.transform = `translateY(${(1 - q) * 30}px)`; });
-    const p = back(ramp(u, .9, 1.3)); $("pill").style.opacity = clamp(p); $("pill").style.transform = `scale(${lerp(.8, 1, p)})`;
-    $("endP").style.opacity = ramp(u, 1.3, 1.7);
-  }
-
-  if (CAP) CAP.update(t, VOICE);
-}
-
-const CAP = CAPTIONS ? Captions.mount($("stage"), { top: 1610 }) : null;
-placeHome();
-window.setT = setT; window.DURATION = DURATION; window.VOICE = VOICE;
-setT(0);
-if (Q.includes("play")) { VOICE.forEach((v) => { const a = new Audio(v.src); setTimeout(() => a.play().catch(() => {}), v.at * 1000); }); const t0 = performance.now(); (function f() { const t = (performance.now() - t0) / 1000; setT(t % DURATION); requestAnimationFrame(f); })(); }
+R.on("sc1", (u, len) => {
+  $("hookH").style.transform = `scale(${lerp(1, 1.04, ramp(u, 0, len))})`;
+  const p = .5 + .5 * Math.sin(u * 6); $("chip").querySelector("i").style.boxShadow = `0 0 0 ${4 + p * 8}px rgba(254,121,162,${.35 - p * .2})`;
+});
+R.on("sc2", (u, len) => { const k = K(1, len);
+  $("pct").textContent = Math.round(61 * out(ramp(u, .4 * k, 1.7 * k)));
+  $("load").style.width = (ramp(u, .3 * k, 1.5 * k) * 72) + "%"; // stalls at 72%: the "crash"
+});
+R.on("sc3", (u, len) => { const k = K(2, len), when = [.4, 1.2, 2.0];
+  [...$("list").children].forEach((el, i) => { const a = when[i] * k, q = ramp(u, a, a + .4); el.style.opacity = clamp(q * 1.5); el.style.transform = `translateX(${(1 - out(q)) * 140}px)`;
+    el.querySelector(".n").style.transform = `scale(${u > a ? lerp(1.4, 1, ramp(u, a + .2, a + .45)) : 1})`; });
+});
+R.on("sc4", (u, len) => { const k = K(3, len);
+  const url = "yourstore.com", n = Math.round(ramp(u, .5 * k, 1.5 * k) * url.length);
+  $("typedText").textContent = url.slice(0, n); $("caret").style.opacity = u < 1.8 * k ? 1 : 0;
+  const bx = 620 * PK, by = 1490 * PK, m = ease(ramp(u, 1.5 * k, 2.2 * k)), c = $("cur4");
+  c.style.left = lerp(470, bx, m) + "px"; c.style.top = lerp(780, by, m) + "px";
+  c.style.transform = `scale(${u > 2.3 * k && u < 2.5 * k ? .82 : 1})`;
+  const p = ramp(u, 2.35 * k, 3 * k); $("press").style.boxShadow = `0 0 0 ${p * 34}px rgba(106,48,189,${.5 * (1 - p)})`;
+  $("homeImg").style.transform = `scale(${1 + ease(ramp(u, 2.5 * k, 3.4 * k)) * .05})`;
+});
+R.on("sc5", (u, len) => { const k = K(4, len);
+  Object.assign($("ring").style, { left: (24 * FK - 10) + "px", top: (84 * FK - 10) + "px", width: (960 - (24 * FK - 10) - 14) + "px", height: (276 * FK + 20) + "px" });
+  $("ring").style.opacity = ramp(u, .9 * k, 1.2 * k); $("ring").style.boxShadow = `0 0 0 ${8 + 8 * Math.sin(u * 5)}px rgba(106,48,189,.15)`;
+  [...$("tags").children].forEach((el, i) => { const z = ramp(u, (1.2 + i * .25) * k, (1.55 + i * .25) * k); el.style.opacity = z; el.style.transform = `scale(${lerp(.8, 1, back(z))})`; });
+});
+R.on("sc6", (u) => {
+  $("endBrand").style.transform = `scale(${lerp(.7, 1, back(ramp(u, .05, .5)))})`;
+  [...$("endH").children].filter((c) => c.tagName !== "BR").forEach((el, i) => { const q = out(ramp(u, .3 + i * .3, .7 + i * .3)); el.style.opacity = q; el.style.display = "inline-block"; el.style.transform = `translateY(${(1 - q) * 30}px)`; });
+  const q = ramp(u, .9, 1.3), beat = u > 1.5 ? 1 + Math.sin((u - 1.5) * 5) * .02 : 1;
+  $("pill").style.opacity = clamp(q * 1.6); $("pill").style.transform = `scale(${lerp(.8, 1, back(q)) * beat})`;
+  $("endP").style.opacity = ramp(u, 1.3, 1.7);
+});
+R.start();
 </script>
 </body>
 </html>
