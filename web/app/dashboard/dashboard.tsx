@@ -26,6 +26,7 @@ import { Assistant } from "./assistant";
 import { GoogleData, type GoogleTab } from "./google-data";
 import type { AiTab } from "./ai-insights";
 import { AiOverviewCard } from "./analytics-data";
+import { pushScanContext, scoreBand } from "@/lib/analytics";
 import { useGoogle } from "./use-google";
 import { byTraffic, trafficMap } from "@/lib/google/gsc-insights";
 import { visitsMap } from "@/lib/google/ga4-insights";
@@ -422,6 +423,20 @@ export function Dashboard({ scan, history, savedFixed, shots, canEmail }: { scan
   const pct = scan.findings.length ? Math.round((fixedCount / scan.findings.length) * 100) : 100;
 
   const high = remaining.filter((f) => f.severity === "high").length;
+
+  // dataLayer: the score and issue counts of the report on screen, once per scan.
+  useEffect(() => {
+    const mods = scoreModules(scan.findings);
+    pushScanContext({
+      host: scan.host,
+      overall: scan.overall,
+      band: scoreBand(scan.overall),
+      open_issues: scan.findings.length,
+      high_issues: scan.findings.filter((f) => f.severity === "high").length,
+      modules: Object.fromEntries(mods.map((m) => [m.key, m.score])),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scan.id]);
 
   // Overall points each open finding is worth, and the headline win if the important ones are fixed.
   const gains = useMemo(() => {

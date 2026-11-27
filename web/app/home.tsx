@@ -108,6 +108,7 @@ export default function Home({ guides = [] }: { guides?: GuideCard[] }) {
   /* Runs the scan with the visitor's details, then opens their dashboard. A brand-new account that still has to
      enter its email code goes to its (locked) dashboard at once, and the scan carries on from there. */
   const startScan = async ({ lead, turnstile, ticket, token }: ScanStart): Promise<ScanProblem | null> => {
+    track("scan_url_submitted", { source: "home", signed_in: !!token, has_lead: !!lead });
     try {
       const res = await fetch("/api/scan", {
         method: "POST",
@@ -115,7 +116,10 @@ export default function Home({ guides = [] }: { guides?: GuideCard[] }) {
         body: JSON.stringify({ url: url.trim(), ...(lead ? { lead } : {}), turnstile, ticket }),
       });
       const start = await res.json();
-      if (!res.ok) return { error: start.error || "Scan failed.", code: start.code, domain: start.domain };
+      if (!res.ok) {
+        track("scan_failed", { source: "home", status: res.status, reason: String(start.code ?? "error") });
+        return { error: start.error || "Scan failed.", code: start.code, domain: start.domain };
+      }
       track("scan_started", { source: "home", signed_in: !!token });
       // The dashboard runs the scan and shows each area as it finishes. A signed-in visitor's scan is theirs:
       // the dashboard saves it to their account when it's done (?new=1); a cached, finished scan is saved here.

@@ -327,6 +327,7 @@ export function LeadModal({
     e.preventDefault();
     setErr("");
     const f = new FormData(e.currentTarget);
+    track("auth_submitted", { mode: mode ?? "none", from_tool: !!tool });
     if (mode === "login") return login(f);
     if (mode === "signup" || mode === "claim") return signup(f, mode === "claim");
   };
